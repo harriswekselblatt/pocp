@@ -5,7 +5,7 @@ import { computeMetrics } from './metrics.js';
 import { runMutantEval } from './mutants.js';
 import { replayFixes, simulateGate } from './history.js';
 import { applyGithubProtection, checkGithubProtection, requiredChecksPlan } from './ci-github.js';
-import { hooksHealth, initProofDir, installHooks, uninstallHooks } from './init.js';
+import { formatLayout, hooksHealth, initProofDir, installHooks, uninstallHooks } from './init.js';
 import { loadHost } from './host.js';
 import { ValidationError, describeObligation } from './obligations.js';
 import { ruleWarnings, validateRules } from './rules.js';
@@ -336,9 +336,12 @@ export async function main(argv = process.argv.slice(2)) {
         const r = initProofDir(process.cwd());
         let hooks = null;
         if (flags.hooks) hooks = installHooks(process.cwd(), { force: flags.force });
-        out(json, { created: r.created, hooks }, [
+        out(json, { created: r.created, hooks, test_layout: r.layout }, [
           r.created.length ? `created ${r.created.join(', ')}` : '.proof/ already set up',
+          // The layout on a first init, or when it needs something done; quiet otherwise.
+          ...(r.config_created || r.layout.extra.length || r.layout.uncovered.length ? formatLayout(r.layout, { written: r.layout_written }) : []),
           hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : 'hooks not installed (run "pocp hooks install")',
+          ...(hooks?.chained || []).map((n) => `${n}: chained (the existing hook is now ${n}.pre-pocp and runs first)`),
           ...(hooks?.warnings || []).map((w) => `warning: ${w}`),
         ].join('\n'));
         return hooks?.refused ? EXIT.usage : EXIT.ok;
@@ -347,7 +350,7 @@ export async function main(argv = process.argv.slice(2)) {
         const sub = rest[0];
         if (sub === 'install') {
           const r = installHooks(process.cwd(), { force: flags.force });
-          out(json, r, r.refused ? `hooks not installed: ${r.refused}` : [`hooks installed in ${r.dir}`, ...r.warnings.map((w) => `warning: ${w}`)].join('\n'));
+          out(json, r, r.refused ? `hooks not installed: ${r.refused}` : [`hooks installed in ${r.dir}`, ...(r.chained || []).map((n) => `${n}: chained (the existing hook is now ${n}.pre-pocp and runs first)`), ...r.warnings.map((w) => `warning: ${w}`)].join('\n'));
           return r.refused ? EXIT.usage : EXIT.ok;
         }
         if (sub === 'status') {

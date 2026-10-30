@@ -68,7 +68,7 @@ npm install --save-dev github:harriswekselblatt/pocp#<commit>
 npx pocp init --hooks
 ```
 
-`init` creates `.proof/` and installs three git hooks (gate, trailer, landing). Then write a rule in `.proof/rules.json`:
+`init` creates `.proof/`, prints where it found your tests (and adds test folders the defaults miss to `guard.extra_test_globs`), and installs three git hooks (gate, trailer, landing). Hooks you already have keep running: one pocp can't append to (a node or python hook, or one that ends in `exec`, like the pre-commit framework's) is moved to `<hook>.pre-pocp` and runs first. Then write a rule in `.proof/rules.json`:
 
 ```json
 {
