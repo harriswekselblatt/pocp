@@ -57,7 +57,12 @@ Every number below links to its raw data and the command that produced it. All o
   - **StrykerJS, 16 sampled mutants:** POCP's checks and Stryker agreed on all 16.
 
   Full numbers will be published here as counted runs finish, whether or not they clear the bars.
-- **Cost on honest work:** in POCP's own development (mostly agent-written commits), a blocked commit took a median of about 2 minutes to get through ([data](eval/e5/RESULTS.md)). Changing an *existing* test file is the slow case: the mechanical test check can take several minutes because it runs the suite once per planted bug. Adding new tests costs nothing extra.
+- **Cost on honest work** ([data](eval/e5/RESULTS.md)), from POCP's own development, mostly agent-written commits:
+  - **Most commits get blocked once.** Only 7 of 45 commits that touched guarded files passed the gate on the first try.
+  - **Getting through is usually quick:** a median of about 2 minutes, mostly running `pocp fix`.
+  - **Changing an existing test file is the slow, strict case.** The mechanical test check runs the suite once per planted bug. It took up to about 17 minutes, and it passed only 2 of the 9 times it ran; the others needed a maintainer's approval in CI.
+  - **Adding new tests costs nothing extra.**
+  - **Every proven change adds a small record** (`.proof/packets/*.json`, typically 70–170 lines) to the repository.
 
 ## Quick start
 
@@ -74,7 +79,7 @@ npx pocp init --hooks
 {
   "pocp": 1,
   "requirements": [
-    { "id": "billing-tests", "glob": "src/billing/**",
+    { "id": "billing-tests", "globs": ["src/billing/**"],
       "obligation": { "kind": "test", "run": "node --test test/billing.test.js" } }
   ]
 }
