@@ -1859,6 +1859,24 @@ export function createPocp(opts = {}) {
         trig.required_files = [...new Set([...trig.required_files, ...guard.files])].sort();
         trig.reasons.push({ code: 'test_change', detail: 'existing tests or test setup changed', files: guard.files });
       }
+      // One rule for rules-based coverage, per commit and net alike: a file's requirements,
+      // protected paths and trigger globs are judged where it changed, by the policy at that
+      // commit. So a file some commit's own check already judged is required again here only
+      // by what concerns the whole change (broad, cross-area, test setup), or by the base's
+      // policy (a range can't loosen that). A rule added inside the range applies from its own
+      // commit on, not back to files changed before it. Files no per-commit check saw (merge
+      // content) are judged by the policy in force at the tip, as before.
+      const basePol = policyAt(netBase);
+      const baseTrig = evaluateTriggers(paths, { rules: basePol.rules, config: basePol.config, hostName });
+      const baseCi = new Set(changedCiFiles(changes, basePol.config));
+      const ruleCodes = new Set(['requirement', 'glob']);
+      const wholeChange = new Set(trig.reasons.filter((r) => !ruleCodes.has(r.code) && r.code !== 'ci_config').flatMap((r) => r.files || []));
+      const byBase = new Set([...baseTrig.required_files, ...baseCi]);
+      const notRetroactive = trig.required_files.filter((f) => touchedByCommits.has(f) && !wholeChange.has(f) && !byBase.has(f));
+      if (notRetroactive.length) {
+        trig.required_files = trig.required_files.filter((f) => !notRetroactive.includes(f));
+        out.notes.push(`required only by policy added inside the range, and judged by its own commit's policy: ${notRetroactive.join(', ')}`);
+      }
       // Any packet in the range may cover a file; files a commit already reported are not repeated.
       const packets = results.flatMap((x) => x.packetData || []);
       const reported = new Set(results.flatMap((x) => x.coverage?.uncovered || []));
