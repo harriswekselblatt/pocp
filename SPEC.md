@@ -632,21 +632,26 @@ sides have them). If the commit loosens the policy (removes or changes a require
 drops a glob from a requirement, raises a threshold, removes a protected path, adds an
 exemption, or adds a key to `allowed_signers`), verify fails and names each loosening, unless run with
 `--accept-policy-change`, which CI should pass only when a maintainer has approved
-(for example, a PR label). Trusted signers also come from the base, or from
+(for example, a PR label). `--accept-policy-change=<commit>` (and likewise
+`--accept-test-change=<commit>`) approves only when the head being verified is that commit. Trusted signers also come from the base, or from
 `--allowed-signers <file>`, never from the commit being judged.
 
-**Re-running.** With `--rerun`, every runnable obligation runs again in a clean checkout.
+**Re-running.** With `--rerun`, every runnable obligation runs again, each in its own fresh
+copy of the commit's files with no `.git`, and so does each `verify.require_ci` command that
+no obligation covered.
 With `--rerun-unsigned`, obligations whose current proof is validly signed by a trusted
 signer (§5.5) are not re-run. With `--ci-results <file>`, a check is also skipped when the
 file holds a passing `ci-result` record (written by `pocp ci-run`, §7.3) whose subject hash
 equals the commit being re-run and whose command equals the obligation's `run`; checks
-with `expect` are always re-run. POCP thereby adds to CI without running anything twice. For a range, digests, coverage and signatures are checked
-per commit (nothing runs), and re-runs happen **once**, at the head of the range (the range's
-right side, even when it is a merge commit), for the union of checks across the range plus the
-checks the rules require for the net change. When the head is a merge commit, no signature
-covers its code, so `--rerun-unsigned` re-runs everything there. The test guard re-runs per
-commit with a test change, and once more on the net change. Only a re-run, or a proof signed
-by someone you trust, counts as an independent result.
+with `expect` are always re-run. Such a record is only as trustworthy as everything that ran
+in the job before verify, including the change's own tests, which can write the file. For a
+range, digests, coverage and signatures are checked per commit (nothing runs), and re-runs
+happen **once**, at the head of the range (the range's right side, even when it is a merge
+commit), for the union of checks across the range plus the checks the rules require for the
+net change. When the head is a merge commit, no signature covers its code, so
+`--rerun-unsigned` re-runs everything there. The test guard re-runs per commit with a test
+change, and once more on the net change. Only a re-run, or a proof signed by someone you
+trust, counts as an independent result.
 
 **Fails closed.** If `rules.json` or `config.json` at the commit or at its base doesn't
 parse, or doesn't validate (§6, `validateConfig`), verify fails and names each problem.
@@ -948,10 +953,11 @@ All are thin wrappers around `pocp gate --json` and friends.
 - **Coding agents:** any harness with pre-edit or pre-commit hooks calls `pocp gate --json`
   and shows the reasons to the agent. A pre-edit hook can require a packet before files
   matching `triggers.globs` are edited. Examples are provided for common harnesses.
-- **CI:** wrap the test step in `pocp ci-run --results ci.jsonl -- <command>`, then
-  `pocp verify base..head --require-coverage --rerun-unsigned --ci-results ci.jsonl` checks
-  every commit in a pull request against the base policy and re-runs only what neither a CI
-  result nor a trusted signer already covered.
+- **CI:** `pocp verify base..head --require-coverage --rerun` checks every commit in a pull
+  request against the base policy and re-runs every check at the head. A faster, trusting
+  mode wraps the test step in `pocp ci-run --results ci.jsonl -- <command>` and adds
+  `--ci-results ci.jsonl`; it trusts everything that ran earlier in the job, which includes
+  the pull request's tests.
 
 ## 13. Trust and security
 

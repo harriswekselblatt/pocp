@@ -1,0 +1,308 @@
+{
+  "pocp": 1,
+  "id": "p-80841176",
+  "intent": "Isolate verify from the code it re-runs: re-runs in a fresh .git-less export per check, hardened git calls, fail closed on git config/hook/ref changes; verify --rerun runs require_ci; approvals can name a head sha",
+  "touches": [
+    ".github/workflows/pocp-labels.yml",
+    ".github/workflows/pocp.yml",
+    "action.yml",
+    "src/ci-results.js",
+    "src/cli.js",
+    "src/engine.js",
+    "src/git.js",
+    "src/remedies.js",
+    "src/workspace.js",
+    "test/ci-independence.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-10-30T02:14:37.462Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:fac74088251c72f14ad4a291f4cb660fbc0c76a54e80a0477979999419d86b34",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:14:38.217Z",
+      "duration_ms": 2320,
+      "stdout_sha256": "88e5b8682e6581a4c62bf40805b9af76580c577dc61118f59f41041e7e47a4a4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-d6fe828c",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:fac74088251c72f14ad4a291f4cb660fbc0c76a54e80a0477979999419d86b34",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:14:40.577Z",
+      "duration_ms": 46719,
+      "stdout_sha256": "d68745d752db9b1798993761d0b1e212a0ba511eaf54b5993b5e8b265201cedf",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-9209f338",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:fac74088251c72f14ad4a291f4cb660fbc0c76a54e80a0477979999419d86b34",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "snapshot",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-10-30T02:15:27.380Z",
+      "duration_ms": 259767,
+      "stdout_sha256": "4672dca4c5f21f21e11630680cbfe28a3d7f9732743212f3eae7ff442dc8393a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-6472c36a",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:596f157e16d76bd4ee510d72bed0a47051e890e084ae4c83dbf07b2e05c8d1e0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:20:04.154Z",
+      "duration_ms": 2277,
+      "stdout_sha256": "3a2093c5ca1b4dcfd621b9c58cff4470309d1f96226808220b3e1392edaab140",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-06fe14a6",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:596f157e16d76bd4ee510d72bed0a47051e890e084ae4c83dbf07b2e05c8d1e0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:20:06.500Z",
+      "duration_ms": 48286,
+      "stdout_sha256": "e12809791596b24e22cfa229f4748ad72df01ecdf807352ea1a6410d17190cff",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b964b254",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:596f157e16d76bd4ee510d72bed0a47051e890e084ae4c83dbf07b2e05c8d1e0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:20:54.871Z",
+      "duration_ms": 189302,
+      "stdout_sha256": "4ea0b9b07dae7abd5d0fb496b3591c062aea727b73dde348fe919ca086a8e8c0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-e2b00a5c",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:13fc90a67c9070254a35c5411290a3facf013afb91108cab13f4428c0c5ebc62",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:27:04.020Z",
+      "duration_ms": 3601,
+      "stdout_sha256": "400c5c5f0fea941f1ebc8a3e7bfb0c0c69791d4e6edf6cd141a008755e4abb10",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-0c7c4bc1",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:13fc90a67c9070254a35c5411290a3facf013afb91108cab13f4428c0c5ebc62",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:27:07.746Z",
+      "duration_ms": 64319,
+      "stdout_sha256": "422b1d7fa36a2a93b2374cace229f6d4c6ec415258fcce652d7f3b4dceda8a25",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-a35b087e",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:13fc90a67c9070254a35c5411290a3facf013afb91108cab13f4428c0c5ebc62",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:28:12.171Z",
+      "duration_ms": 169347,
+      "stdout_sha256": "4b7330d4a4dc669446890bafef4fd77ca724b0abc7f47c0874605ca4c12bf2b6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-a80ad732",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T02:14:37.462Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-10-30T02:14:37.462Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-10-30T02:19:47.227Z",
+      "event": "proof_failed",
+      "obligation": "o3",
+      "subject": "sha256:fac74088251c72f14ad4a291f4cb660fbc0c76a54e80a0477979999419d86b34"
+    },
+    {
+      "at": "2026-10-30T02:19:47.274Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:fac74088251c72f14ad4a291f4cb660fbc0c76a54e80a0477979999419d86b34"
+    },
+    {
+      "at": "2026-10-30T02:20:03.795Z",
+      "event": "touches_widened",
+      "added": [
+        ".github/workflows/pocp-labels.yml",
+        ".github/workflows/pocp.yml",
+        "action.yml"
+      ],
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-10-30T02:24:04.305Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:596f157e16d76bd4ee510d72bed0a47051e890e084ae4c83dbf07b2e05c8d1e0"
+    }
+  ]
+}

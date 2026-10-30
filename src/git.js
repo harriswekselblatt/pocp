@@ -1,5 +1,7 @@
 import { execFileSync } from 'node:child_process';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { digest } from './hash.js';
 
@@ -15,18 +17,87 @@ export class GitError extends Error {
   }
 }
 
+/** The repository's git state changed while it was isolated (see isolateGit). */
+export class GitTamperError extends GitError {
+  constructor(message) {
+    super(message);
+    this.name = 'GitTamperError';
+  }
+}
+
+// ---------------------------------------------------------------------- hardening
+//
+// Git config can make git run commands: core.fsmonitor on index reads (checkout-index,
+// status), hooks on checkout, external diff and textconv drivers on diff. POCP's own git calls
+// never need any of them, so every call turns them off on the command line, which overrides
+// every config file. `config` and `rev-parse` keep core.hooksPath: doctor and init read it,
+// and neither command runs hooks.
+const KEEPS_HOOKS_PATH = new Set(['config', 'rev-parse']);
+const DIFFS = new Set(['diff', 'log', 'show']);
+
+// Environment variables that point git at another repository, index or config. In isolation
+// they are not inherited. (Outside it they are: git sets GIT_INDEX_FILE for the commit hooks,
+// and `git commit <paths>` stages into a temporary index the gate must read.)
+const REPO_ENV = new Set([
+  'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR', 'GIT_NAMESPACE', 'GIT_PREFIX', 'GIT_CONFIG', 'GIT_CONFIG_PARAMETERS', 'GIT_CONFIG_COUNT',
+  'GIT_REPLACE_REF_BASE', 'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE', 'GIT_CEILING_DIRECTORIES',
+]);
+
+let isolation = null; // { root, commonDir, gitDir, safeDirs, watched, fast, refs, tampered }
+let noRepoEnv = false;
+
+/**
+ * Stop inheriting repository-locating environment variables (GIT_DIR, GIT_INDEX_FILE, …) for
+ * the rest of this process. `pocp verify` calls it first: it judges the repository it runs
+ * in, never one the environment points to.
+ */
+export function ignoreRepoEnv() {
+  noRepoEnv = true;
+}
+
+/** The arguments POCP actually passes to git for `args`. */
+export function hardenedArgs(args) {
+  const sub = args[0];
+  const pre = ['-c', 'core.fsmonitor=false'];
+  if (!KEEPS_HOOKS_PATH.has(sub)) pre.push('-c', `core.hooksPath=${os.devNull}`);
+  if (isolation) for (const d of isolation.safeDirs) pre.push('-c', `safe.directory=${d}`);
+  const rest = DIFFS.has(sub) ? [sub, '--no-ext-diff', '--no-textconv', ...args.slice(1)] : args;
+  return [...pre, ...rest];
+}
+
+/** The environment POCP runs git with. */
+export function gitEnv(extra) {
+  const env = { ...process.env };
+  delete env.GIT_EXTERNAL_DIFF;
+  if (isolation || noRepoEnv) for (const k of Object.keys(env)) if (REPO_ENV.has(k) || /^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(k)) delete env[k];
+  if (isolation) {
+    env.GIT_CONFIG_GLOBAL = os.devNull;
+    env.GIT_CONFIG_NOSYSTEM = '1';
+    env.GIT_NO_REPLACE_OBJECTS = '1';
+  }
+  env.GIT_TERMINAL_PROMPT = '0';
+  return extra ? { ...env, ...extra } : env;
+}
+
+function exec(cwd, args, { input, env, encoding, stdio = ['pipe', 'pipe', 'pipe'] } = {}) {
+  if (isolation) assertIntact();
+  return execFileSync('git', hardenedArgs(args), {
+    cwd,
+    input,
+    env: gitEnv(env),
+    ...(encoding ? { encoding } : {}),
+    maxBuffer: 256 * 1024 * 1024,
+    stdio,
+  });
+}
+
 export function git(cwd, args, { input, allowFail = false, trim = true, env } = {}) {
+  let out;
   try {
-    const out = execFileSync('git', args, {
-      cwd,
-      input,
-      ...(env ? { env: { ...process.env, ...env } } : {}),
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return trim ? out.replace(/\s+$/, '') : out;
+    out = exec(cwd, args, { input, env, encoding: 'utf8' });
   } catch (err) {
+    if (err instanceof GitTamperError) throw err; // never swallowed by allowFail
     if (allowFail) return null;
     const stderr = err.stderr ? String(err.stderr).trim() : '';
     throw new GitError(`git ${args.join(' ')} failed${stderr ? `: ${stderr}` : ''}`, {
@@ -35,6 +106,141 @@ export function git(cwd, args, { input, allowFail = false, trim = true, env } = 
       status: err.status,
     });
   }
+  return trim ? out.replace(/\s+$/, '') : out;
+}
+
+// ---------------------------------------------------------------------- isolation
+//
+// While verify runs the pull request's code, that code runs as the same user and can write the
+// repository's git config, hooks and refs. In isolation: global and system config are not read
+// (the code can write ~/.gitconfig too), repository-locating environment variables are not
+// inherited, replace refs are ignored, and before every git call the repository's config, its
+// included files, info/attributes, alternates and hooks are compared with what they were when
+// isolation began. Any difference stops the run (GitTamperError) and stays recorded, so the
+// final check fails even if the code put things back. Refs are compared at the end.
+
+function readOrMissing(file) {
+  try {
+    const st = fs.lstatSync(file);
+    if (st.isSymbolicLink()) return `link:${fs.readlinkSync(file)}`;
+    if (st.isDirectory()) return `dir:${fs.readdirSync(file).sort().map((n) => `${n}\0${readOrMissing(path.join(file, n))}`).join('\0')}`;
+    return `file:${st.mode}:${fs.readFileSync(file).toString('base64')}`;
+  } catch {
+    return 'missing';
+  }
+}
+
+function fastState(watched) {
+  return watched.map((f) => [f, crypto.createHash('sha256').update(readOrMissing(f)).digest('hex')]);
+}
+
+function refsState(root) {
+  const env = gitEnv();
+  const run = (args) => {
+    try {
+      return execFileSync('git', hardenedArgs(args), { cwd: root, env, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      return '';
+    }
+  };
+  return `${run(['for-each-ref', '--format=%(refname) %(objectname)'])}\nHEAD ${run(['symbolic-ref', '-q', 'HEAD']).trim() || run(['rev-parse', '-q', '--verify', 'HEAD']).trim()}`;
+}
+
+function describeChange(before, after) {
+  const changed = after.filter(([f, h], i) => before[i][1] !== h).map(([f]) => path.relative(isolation.root, f) || f);
+  return changed.length ? `${changed.join(', ')} changed` : null;
+}
+
+function assertIntact() {
+  if (!isolation.tampered) {
+    const problem = describeChange(isolation.fast, fastState(isolation.watched));
+    if (problem) isolation.tampered = problem;
+  }
+  if (isolation.tampered) throw new GitTamperError(tamperMessage(isolation.tampered));
+}
+
+function tamperMessage(problem) {
+  return `the repository's git state changed while verify ran the pull request's code (${problem}): its config, hooks or refs are not what verify started with, so nothing this verify ran is trusted. Run verify again on a fresh checkout`;
+}
+
+/**
+ * Isolate POCP's git calls in `root` from config the code under review may write. Call it
+ * before running that code. Returns `release`, which ends isolation.
+ */
+export function isolateGit(root) {
+  if (isolation) throw new Error('git is already isolated');
+  // Trusted safe.directory entries come from global/system config, read once before any
+  // code under review runs; later calls pass them on the command line.
+  const safeDirs = ['--global', '--system'].flatMap((scope) => (git(root, ['config', scope, '--get-all', 'safe.directory'], { allowFail: true }) || '').split('\n').filter(Boolean));
+  const abs = (p) => path.resolve(root, p);
+  const commonDir = abs(git(root, ['rev-parse', '--git-common-dir']));
+  const gitDir = abs(git(root, ['rev-parse', '--git-dir']));
+  isolation = { root, commonDir, gitDir, safeDirs, watched: [], fast: [], refs: '', tampered: null };
+  try {
+    // The repository's config files and the files they include, as git resolves them now
+    // (global and system config are not read in isolation, so they are not watched either).
+    const origins = (git(root, ['config', '--list', '--show-origin', '-z', '--includes'], { allowFail: true, trim: false }) || '')
+      .split('\0').filter((s) => s.startsWith('file:')).map((s) => abs(s.slice(5)));
+    isolation.watched = [...new Set([
+      path.join(commonDir, 'config'),
+      path.join(commonDir, 'config.worktree'),
+      path.join(gitDir, 'config.worktree'),
+      path.join(commonDir, 'info', 'attributes'),
+      path.join(commonDir, 'info', 'grafts'),
+      path.join(commonDir, 'objects', 'info', 'alternates'),
+      path.join(commonDir, 'hooks'),
+      ...origins,
+    ])];
+    isolation.fast = fastState(isolation.watched);
+    isolation.refs = refsState(root);
+  } catch (err) {
+    isolation = null;
+    throw err;
+  }
+  return () => {
+    isolation = null;
+  };
+}
+
+/** True while git calls are isolated. */
+export function gitIsolated() {
+  return Boolean(isolation);
+}
+
+/** null when the isolated repository's git state is unchanged; otherwise what changed. Sticky. */
+export function gitStateProblem() {
+  if (!isolation) return null;
+  if (!isolation.tampered) isolation.tampered = describeChange(isolation.fast, fastState(isolation.watched));
+  if (!isolation.tampered && refsState(isolation.root) !== isolation.refs) isolation.tampered = 'refs changed';
+  return isolation.tampered;
+}
+
+/**
+ * Run `fn` with git isolated in `root`. Overlapping calls share one isolation, which ends when
+ * the last of them finishes. Throws GitTamperError if the repository's git config, hooks or
+ * refs changed meanwhile, even when `fn` itself failed or the change was undone.
+ */
+export async function withGitIsolation(root, fn) {
+  if (!isolation) isolateGit(root);
+  const own = isolation;
+  own.users = (own.users || 0) + 1;
+  let value;
+  let error = null;
+  try {
+    value = await fn();
+  } catch (err) {
+    error = err;
+  }
+  let problem;
+  try {
+    problem = gitStateProblem();
+  } finally {
+    own.users -= 1;
+    if (own.users === 0 && isolation === own) isolation = null;
+  }
+  if (problem) throw new GitTamperError(tamperMessage(problem));
+  if (error) throw error;
+  return value;
 }
 
 export function repoRoot(cwd) {
@@ -181,7 +387,7 @@ export function flaggedEntries(cwd) {
 
 /** A blob's bytes. */
 export function blobBuffer(cwd, sha) {
-  return execFileSync('git', ['cat-file', 'blob', sha], { cwd, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
+  return exec(cwd, ['cat-file', 'blob', sha], { stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 export function untrackedFiles(cwd) {
@@ -196,8 +402,9 @@ export function showFile(cwd, rev, path) {
 /** File bytes at a revision, or null if the path does not exist there. */
 export function showFileBuffer(cwd, rev, path) {
   try {
-    return execFileSync('git', ['show', `${rev}:${path}`], { cwd, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
-  } catch {
+    return exec(cwd, ['show', `${rev}:${path}`], { stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch (err) {
+    if (err instanceof GitTamperError) throw err;
     return null;
   }
 }
@@ -253,15 +460,6 @@ export function hooksDir(cwd) {
 
 export function configuredHooksPath(cwd) {
   return git(cwd, ['config', '--get', 'core.hooksPath'], { allowFail: true });
-}
-
-export function worktreeAdd(cwd, dir, rev) {
-  git(cwd, ['worktree', 'add', '--detach', '--force', dir, rev]);
-}
-
-export function worktreeRemove(cwd, dir) {
-  git(cwd, ['worktree', 'remove', '--force', dir], { allowFail: true });
-  git(cwd, ['worktree', 'prune'], { allowFail: true });
 }
 
 /** Export the index into `prefixDir` (must end with "/"). */

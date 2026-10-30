@@ -1,4 +1,9 @@
-# POCP verifying its own pull requests, through its own Action.
+# POCP verifying its own pull requests with the POCP from the base branch: a change to the
+# verifier is judged by the verifier it would replace, never by its own code. The pull request
+# is checked out in pr/ and the base commit in verifier/; only verifier/bin/pocp.js runs verify.
+# (The pull request's code still runs in the re-runs, as in any project; see
+# docs/THREAT-MODEL.md.) Approval labels count only on label events, for the head at that
+# moment; pocp-labels.yml removes them on every push.
 name: pocp
 on:
   pull_request:
@@ -13,15 +18,20 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          path: pr
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: verifier
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # The test step, recorded against this exact commit (this repo has no dependencies to install).
-      - run: node bin/pocp.js ci-run --results ci-results.jsonl -- npm test --silent
-      - uses: ./
-        with:
-          pocp-command: node bin/pocp.js
-          rerun: unsigned
-          ci-results: ci-results.jsonl
-          accept-policy-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') }}
-          accept-test-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') }}
+      # This repo has no dependencies to install.
+      - run: node ../verifier/bin/pocp.js verify "$RANGE" --rerun --require-coverage --accept-policy-change="$APPROVE_POLICY" --accept-test-change="$APPROVE_TESTS"
+        working-directory: pr
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+          APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
+          APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}

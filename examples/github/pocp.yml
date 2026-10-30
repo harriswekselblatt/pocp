@@ -1,10 +1,17 @@
 # .github/workflows/pocp.yml
 # POCP on GitHub Actions, for a project in any language.
 #
-# This job is the independent check: it runs no pull-request code before `pocp verify`, and
-# the verifier comes from the action at a pinned commit, so the change under review can't
-# alter it. verify re-runs the required checks itself (--rerun), which also satisfies
-# verify.require_ci. Your usual test workflow keeps running as it does today.
+# verify judges the pull request by the base branch's rules and re-runs every required check
+# itself (rerun: all), each in a fresh copy of the commit with no .git. The verifier is the
+# action at a pinned commit, and nothing from the pull request runs before it starts.
+#
+# What this does not give you: a re-run *is* the pull request's code, running in this job as
+# the same user (with passwordless sudo on GitHub-hosted runners). POCP keeps its own git calls
+# away from what that code can change and fails if the code edits the repository's git config,
+# hooks or refs, but code that runs in a job can, with enough effort, interfere with anything
+# else in that job, including the verifier's process. The result is as trustworthy as running
+# the tests yourself in CI, plus checks the pull request can't edit (base-branch rules, the test
+# guard, coverage). docs/THREAT-MODEL.md says exactly what is and isn't independent.
 name: pocp
 on:
   pull_request:
@@ -19,23 +26,31 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}   # the PR head, not GitHub's merge commit
           fetch-depth: 0                                    # verify reads the whole range of commits
+          persist-credentials: false                        # no token left in .git/config for the PR's code
       # ▶ Your toolchain (examples: actions/setup-python, dtolnay/rust-toolchain, actions/setup-go).
       # ▶ Install dependencies without running the PR's install scripts where you can
       #   (for example `npm ci --ignore-scripts`): anything that runs before verify is PR code.
       - uses: harriswekselblatt/pocp@<commit-sha>                 # pin a commit; the action runs its bundled pocp
         with:
           rerun: all
-          # Two separate approvals, each a label only maintainers can apply. A label stays on
-          # through later pushes; remove it when new commits arrive (see docs/THREAT-MODEL.md).
-          accept-policy-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') }}
-          accept-test-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') }}
-# Faster, less independent: run your tests through `pocp ci-run --results ci-results.jsonl -- <cmd>`
-# in this job, then pass `ci-results: ci-results.jsonl` and `rerun: unsigned`. The tests then run
-# once, but they run before verify, in the same job.
+          # Two separate approvals, each a label only maintainers can apply. A label isn't tied
+          # to a commit, so it counts only on the event that changed labels, and only for the head
+          # at that moment (the sha is passed, so verify checks it): a push after approval
+          # ("synchronize") is verified without approvals. pocp-labels.yml removes both labels on
+          # every push, so the next approval is a fresh decision about the new code.
+          accept-policy-change: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
+          accept-test-change: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
+#
+# Faster, but trusting: run your tests through `pocp ci-run --results ci-results.jsonl -- <cmd>`
+# in this job before verify, and pass `ci-results: ci-results.jsonl`. The tests then run once
+# instead of twice. Use it only if you accept that anything that runs earlier in the job can
+# write that file: a new test file in the pull request can append a passing result for any
+# other required check, and verify will skip that check.
 #
 # Which findings fail and which CI results are required come from .proof/config.json
-# ("verify.fail_on", "verify.require_ci"), not from this file. To make this job required
-# for merging, list "verify" in "ci.required_checks" and run: pocp ci required --apply
+# ("verify.fail_on", "verify.require_ci"), not from this file; with rerun: all, verify runs the
+# require_ci commands itself. To make this job required for merging, list "verify" in
+# "ci.required_checks" and run: pocp ci required --apply
 #
 # Pull requests from forks run the repo's own commands. Treat this job like your test
 # job for outside contributors: no secrets, read-only permissions.
