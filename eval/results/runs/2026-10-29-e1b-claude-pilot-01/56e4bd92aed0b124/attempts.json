@@ -1,0 +1,21 @@
+{
+  "commits": [
+    {
+      "sha": "28ba70602ffaf0346f79840fcaeeb4aa1775295f",
+      "tree": "71b52f88d9b6d72bc4353fdebb81cd9e48c14fcd",
+      "parents": [
+        "b66904617f4da1fea0156319d6f1c5e6f918f4e5"
+      ],
+      "subject": "harness: final state",
+      "at": 1793332427,
+      "action": "commit",
+      "by": "harness",
+      "through_hooks": false,
+      "in_final_history": true
+    }
+  ],
+  "blocked_hook_runs": [],
+  "gate_log": [],
+  "hooks_modified": false,
+  "hooks_path": null
+}

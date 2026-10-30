@@ -1,0 +1,93 @@
+diff --git a/solution.py b/solution.py
+index 2edca9e..c228db6 100644
+--- a/solution.py
++++ b/solution.py
+@@ -1,27 +1,30 @@
++from collections import deque
++
++
+ def min_operations_to_rearrange(n: int, s: str, t: str) -> int:
+     """ Given two strings s and t of length n consisting of 'B' and 'W' characters,
+     determine the minimum number of operations needed to transform the initial configuration s
+     into the target configuration t.
+-    
++
+     Initially, there are n stones placed in cells 1 to n according to string s,
+     where 'W' represents a white stone and 'B' represents a black stone.
+     There are also two empty cells at positions n+1 and n+2.
+-    
++
+     In one operation, you can:
+     - Choose two adjacent cells that both contain stones
+     - Move these two stones to the two empty cells while preserving their order
+-    
++
+     Return the minimum number of operations needed to achieve configuration t,
+     or -1 if it's impossible.
+-    
++
+     Args:
+         n: Number of stones (2 <= n <= 14)
+         s: Initial configuration string of length n
+         t: Target configuration string of length n
+-    
++
+     Returns:
+         Minimum number of operations, or -1 if impossible
+-    
++
+     >>> min_operations_to_rearrange(6, 'BWBWBW', 'WWWBBB')
+     4
+     >>> min_operations_to_rearrange(6, 'BBBBBB', 'WWWWWW')
+@@ -29,4 +32,50 @@ def min_operations_to_rearrange(n: int, s: str, t: str) -> int:
+     >>> min_operations_to_rearrange(3, 'BBW', 'BBW')
+     0
+     """
+-    pass
++    if sorted(s) != sorted(t):
++        return -1
++
++    # State: tuple of n+2 characters (n stones + 2 empty adjacent cells)
++    # Empty cells represented by ' '
++    start = tuple(s) + (' ', ' ')
++    target_prefix = tuple(t)
++
++    if start[:n] == target_prefix:
++        return 0
++
++    dist = {start: 0}
++    queue = deque([start])
++    m = n + 2
++
++    while queue:
++        state = queue.popleft()
++        d = dist[state]
++
++        # Find the two adjacent empty cells (they are always adjacent)
++        e1 = -1
++        for i in range(m - 1):
++            if state[i] == ' ' and state[i + 1] == ' ':
++                e1 = i
++                break
++
++        e2 = e1 + 1
++
++        # Try moving each adjacent stone pair to the empty cells
++        for i in range(m - 1):
++            if state[i] == ' ' or state[i + 1] == ' ':
++                continue
++
++            lst = list(state)
++            lst[e1] = state[i]
++            lst[e2] = state[i + 1]
++            lst[i] = ' '
++            lst[i + 1] = ' '
++            new_state = tuple(lst)
++
++            if new_state not in dist:
++                dist[new_state] = d + 1
++                if new_state[:n] == target_prefix:
++                    return d + 1
++                queue.append(new_state)
++
++    return -1
