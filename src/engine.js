@@ -274,6 +274,9 @@ export function createPocp(opts = {}) {
       const next = { mode: info.mode, files: info.files.filter((f) => names.has(f)), signals: info.signals.filter((s) => names.has(s.file)) };
       Object.defineProperty(next, 'changes', { value: kept, enumerable: false });
       Object.defineProperty(next, 'base', { value: info.base, enumerable: false });
+      // Keep the files the tests rely on (helpers, setup a command names) marked as test
+      // setup, so the mechanical check never plants a mutant in them during a merge either.
+      if (info.named) Object.defineProperty(next, 'named', { value: info.named, enumerable: false });
       info = next;
     }
     guardCache = { subject, info };
