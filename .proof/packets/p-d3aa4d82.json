@@ -1,0 +1,167 @@
+{
+  "pocp": 1,
+  "id": "p-d3aa4d82",
+  "intent": "Protect the whole eval and study plan; name protected files in verify's failure",
+  "touches": [
+    ".proof/config.json",
+    "eval/README.md",
+    "src/approvals.js",
+    "src/engine.js",
+    "test/protected-files.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:227f6ec3e3b0e84999895579bd52631dd62c2d86a6d8c2ed4597ffcd0e7e7733",
+  "policy_repo": "sha256:227f6ec3e3b0e84999895579bd52631dd62c2d86a6d8c2ed4597ffcd0e7e7733",
+  "opened_at": "2026-10-30T16:13:29.721Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:a9300c4fe1b1dadcaebdcecd3d458e5b3b3700d3f3ff175e1f0ebf26c54459c3",
+      "policy": "sha256:227f6ec3e3b0e84999895579bd52631dd62c2d86a6d8c2ed4597ffcd0e7e7733",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T16:13:30.357Z",
+      "duration_ms": 2584,
+      "stdout_sha256": "7ee1de0a7be3455982c109bb64eb1c728a35b8fb93fc78ec61898dcb7d036771",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-ab3f5a9d",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:a9300c4fe1b1dadcaebdcecd3d458e5b3b3700d3f3ff175e1f0ebf26c54459c3",
+      "policy": "sha256:227f6ec3e3b0e84999895579bd52631dd62c2d86a6d8c2ed4597ffcd0e7e7733",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T16:13:33.015Z",
+      "duration_ms": 54992,
+      "stdout_sha256": "34d948abf2bc18eb80b82a06dcb501d5c564e8c14aff0ac7b895440b2a1fee31",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b5d73a51",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:a9300c4fe1b1dadcaebdcecd3d458e5b3b3700d3f3ff175e1f0ebf26c54459c3",
+      "policy": "sha256:227f6ec3e3b0e84999895579bd52631dd62c2d86a6d8c2ed4597ffcd0e7e7733",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T16:14:28.089Z",
+      "duration_ms": 149675,
+      "stdout_sha256": "5354601c5f66d2fdf363618c7d17b925ba9351a8629ce4f2d75f8c3ff3ec17d5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-682e6110",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:a9300c4fe1b1dadcaebdcecd3d458e5b3b3700d3f3ff175e1f0ebf26c54459c3",
+      "policy": "sha256:227f6ec3e3b0e84999895579bd52631dd62c2d86a6d8c2ed4597ffcd0e7e7733",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T16:16:57.850Z",
+      "duration_ms": 37045,
+      "stdout_sha256": "166489b05d9aaf0570708a7c6283e7ff206866853932845f30e8e725b796edde",
+      "stderr_sha256": "411b2b4a43832d637f2b7eab572b14b79aafc87859c5b973182d29ed2ee2e0ee",
+      "run_id": "r-0e250c5f",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T16:13:29.721Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-10-30T16:13:29.721Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:227f6ec3e3b0e84999895579bd52631dd62c2d86a6d8c2ed4597ffcd0e7e7733"
+    },
+    {
+      "at": "2026-10-30T16:17:35.024Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:a9300c4fe1b1dadcaebdcecd3d458e5b3b3700d3f3ff175e1f0ebf26c54459c3"
+    }
+  ]
+}

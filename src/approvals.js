@@ -55,6 +55,7 @@ const INFER = [
   { re: /^existing tests or test setup changed \(/, code: 'test_change' },
   { re: /^policy loosened without approval: /, code: 'policy_loosened' },
   { re: /^CI configuration changed \(/, code: 'ci_config_changed' },
+  { re: /^protected files changed \(/, code: 'ci_config_changed' },
 ];
 
 /**

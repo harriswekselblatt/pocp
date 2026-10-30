@@ -47,7 +47,9 @@
       "eval/tasks/frozen/**",
       "eval/reference/**",
       "eval/lib/**",
-      "eval/PREREG.md"
+      "eval/PREREG.md",
+      "eval/**",
+      "docs/EVAL-PLAN.md"
     ]
   }
 }

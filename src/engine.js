@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 import path from 'node:path';
 import * as g from './git.js';
-import { configWeakening, createFsStore, formatProblem, rulesWithDefaults, strictConfig, validateConfig, withDefaults } from './store.js';
+import { configWeakening, createFsStore, DEFAULT_CI_FILES, formatProblem, rulesWithDefaults, strictConfig, validateConfig, withDefaults } from './store.js';
 import { createProcessRunner, buildEnv } from './runner.js';
 import { createIndexSnapshot, createRevCheckout } from './workspace.js';
 import { digestMatches, randomId, sha256Hex } from './hash.js';
@@ -23,6 +23,18 @@ export const STAGES = Object.freeze(['gate', 'commit', 'ci', 'review', 'producti
 export const SEVERITIES = Object.freeze(['low', 'medium', 'high', 'critical']);
 export const POLICY_FILES = Object.freeze(['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers']);
 const LOCKFILES = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb', 'Cargo.lock', 'poetry.lock', 'go.sum', 'Gemfile.lock'];
+
+/**
+ * Names the files ci.files protects, by what they are: CI definitions as "CI configuration",
+ * anything else a repository chose to protect (e.g. an evaluation's judging code) as
+ * "protected files", so a reviewer sees which kind of change needs approval.
+ */
+export function protectedChangeText(files) {
+  const isCi = (f) => DEFAULT_CI_FILES.some((gl) => matchGlob(f, gl));
+  const ci = files.filter(isCi);
+  const other = files.filter((f) => !isCi(f));
+  return [ci.length ? `CI configuration changed (${ci.join(', ')})` : '', other.length ? `protected files changed (${other.join(', ')})` : ''].filter(Boolean).join('; ');
+}
 
 export class PocpError extends Error {
   constructor(message, details = {}) {
@@ -903,9 +915,9 @@ export function createPocp(opts = {}) {
     }
     const ciChanged = changedCiFiles(changes, cfg);
     if (ciChanged.length) {
-      result.warnings.push({ code: 'awaiting_policy_approval', detail: `CI configuration changed (${ciChanged.join(', ')}); CI will ask a maintainer to approve it` });
+      result.warnings.push({ code: 'awaiting_policy_approval', detail: `${protectedChangeText(ciChanged)}; CI will ask a maintainer to approve it` });
       trig.required_files = [...new Set([...trig.required_files, ...ciChanged])].sort();
-      trig.reasons.push({ code: 'ci_config', detail: `CI configuration changed (${ciChanged.join(', ')})`, files: ciChanged });
+      trig.reasons.push({ code: 'ci_config', detail: protectedChangeText(ciChanged), files: ciChanged });
     }
     const guard = stagedGuard();
     result.guard_mode = guard.mode;
@@ -1262,7 +1274,7 @@ export function createPocp(opts = {}) {
     // CI definitions changed: they can switch POCP off, so they need the same approval.
     const ciFilesChanged = changedCiFiles(commitChangeList, cfgAt);
     if (ciFilesChanged.length && !acceptPolicyChange) {
-      commitFinding('ci_config_changed', `CI configuration changed (${ciFilesChanged.join(', ')}); re-run with --accept-policy-change once a maintainer approves`);
+      commitFinding('ci_config_changed', `${protectedChangeText(ciFilesChanged)}; re-run with --accept-policy-change once a maintainer approves`);
     }
 
     // Test guard: modified tests or test setup in this commit. Mode comes from the policy in force.
@@ -1388,7 +1400,7 @@ export function createPocp(opts = {}) {
       }
       if (ciFilesChanged.length) {
         trig.required_files = [...new Set([...trig.required_files, ...ciFilesChanged])].sort();
-        trig.reasons.push({ code: 'ci_config', detail: 'CI configuration changed', files: ciFilesChanged });
+        trig.reasons.push({ code: 'ci_config', detail: protectedChangeText(ciFilesChanged), files: ciFilesChanged });
       }
       if (commitGuard.files.length && commitGuard.mode !== 'warn') {
         trig.required_files = [...new Set([...trig.required_files, ...commitGuard.files])].sort();
@@ -1789,7 +1801,7 @@ export function createPocp(opts = {}) {
     const ciFiles = changedCiFiles(changes, cfgAt);
     const ciUnseen = ciFiles.filter((f) => !touchedByCommits.has(f));
     if (ciUnseen.length && !options.acceptPolicyChange) {
-      finding('ci_config_changed', `CI configuration changed (${ciUnseen.join(', ')}) in a merge commit; re-run with --accept-policy-change once a maintainer approves`);
+      finding('ci_config_changed', `${protectedChangeText(ciUnseen)} in a merge commit; re-run with --accept-policy-change once a maintainer approves`);
     }
 
     // Test guard on the net change: the old tests and test setup from the net base, the new code
@@ -1841,7 +1853,7 @@ export function createPocp(opts = {}) {
       }
       if (ciFiles.length) {
         trig.required_files = [...new Set([...trig.required_files, ...ciFiles])].sort();
-        trig.reasons.push({ code: 'ci_config', detail: 'CI configuration changed', files: ciFiles });
+        trig.reasons.push({ code: 'ci_config', detail: protectedChangeText(ciFiles), files: ciFiles });
       }
       if (guard.files.length && guard.mode !== 'warn') {
         trig.required_files = [...new Set([...trig.required_files, ...guard.files])].sort();
