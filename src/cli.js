@@ -234,7 +234,7 @@ function writeGithubSummary(result, rows, commitProblems, ms, { annotations = tr
   // Annotations are printed to stdout, so never in --json mode: machine output stays pure JSON.
   if (annotations && process.env.GITHUB_ACTIONS === 'true') {
     for (const c of rows) {
-      if (!c.ok) process.stdout.write(`::error title=POCP::${c.commit.slice(0, 12)} ${commitProblems(c).join(' | ').replace(/\r?\n/g, ' ')}\n`);
+      if (!c.ok) process.stdout.write(`::error title=POCP::${c.kind === 'net' ? 'net change ' : ''}${c.commit.slice(0, 12)} ${commitProblems(c).join(' | ').replace(/\r?\n/g, ' ')}\n`);
     }
     for (const f of result.rerun_failures || []) process.stdout.write(`::error title=POCP rerun::${f.packet}: ${f.problem}\n`);
     // Machine-readable, for "pocp approvals": what a maintainer's label would clear.
@@ -250,10 +250,10 @@ function writeGithubSummary(result, rows, commitProblems, ms, { annotations = tr
     '',
     '| Commit | Packets | Result |',
     '|---|---|---|',
-    ...rows.map((c) => `| \`${c.commit.slice(0, 12)}\` | ${c.packets.map((p) => p.id).join(', ') || '—'} | ${c.ok ? 'ok' : esc(commitProblems(c).join('; '))} |`),
+    ...rows.map((c) => `| ${c.kind === 'net' ? 'net change ' : ''}\`${c.commit.slice(0, 12)}\` | ${c.packets.map((p) => p.id).join(', ') || '—'} | ${c.ok ? 'ok' : esc(commitProblems(c).join('; '))} |`),
   ];
   if (result.approval?.only) lines.push('', `Waiting only for a maintainer: ${result.approval.needs.map((n) => `\`${n.label}\``).join(' and ')} (see \`pocp approvals\`).`);
-  const reruns = result.reruns || [];
+  const reruns = [...(result.reruns || []), ...(result.net?.reruns || [])];
   if (reruns.length) {
     lines.push('', '| Check | Result |', '|---|---|', ...reruns.map((x) => `| \`${esc(x.run)}\` | ${esc(x.status)}${x.duration_ms !== undefined ? ` (${x.duration_ms}ms)` : ''} |`));
   }
@@ -640,12 +640,15 @@ export async function main(argv = process.argv.slice(2)) {
         let rows;
         if (rest[0] && rest[0].includes('..')) {
           result = await engine.verifyRange(rest[0], vopts);
-          rows = result.commits;
+          // The range's net change (all commits and merges as one change) is judged like a commit.
+          rows = [...result.commits, ...(result.net ? [result.net] : [])];
           human = [
             `${result.ok ? 'verified' : 'NOT verified'}: ${result.commits.length} commit(s) in ${result.range} · ${Date.now() - started}ms`,
             ...result.commits.map((c) => `  ${c.ok ? 'ok ' : 'BAD'} ${c.commit.slice(0, 12)}${c.ok ? '' : `: ${commitProblems(c).join(' | ')}`}`),
-            ...rerunLines(result.reruns),
-            ...(result.ok ? [] : nextSteps(result.commits)),
+            ...(result.net ? [`  ${result.net.ok ? 'ok ' : 'BAD'} net change ${result.net.base.slice(0, 12)}..${result.net.commit.slice(0, 12)}${result.net.ok ? '' : `: ${commitProblems(result.net).join(' | ')}`}`] : []),
+            ...(result.notes || []).map((n) => `  note: ${n}`),
+            ...rerunLines([...result.reruns, ...(result.net?.reruns || [])]),
+            ...(result.ok ? [] : nextSteps(rows)),
           ].join('\n');
         } else {
           result = await engine.verify(rest[0] || 'HEAD', vopts);

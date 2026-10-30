@@ -12,7 +12,7 @@ import { evaluateTriggers, globsOf, normalizeRequirement, policyDigest, policyWe
 import * as P from './packets.js';
 import { formatTrailer, parseTrailers, TRAILER_KEY } from './trailer.js';
 import { signProof, verifyProofSignature } from './sign.js';
-import { detectTestChanges, effectiveGuardGlobs, guardRequirement, isLegacyGuardObligation } from './guard.js';
+import { detectTestChanges, effectiveGuardGlobs, guardBudget, guardRequirement, isLegacyGuardObligation } from './guard.js';
 import { requirementCommands } from './test-setup.js';
 import { runGuardCheck } from './guard-check.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
@@ -97,7 +97,7 @@ export function createPocp(opts = {}) {
    * During a merge, a staged file that matches a commit being merged in came from that
    * branch, whose own commits carry (and are verified with) their proofs. Only files that
    * differ from HEAD and from every merged commit (conflict resolutions, edits made during
-   * the merge) are judged. CI's verify skips merge commits, so this is still stricter than CI.
+   * the merge) are judged. CI's verify judges what a merge adds as part of the range's net change.
    */
   let mergeCache = null;
   function mergeFilter() {
@@ -219,7 +219,7 @@ export function createPocp(opts = {}) {
   }
 
   /** Run the mechanical check for one guard obligation. `rev` null means the staged index. */
-  async function guardCheckFor(ob, { packet, required, guardInfo, base, rev, cfg, known, onPass }) {
+  async function guardCheckFor(ob, { packet, required, guardInfo, base, rev, cfg, known, onPass, seed }) {
     const { checks, sourceGlobs, from } = guardInputs(packet, required);
     const files = new Set(ob.files);
     const changes = (guardInfo.changes || []).filter((c) => files.has(c.path) || (c.oldPath && files.has(c.oldPath)));
@@ -232,7 +232,7 @@ export function createPocp(opts = {}) {
       checks,
       sourceGlobs,
       mutants: ob.mutants,
-      seed: ob.seed,
+      seed: seed ?? ob.seed,
       links: cfg.snapshot.link,
       exclude: cfg.eval?.exclude || DEFAULT_EVAL_EXCLUDE,
       guardGlobs: withNamedSetup(effectiveGuardGlobs(cfg), guardInfo),
@@ -1174,31 +1174,17 @@ export function createPocp(opts = {}) {
   }
 
   /**
-   * Check a commit without trusting its trailers. With `rerun`, run every runnable
-   * obligation again in a clean checkout of that commit. With `requireCoverage`,
-   * also require that files the commit changed are covered when the rules say so.
+   * The policy that judges `commit`: the base's rules, config and signers, strictly combined
+   * with the commit's (a change can't loosen what judges it), unless a loosening is accepted.
+   * Which findings fail is the repo's choice (verify.fail_on) in that policy; an invalid
+   * policy always fails.
    */
-  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, allowedSignersFile, checkRequiredCiHere = true, memo = createRunMemo() } = {}) {
-    if (rerun === true) rerun = 'all';
-    // The test guard's check compares a commit with its parent, so in a range it re-runs per
-    // commit (verifyRange passes guardRerun) rather than once at the head.
-    if (guardRerun === undefined) guardRerun = rerun;
-    if (guardRerun === true) guardRerun = 'all';
-    const commit = g.resolveRev(root, rev);
-    const subject = g.subjectHashRev(root, commit);
-    const message = g.commitMessage(root, commit);
-    const trailerList = parseTrailers(message);
+  function policyInForce(commit, baseRev, { acceptPolicyChange = false, allowedSignersFile } = {}) {
     const headPolicy = policyAt(commit);
     const headRules = headPolicy.rules;
-    const out = { commit, subject, ok: true, packets: [], coverage: null, reruns: [], notes: [], warnings: [], findings: [], policy: null };
-
-    // Policy comes from the base (default: the commit's parent), so a change can't loosen
-    // the rules it is judged by. Stricter rules from the commit still apply.
-    const baseRev = policyFrom === undefined ? g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true }) : policyFrom ? g.resolveRev(root, policyFrom) : null;
     const basePolicy = baseRev ? policyAt(baseRev) : null;
     const baseRules = basePolicy?.hasRules ? basePolicy.rules : null;
     const policyProblems = [...headPolicy.problems, ...(basePolicy?.problems || [])];
-
     const weakened = [...policyWeakening(baseRules, headRules), ...(basePolicy ? configWeakening(basePolicy.config, headPolicy.config) : [])];
     const baseSigners = baseRev ? g.showFile(root, baseRev, '.proof/allowed_signers') : null;
     const headSigners = g.showFile(root, commit, '.proof/allowed_signers');
@@ -1216,12 +1202,14 @@ export function createPocp(opts = {}) {
       allowedSigners = baseSigners;
     }
     if (allowedSignersFile) allowedSigners = fs.readFileSync(allowedSignersFile, 'utf8');
-
-    // Which findings fail verification is the repo's choice (verify.fail_on), read from the
-    // policy in force; anything else is reported as a warning. An invalid policy always fails.
     const failOn = new Set(cfgAt.verify?.fail_on || []);
     const blocks = (code) => code === 'invalid_policy' || failOn.has(code);
-    const commitFinding = (code, detail) => {
+    return { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks };
+  }
+
+  /** A finding recorder for a verify result: blocking findings fail it, the rest warn. */
+  function findingSink(out, blocks) {
+    return (code, detail) => {
       const blocking = blocks(code);
       out.findings.push({ code, detail, blocking });
       if (blocking) {
@@ -1231,10 +1219,37 @@ export function createPocp(opts = {}) {
         out.warnings.push(detail);
       }
     };
+  }
 
-    for (const p of policyProblems) commitFinding('invalid_policy', `invalid policy: ${p}`);
+  function reportPolicy(finding, out, { baseRev, policyProblems, weakened, accepted }) {
+    for (const p of policyProblems) finding('invalid_policy', `invalid policy: ${p}`);
     if (accepted) out.notes.push(`policy loosened and accepted: ${weakened.join('; ')}`);
-    else if (baseRev && weakened.length) commitFinding('policy_loosened', `policy loosened without approval: ${weakened.join('; ')} (re-run with --accept-policy-change once a maintainer approves)`);
+    else if (baseRev && weakened.length) finding('policy_loosened', `policy loosened without approval: ${weakened.join('; ')} (re-run with --accept-policy-change once a maintainer approves)`);
+  }
+
+  /**
+   * Check a commit without trusting its trailers. With `rerun`, run every runnable
+   * obligation again in a clean checkout of that commit. With `requireCoverage`,
+   * also require that files the commit changed are covered when the rules say so.
+   */
+  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
+    if (rerun === true) rerun = 'all';
+    // The test guard's check compares a commit with its parent, so in a range it re-runs per
+    // commit (verifyRange passes guardRerun) rather than once at the head.
+    if (guardRerun === undefined) guardRerun = rerun;
+    if (guardRerun === true) guardRerun = 'all';
+    const commit = g.resolveRev(root, rev);
+    const subject = g.subjectHashRev(root, commit);
+    const message = g.commitMessage(root, commit);
+    const trailerList = parseTrailers(message);
+    const out = { commit, subject, ok: true, packets: [], coverage: null, reruns: [], notes: [], warnings: [], findings: [], policy: null };
+
+    // Policy comes from the base (default: the commit's parent), so a change can't loosen
+    // the rules it is judged by. Stricter rules from the commit still apply.
+    const baseRev = policyFrom === undefined ? g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true }) : policyFrom ? g.resolveRev(root, policyFrom) : null;
+    const { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks } = policyInForce(commit, baseRev, { acceptPolicyChange, allowedSignersFile });
+    const commitFinding = findingSink(out, blocks);
+    reportPolicy(commitFinding, out, { baseRev, policyProblems, weakened, accepted });
     if (!baseRev && policyFrom === undefined) out.notes.push('root commit: rules and signers come from the commit itself');
 
     const commitChangeList = g.commitChanges(root, commit);
@@ -1395,7 +1410,7 @@ export function createPocp(opts = {}) {
         }
       }
     }
-    await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [] });
+    await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed });
 
     // Required CI results (verify.require_ci). Fails closed: with no results supplied at all,
     // every required command counts as missing. A passing re-run by this verify also counts.
@@ -1405,6 +1420,8 @@ export function createPocp(opts = {}) {
     Object.defineProperty(out, 'addFinding', { value: commitFinding, enumerable: false });
     Object.defineProperty(out, 'signedDigests', { value: sigOf, enumerable: false });
     Object.defineProperty(out, 'effectiveConfig', { value: cfgAt, enumerable: false });
+    Object.defineProperty(out, 'effectiveRules', { value: rulesAt, enumerable: false });
+    Object.defineProperty(out, 'changes', { value: commitChangeList, enumerable: false });
 
     if (out.packets.some((p) => !p.ok)) out.ok = false;
     emit('commit.verified', { commit, ok: out.ok });
@@ -1417,7 +1434,7 @@ export function createPocp(opts = {}) {
    * passes only on an independent mechanical pass (this re-run, or a proof signed by a
    * trusted key); anything else needs --accept-test-change, which is meant for a person.
    */
-  async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed, memo, ciResults }) {
+  async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed, memo, ciResults, seed }) {
     if (!commitGuard.files.length) return;
     const base = g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true });
     const results = [];
@@ -1426,9 +1443,9 @@ export function createPocp(opts = {}) {
       const r = { packet: job.packet.id, obligation: job.ob.id, files: job.files };
       if (guardRerun && !(guardRerun === 'unsigned' && signed.get(obligationDigest(job.ob)) === 'valid' && job.proof?.passed)) {
         // The new code's baseline is the same run as a re-run or CI result for this commit, if one exists.
-        const res = await guardCheckFor(job.ob, { packet: job.packet, required: job.required, guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, known: (ob) => memo.known(out.subject, ob, ciResults), onPass: (ob, r) => memo.record(out.subject, ob, r) });
+        const res = await guardCheckFor(job.ob, { packet: job.packet, required: job.required, guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, seed, known: (ob) => memo.known(out.subject, ob, ciResults), onPass: (ob, r) => memo.record(out.subject, ob, r) });
         Object.assign(r, { evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, result: res });
-        out.reruns.push({ run: `test guard (${job.ob.id}, ${job.ob.mutants} mutants)`, kind: 'guard', packets: [job.packet.id], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
+        out.reruns.push({ run: `test guard (${job.ob.id}, ${job.ob.mutants} mutants${seed !== undefined ? `, seed ${seed}` : ''})`, kind: 'guard', packets: [job.packet.id], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
         if (entry?.evidence) {
           if (res.passed) entry.evidence[job.ob.id] = 'mechanical:rerun';
           else if (!job.attestation) entry.evidence[job.ob.id] = 'mechanical:rerun-failed';
@@ -1590,48 +1607,216 @@ export function createPocp(opts = {}) {
   }
 
   /**
-   * Verify every non-merge commit in a range such as "origin/main..HEAD". Digests,
-   * coverage and signatures are checked per commit (fast, nothing runs). Re-runs happen
-   * once, at the head of the range, for the union of checks across the range: the code
-   * being merged must still pass every check the range introduced.
+   * The guard's mutant sample seed for a check CI runs over a range: derived from the policy's
+   * seed and the two revisions compared, so it is fixed for a given pull request (verify is
+   * reproducible, and the seed is in the output) but differs from the seed a local `prove` uses.
+   */
+  function rangeGuardSeed(configSeed, oldRev, newRev) {
+    return Number.parseInt(sha256Hex(`pocp-guard-seed\0${configSeed}\0${oldRev}\0${newRev}`).slice(0, 8), 16) & 0x7fffffff;
+  }
+
+  /**
+   * A commit object with the tip's tree and the net base as its only parent: the whole range
+   * as one change, merges included. Written to the object store only (no ref points to it), with
+   * a fixed identity and date so the same range always gives the same object.
+   */
+  function netChangeCommit(netBase, tip) {
+    const env = {
+      GIT_AUTHOR_NAME: 'pocp', GIT_AUTHOR_EMAIL: 'pocp@invalid', GIT_AUTHOR_DATE: '1970-01-01T00:00:00Z',
+      GIT_COMMITTER_NAME: 'pocp', GIT_COMMITTER_EMAIL: 'pocp@invalid', GIT_COMMITTER_DATE: '1970-01-01T00:00:00Z',
+    };
+    return g.git(root, ['commit-tree', '--no-gpg-sign', `${tip}^{tree}`, '-p', netBase, '-m', `pocp net change ${netBase}..${tip}`], { env });
+  }
+
+  /**
+   * Verify a range such as "origin/main..HEAD" (SPEC §7.2). Every non-merge commit is checked
+   * on its own: digests, coverage and signatures (fast, nothing runs). Re-runs happen once, at
+   * the tip of the range, for the union of checks across the range plus the checks the rules
+   * require for the range's net change: the code being merged must still pass all of them.
+   *
+   * The range is also judged as one change, its net change: from the merge base of the range's
+   * base and tip to the tip, merges included. The test guard and coverage run on it, so
+   * splitting a test change and a code change across commits, or making either inside a merge
+   * commit, gives the same verdict as making them in one commit. Nothing about it comes from the
+   * author: verify computes it, like a re-run, and it fails closed (in block mode, a net test
+   * change passes only on this verify's own mechanical re-run, or with --accept-test-change).
    */
   async function verifyRange(range, options = {}) {
-    const out = g.git(root, ['rev-list', '--reverse', '--no-merges', range]);
-    const commits = out ? out.split('\n').filter(Boolean) : [];
+    const list = (args) => (g.git(root, ['rev-list', ...args, range]) || '').split('\n').filter(Boolean);
+    const commits = list(['--reverse', '--topo-order', '--no-merges']);
+    const merges = list(['--merges']);
     const results = [];
     // Policy for every commit comes from the range's base unless told otherwise.
-    const rangeBase = range.includes('..') ? range.split(/\.\.\.?/)[0] || null : null;
+    const isRange = range.includes('..');
+    const [baseSpec, tipSpec] = isRange ? range.split(/\.\.\.?/) : [null, range];
+    const rangeBase = baseSpec || null;
     const policyFrom = options.policyFrom !== undefined ? options.policyFrom : rangeBase || undefined;
-    // Required CI results are checked once, at the head (where CI ran), after the range's re-runs.
+    const any = commits.length > 0 || merges.length > 0;
+    // The tip is the code being merged: the range's right side, which may itself be a merge.
+    const tip = any ? g.resolveRev(root, tipSpec || 'HEAD') : null;
+    const lastCommit = commits.length ? commits[commits.length - 1] : null;
+    const policyBase = policyFrom ? g.resolveRev(root, policyFrom) : null;
+    const pol = tip ? policyInForce(tip, policyBase, options) : null;
+    const baseRev = isRange && rangeBase && tip ? g.resolveRev(root, rangeBase) : null;
+    const netBase = baseRev ? g.git(root, ['merge-base', baseRev, tip], { allowFail: true }) || baseRev : null;
+    // One plain commit on the base: its own check is the net change's check, so it isn't run twice.
+    const single = merges.length === 0 && commits.length === 1 && tip === lastCommit && netBase
+      && g.git(root, ['rev-parse', '--verify', '--quiet', `${lastCommit}^1`], { allowFail: true }) === netBase;
+    const seed = netBase && pol ? rangeGuardSeed(guardBudget(pol.cfgAt).seed, netBase, tip) : undefined;
+
+    // Required CI results are checked once, at the tip (where CI ran), after the range's re-runs.
     const memo = createRunMemo();
-    for (const c of commits) results.push(await verify(c, { ...options, policyFrom, rerun: false, guardRerun: options.rerun || false, checkRequiredCiHere: false, memo }));
+    for (const c of commits) {
+      results.push(await verify(c, { ...options, policyFrom, rerun: false, guardRerun: options.rerun || false, checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
+    }
     const result = { range, ok: results.every((r) => r.ok), commits: results, reruns: [] };
+    if (!any) return result;
+
+    let net = null;
+    if (netBase && !single) net = await prepareNetChange({ tip, netBase, pol, options });
+    else if (!netBase && commits.length + merges.length > 1) result.notes = [`no range base, so the range's net change was not judged as one change`];
+
     const rerun = options.rerun === true ? 'all' : options.rerun;
-    if (rerun && commits.length) {
-      const head = commits[commits.length - 1];
+    const headResult = tip === lastCommit ? results[results.length - 1] : null;
+    if (rerun) {
       const packets = [];
       const seenIds = new Set();
       for (const r of [...results].reverse()) {
         for (const p of r.packetData || []) if (!seenIds.has(p.id)) { seenIds.add(p.id); packets.push(p); }
       }
-      const headResult = results[results.length - 1];
-      // The policy in force at the head (base strictly combined with the head), as for a single commit.
-      const cfgAt = headResult.effectiveConfig;
-      const failures = await rerunAt(head, packets, { mode: rerun, ciResults: options.ciResults || [], signed: headResult.signedDigests, links: cfgAt.snapshot.link, into: result.reruns, memo });
+      if (net?.obligations.length) packets.push({ id: 'net-change', obligations: net.obligations });
+      // A signature covers the commit it was made on; when the tip is a merge, none covers the tip.
+      const signed = headResult ? headResult.signedDigests : new Map();
+      const failures = await rerunAt(tip, packets, { mode: rerun, ciResults: options.ciResults || [], signed, links: pol.cfgAt.snapshot.link, into: result.reruns, memo });
       if (failures.length) {
         result.rerun_failures = failures;
-        const failOn = new Set(headResult.effectiveConfig?.verify?.fail_on || []);
-        if (failOn.has('rerun_failed')) result.ok = false;
+        if (pol.failOn.has('rerun_failed')) result.ok = false;
         else result.warnings = [...(result.warnings || []), ...failures.map((f) => f.problem)];
       }
-      applyRerunEvidence(headResult.packets, headResult.packetData || [], result.reruns);
+      if (headResult) applyRerunEvidence(headResult.packets, headResult.packetData || [], result.reruns);
     }
-    if (commits.length) {
-      const headResult = results[results.length - 1];
-      checkRequiredCi(headResult.effectiveConfig, options.ciResults, headResult.subject, headResult.addFinding, result.reruns, headResult.notes);
-      result.ok = result.ok && headResult.ok;
+    if (net) {
+      result.net = await judgeNetChange(net, { results, merges, lastCommit, policyBase, options, memo, seed });
+      result.ok = result.ok && result.net.ok;
+    }
+    // Required CI results belong to the tip's code: the last commit's result, or the net change's when the tip is a merge.
+    const tipOut = headResult || result.net;
+    if (tipOut) {
+      const finding = headResult ? headResult.addFinding : findingSink(result.net, pol.blocks);
+      checkRequiredCi(pol.cfgAt, options.ciResults, g.subjectHashRev(root, tip), finding, result.reruns, tipOut.notes);
+      result.ok = result.ok && tipOut.ok;
+    } else if ((pol.cfgAt.verify?.require_ci || []).length) {
+      // A merge tip with no net change to judge (no range base): nothing to attach results to, so fail closed.
+      result.ok = false;
+      result.notes = [...(result.notes || []), 'required CI results could not be checked: the tip is a merge and the range has no base'];
     }
     return result;
+  }
+
+  /** What the net change is, before the tip's re-runs: its changes, test guard and required checks. */
+  async function prepareNetChange({ tip, netBase, pol, options }) {
+    const useHost = options.useHost ?? Boolean(opts.policy);
+    const synth = netChangeCommit(netBase, tip);
+    const changes = g.commitChanges(root, synth);
+    const paths = g.changedPaths(changes);
+    const files = [...paths];
+    for (const f of POLICY_FILES) if (changes.some((c) => c.path === f || c.oldPath === f)) files.push(f);
+    const guard = detectTestChanges(root, { to: synth, config: pol.cfgAt, commands: requirementCommands(pol.rulesAt) });
+    const hostReqs = useHost ? await hostRequirements(files, { rev: tip }) : [];
+    const req = requirementsFor(files, { rules: pol.rulesAt, hostRequirements: hostReqs, hostName });
+    const required = useHost ? req.merged : req.repoOnly;
+    const obligations = required.filter((r) => isRunnable(r.obligation)).map((r) => ({ ...r.obligation, id: r.id }));
+    return { tip, netBase, synth, changes, paths, files, guard, required, obligations, pol, useHost };
+  }
+
+  /**
+   * Judge the net change: policy and CI files when the tip is a merge (no per-commit result saw
+   * them), the test guard, and coverage. A result shaped like a commit's, with kind "net".
+   */
+  async function judgeNetChange(net, { results, merges, lastCommit, policyBase, options, memo, seed }) {
+    const { tip, netBase, synth, changes, paths, files, guard, required, pol, useHost } = net;
+    const { cfgAt, rulesAt, blocks } = pol;
+    const subject = g.subjectHashRev(root, tip);
+    const span = `${netBase.slice(0, 12)}..${tip.slice(0, 12)}`;
+    const out = { kind: 'net', commit: tip, base: netBase, subject, ok: true, merges: merges.length, packets: [], coverage: null, reruns: [], notes: [], warnings: [], findings: [], test_guard: null, seed: seed ?? null };
+    const finding = findingSink(out, blocks);
+    out.notes.push(`net change ${span} judged as one change (${results.length} commit(s), ${merges.length} merge(s))`);
+
+    // When the tip is a merge commit, no per-commit result looked at the final policy or CI files.
+    const touchedByCommits = new Set(results.flatMap((r) => (r.changes || []).flatMap((c) => [c.path, c.oldPath].filter(Boolean))));
+    if (tip !== lastCommit) reportPolicy(finding, out, { baseRev: policyBase, ...pol });
+    const ciFiles = changedCiFiles(changes, cfgAt);
+    const ciUnseen = ciFiles.filter((f) => !touchedByCommits.has(f));
+    if (ciUnseen.length && !options.acceptPolicyChange) {
+      finding('ci_config_changed', `CI configuration changed (${ciUnseen.join(', ')}) in a merge commit; re-run with --accept-policy-change once a maintainer approves`);
+    }
+
+    // Test guard on the net change: the old tests and test setup from the net base, the new code
+    // and tests from the tip. Only this verify's own re-run can pass it.
+    if (guard.files.length) {
+      out.test_guard = guard;
+      const results2 = [];
+      const guardRerun = options.rerun === true ? 'all' : options.rerun;
+      if (guard.mode !== 'warn' && guardRerun) {
+        const ob = { id: 'net', kind: 'guard', files: guard.files, ...guardBudget(cfgAt) };
+        const res = await guardCheckFor(ob, {
+          packet: { id: 'net-change', touches: [], obligations: [] }, required, guardInfo: guard, base: netBase, rev: synth, cfg: cfgAt, seed,
+          known: (o) => memo.known(subject, o, options.ciResults || []), onPass: (o, r) => memo.record(subject, o, r),
+        });
+        results2.push({ packet: null, obligation: 'net', files: guard.files, evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, seed, result: res });
+        out.reruns.push({ run: `test guard (net change ${span}, ${ob.mutants} mutants, seed ${seed})`, kind: 'guard', packets: [], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
+      }
+      guard.mechanical = results2;
+      const r = results2[0];
+      const independent = Boolean(r?.passed && r.checks_from !== 'packet');
+      const why = !guardRerun || !r
+        ? 'the net change was not re-checked here (verify the range with --rerun: the check runs on the whole pull request, so no proof made on one commit can stand in for it)'
+        : r.checks_from === 'packet'
+          ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)'
+          : `the mechanical check did not pass: ${r.summary}`;
+      const detail = `existing tests or test setup changed (${guard.files.join(', ')}) in the pull request's net change ${span}; ${why}. Re-run with --accept-test-change once a person approves`;
+      if (guard.mode === 'block' && !independent && !options.acceptTestChange) finding('test_change', detail);
+      else if (guard.mode === 'attest' && !independent && !options.acceptTestChange) {
+        // Attest mode accepts a recorded sign-off on a test change; a check that ran here and
+        // failed needs one for every changed file, from some packet in the range.
+        const attested = (f) => results.some((x) => (x.packetData || []).some((p) => p.obligations.some((o) => (isGuard(o) || isLegacyGuardObligation(o)) && (o.files || x.test_guard?.files || []).includes(f) && P.currentAttestation(p, o, x.subject))));
+        if (guardRerun && r && !guard.files.every(attested)) finding('test_change', detail);
+        else if (!guardRerun) out.warnings.push(detail);
+      }
+    }
+
+    if (options.requireCoverage) {
+      const trig = evaluateTriggers(paths, {
+        rules: rulesAt,
+        hostTriggers: useHost ? await hostTriggers(files, { rev: tip }) : null,
+        hostRequirements: useHost ? await hostRequirements(files, { rev: tip }) : [],
+        config: cfgAt,
+        hostName,
+      });
+      const pc = policyChange(changes, rulesAt, readRulesAt(netBase));
+      if (pc) {
+        trig.required_files = [...new Set([...trig.required_files, ...pc.files])].sort();
+        trig.reasons.push(pc.reason);
+      }
+      if (ciFiles.length) {
+        trig.required_files = [...new Set([...trig.required_files, ...ciFiles])].sort();
+        trig.reasons.push({ code: 'ci_config', detail: 'CI configuration changed', files: ciFiles });
+      }
+      if (guard.files.length && guard.mode !== 'warn') {
+        trig.required_files = [...new Set([...trig.required_files, ...guard.files])].sort();
+        trig.reasons.push({ code: 'test_change', detail: 'existing tests or test setup changed', files: guard.files });
+      }
+      // Any packet in the range may cover a file; files a commit already reported are not repeated.
+      const packets = results.flatMap((x) => x.packetData || []);
+      const reported = new Set(results.flatMap((x) => x.coverage?.uncovered || []));
+      const uncovered = trig.required_files.filter((f) => !packets.some((p) => P.covers(p, f)) && !reported.has(f));
+      out.coverage = { required_files: trig.required_files, uncovered, reasons: trig.reasons };
+      if (uncovered.length) finding('uncovered', `not covered by a packet in the range (changed in the net change ${span}): ${uncovered.join(', ')}`);
+    }
+    Object.defineProperty(out, 'addFinding', { value: finding, enumerable: false });
+    if (out.findings.some((f) => f.blocking)) out.ok = false;
+    emit('range.net_verified', { commit: tip, base: netBase, ok: out.ok });
+    return out;
   }
 
   // ------------------------------------------------------------- misses/blame
