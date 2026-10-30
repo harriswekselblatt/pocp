@@ -644,13 +644,15 @@ export async function main(argv = process.argv.slice(2)) {
         const nextSteps = (rows2) => {
           const seen = new Map();
           for (const c of rows2) for (const f of (c.findings || []).filter((x) => x.blocking)) if (!seen.has(f.code)) seen.set(f.code, { code: f.code, ...verifyRemedy(f.code, f.detail) });
-          for (const f of result?.rerun_failures || []) if (!seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed') });
+          for (const f of (result?.rerun_failures || []).filter((x) => x.blocking !== false)) if (!seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed') });
           const list2 = [...seen.values()];
           if (!list2.length) return [];
           const out2 = ['  what to do:', ...list2.map((x) => `    ${x.code}: ${x.why ? `${x.why} ` : ''}next: ${x.next}${x.by === 'person' ? '   (needs a person)' : ''}`)];
           if (list2.some((x) => x.by === 'person')) out2.push(`    ${DONT_REWRITE}`);
           return out2;
         };
+        // A range's own findings, apart from re-run failures (rerun_failures lists those).
+        const rangeFindings = (r) => (r.findings && r.commits ? r.findings.filter((f) => f.code !== 'rerun_failed') : []);
         const commitProblems = (c) => [
           // Commit-level findings (policy, CI files, test guard, required CI); coverage is listed below.
           ...(c.findings || []).filter((f) => f.blocking && !f.packet && f.code !== 'uncovered').map((f) => f.detail),
@@ -670,7 +672,7 @@ export async function main(argv = process.argv.slice(2)) {
             ...(result.net ? [`  ${result.net.ok ? 'ok ' : 'BAD'} net change ${result.net.base.slice(0, 12)}..${result.net.commit.slice(0, 12)}${result.net.ok ? '' : `: ${commitProblems(result.net).join(' | ')}`}`] : []),
             ...(result.notes || []).map((n) => `  note: ${n}`),
             ...rerunLines([...result.reruns, ...(result.net?.reruns || [])]),
-            ...(result.ok ? [] : nextSteps(rows)),
+            ...(result.ok ? [] : nextSteps([...rows, { findings: rangeFindings(result) }])),
           ].join('\n');
         } else {
           result = await engine.verify(rest[0] || 'HEAD', vopts);
@@ -685,7 +687,7 @@ export async function main(argv = process.argv.slice(2)) {
             ...(result.ok ? [] : nextSteps([result])),
           ].join('\n');
         }
-        if (!result.ok) result.approval = approvalSummary(rows.flatMap((c) => c.findings || []), result.rerun_failures || []);
+        if (!result.ok) result.approval = approvalSummary([...rows.flatMap((c) => c.findings || []), ...rangeFindings(result)], (result.rerun_failures || []).filter((x) => x.blocking !== false));
         writeGithubSummary(result, rows, commitProblems, Date.now() - started, { annotations: !json });
         out(json, result, human);
         return result.ok ? EXIT.ok : EXIT.blocked;

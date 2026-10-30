@@ -640,7 +640,10 @@ changes the branch took from main by merging it are not the branch's; anything a
 adds beyond its parents (a conflict resolution, an edit made while merging) is. The result is
 reported as `net` (shaped like a commit's result, with `kind: "net"`, `base`, `merges`,
 `seed`, `test_guard`, `coverage` and `findings`); its findings use the same codes and
-`verify.fail_on` as a commit's, and it fails the range like a failing commit.
+`verify.fail_on` as a commit's, and it fails the range like a failing commit. Findings of the
+range itself (a re-run at the head that fails, `rerun_failed`; required CI results that can't
+be checked, `ci_missing`) are in the range's own `findings`, with `code`, `detail` and
+`blocking` like a commit's; `rerun_failures` lists the failed re-runs the same way.
 
 - *Test guard.* Computed by verify itself, like a re-run; nothing in it comes from the
   author, so no proof or signature can stand in for it. In block mode, a net test change

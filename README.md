@@ -52,7 +52,7 @@ What CI's `pocp verify <base>..HEAD --require-coverage --rerun` decides, with th
 
 These rows hold within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md), and the main ones are:
 - **Re-runs execute the pull request's code** in your CI job, as the same user. That's as trustworthy as your CI, plus the checks the pull request can't edit.
-- **The mechanical test check samples** planted bugs.
+- **The mechanical test check samples** planted bugs. Dropping an assertion that none of the sampled bugs needs passes on its own, so a weakening can land in one pull request and the bug it would have caught in a later one.
 - **Helpers are found by reading imports,** within depth and size limits; a helper inside your guarded source counts as code unless it looks like test support (path, test-framework or assertion-library import) or the tests use it as such.
 - **A test layout POCP doesn't recognise** needs `guard.extra_test_globs`. `pocp init` detects common ones.
 

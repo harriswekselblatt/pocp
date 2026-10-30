@@ -1703,7 +1703,7 @@ export function createPocp(opts = {}) {
     for (const c of commits) {
       results.push(await verify(c, { ...options, policyFrom, rerun: false, guardRerun: options.rerun || false, checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
     }
-    const result = { range, ok: results.every((r) => r.ok), commits: results, reruns: [] };
+    const result = { range, ok: results.every((r) => r.ok), commits: results, reruns: [], findings: [] };
     if (!any) return result;
 
     let net = null;
@@ -1723,8 +1723,11 @@ export function createPocp(opts = {}) {
       const signed = headResult ? headResult.signedDigests : new Map();
       const failures = await rerunAt(tip, packets, { mode: rerun, ciResults: options.ciResults || [], signed, links: pol.cfgAt.snapshot.link, into: result.reruns, memo });
       if (failures.length) {
-        result.rerun_failures = failures;
-        if (pol.failOn.has('rerun_failed')) result.ok = false;
+        // Range-level findings carry code and blocking like a commit's.
+        const blocking = pol.failOn.has('rerun_failed');
+        result.rerun_failures = failures.map((f) => ({ code: 'rerun_failed', detail: f.problem, blocking, ...f }));
+        result.findings.push(...result.rerun_failures.map(({ code, detail, packet }) => ({ code, detail, blocking, packet })));
+        if (blocking) result.ok = false;
         else result.warnings = [...(result.warnings || []), ...failures.map((f) => f.problem)];
       }
       if (headResult) applyRerunEvidence(headResult.packets, headResult.packetData || [], result.reruns);
@@ -1745,7 +1748,9 @@ export function createPocp(opts = {}) {
     } else if ((pol.cfgAt.verify?.require_ci || []).length) {
       // A merge tip with no net change to judge (no range base): nothing to attach results to, so fail closed.
       result.ok = false;
-      result.notes = [...(result.notes || []), 'required CI results could not be checked: the tip is a merge and the range has no base'];
+      const detail = 'required CI results could not be checked: the tip is a merge and the range has no base';
+      result.notes = [...(result.notes || []), detail];
+      result.findings.push({ code: 'ci_missing', detail, blocking: true });
     }
     return result;
   }
