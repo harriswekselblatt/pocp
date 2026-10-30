@@ -1,0 +1,119 @@
+{
+  "pocp": 1,
+  "id": "p-3ae5a944",
+  "intent": "E4: freeze the sampling frame before any candidate is fetched, with the independent replay script",
+  "touches": [
+    "eval/e4/FRAME.md",
+    "eval/e4/__pycache__/e4.cpython-313.pyc",
+    "eval/e4/__pycache__/test_e4.cpython-313.pyc",
+    "eval/e4/e4.py",
+    "eval/e4/test_e4.py"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-10-30T17:34:57.492Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:41842bfdaa426f18f9e35c54a0b0da606cefd338d18c88056484efeae12331c9",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "snapshot",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-10-30T17:35:35.467Z",
+      "duration_ms": 31890,
+      "stdout_sha256": "7eb1abc125bd03b161ccfca5e889edd167c3bbbd244405a7b7661ba7b1696fa4",
+      "stderr_sha256": "10dae81a19f1a7e2478962f5a854e3ff957c7a6be86f8484f001228798592974",
+      "run_id": "r-8daea3fd",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:41842bfdaa426f18f9e35c54a0b0da606cefd338d18c88056484efeae12331c9",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T17:36:39.295Z",
+      "duration_ms": 29899,
+      "stdout_sha256": "496963721fd3e125277552097dd332681d53cd652f6df6052aad8530ea81d511",
+      "stderr_sha256": "4b2ba382395f75ab3472ede40d6f96ba5bd6a101e79f257f2ab56a1375203e9c",
+      "run_id": "r-d9a92bf9",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T17:34:57.492Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T17:34:57.492Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-10-30T17:35:28.690Z",
+      "event": "proof_discarded",
+      "obligation": "o1",
+      "reasons": [
+        "the command changed files in the snapshot"
+      ]
+    },
+    {
+      "at": "2026-10-30T17:36:07.392Z",
+      "event": "proof_failed",
+      "obligation": "o1",
+      "subject": "sha256:41842bfdaa426f18f9e35c54a0b0da606cefd338d18c88056484efeae12331c9"
+    },
+    {
+      "at": "2026-10-30T17:36:07.414Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:41842bfdaa426f18f9e35c54a0b0da606cefd338d18c88056484efeae12331c9"
+    },
+    {
+      "at": "2026-10-30T17:37:09.238Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:41842bfdaa426f18f9e35c54a0b0da606cefd338d18c88056484efeae12331c9"
+    }
+  ]
+}
