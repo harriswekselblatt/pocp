@@ -228,9 +228,13 @@ check isn't required, pull requests aren't required, or admins can merge past th
   through a build-tool alias (tsconfig `paths`, a webpack alias), a C# namespace, a Rust
   `use`, dynamic loading, or past those limits is not guarded. Neither is a helper inside the
   globs a required check guards that doesn't look like test support (no `testing/`,
-  `test-utils/`, `mocks/` path, no test-framework import), or one the code under check itself
-  imports: that is treated as code. Keep assertion helpers outside the guarded source or
-  under a test folder.
+  `test-utils/`, `testkit`, `mocks/` path, no test-framework or assertion-library import) and
+  isn't used as it (a test imports it next to other guarded code, no test is named after it,
+  it imports no guarded code), or one the code under check itself imports: that is treated as
+  code. Keep assertion helpers outside the guarded source or under a test folder. The other
+  way round, a module under test that only tests import, next to other code, under a name no
+  test has, is read as test support: changing it runs the mechanical check (its mutants are
+  still planted there), which costs time and can need a person when the old tests catch none.
 - **Rust inline tests.** Only top-level `#[cfg(test)]` items count as test code. One nested
   inside another module, and `#[test]` functions outside a `#[cfg(test)]` item, are treated
   as source. Adding inline tests changes the file's test part, so it runs the mechanical

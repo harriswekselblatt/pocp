@@ -3,7 +3,7 @@ import { matchGlob } from './glob.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { normalizeRequirement } from './rules.js';
 import {
-  hasTestSettings, isRust, looksLikeTestSupport, notImportedByCode, readBlobs, referencedFiles, requirementCommands, rustTestModuleFile, settingsKind, testHelperFiles, testSettings, trackedBlobs,
+  hasTestSettings, isRust, looksLikeTestSupport, notImportedByCode, readBlobs, referencedFiles, requirementCommands, rustTestModuleFile, settingsKind, supportByUse, testHelperFiles, testSettings, trackedBlobs,
 } from './test-setup.js';
 
 // Files that decide what a test run means. Changing them can hollow out a check
@@ -138,7 +138,8 @@ export function detectTestChanges(root, { from, to = null, config = {}, commands
     const restoreKind = kind === 'test-helper' ? 'runner-config' : kind === 'inline-tests' ? 'config-section' : kind;
     detail.push({ status: c.status, path: c.path, ...(c.status === 'R' ? { oldPath: c.oldPath } : {}), kind: restoreKind });
     // Test code and helpers are not where the mechanical check plants bugs.
-    if (isHelper || rustTestFiles.has(old) || kind === 'inline-tests') for (const p of new Set([old, c.path])) named.add(p);
+    const plantable = isHelper && [old, c.path].every((p) => !helpers.has(p) || helpers.byUse?.has(p));
+    if ((isHelper && !plantable) || rustTestFiles.has(old) || kind === 'inline-tests') for (const p of new Set([old, c.path])) named.add(p);
   }
   const out = { mode, files: [...files].sort(), signals };
   // Kept off the JSON output: it repeats the signals, and only the engine needs it.
@@ -173,19 +174,26 @@ function findHelpers(root, { base, to, testGlobs, commands, named, candidates })
   const guardedOnes = candidates.filter((p) => isCode(p));
   const names = guardedOnes.flatMap((p) => [...(base ? [`${base}:${p}`] : []), `${to || ''}:${p}`]);
   const texts = readBlobs(root, names);
-  candidates = candidates.filter((p) => !isCode(p) || [base && `${base}:${p}`, `${to || ''}:${p}`].some((n) => n && looksLikeTestSupport(p, texts.get(n))));
-  if (!candidates.length) return new Set();
+  const looksLike = (p) => [base && `${base}:${p}`, `${to || ''}:${p}`].some((n) => n && looksLikeTestSupport(p, texts.get(n)));
+  const baseFiles = base ? trackedBlobs(root, base) : null;
+  // Guarded files that don't look like test support may still be used as it: an assertion
+  // helper the tests import next to the code, which no code imports (supportByUse). They
+  // are restored like helpers, but stay where mutants are planted, since the heuristic can
+  // take a module under test for one.
+  const byUse = base ? supportByUse(root, base, guardedOnes.filter((p) => !looksLike(p)), { isCode, testGlobs, files: baseFiles }) : new Set();
+  candidates = candidates.filter((p) => !isCode(p) || looksLike(p));
+  if (!candidates.length) return Object.assign(byUse, { byUse });
   const seeds = [...named];
   const found = new Set();
   const revs = [...new Set([base || undefined, to])].filter((r) => r !== undefined);
-  const baseFiles = base ? trackedBlobs(root, base) : null;
   for (const rev of revs) {
     const files = rev === base && baseFiles ? baseFiles : trackedBlobs(root, rev);
     const { helpers } = testHelperFiles(root, rev, { testGlobs, seeds, isCode, files });
     for (const p of candidates) if (helpers.has(p)) found.add(p);
   }
-  if (!found.size || !base) return found;
-  return notImportedByCode(root, base, found, { isCode, testGlobs, files: baseFiles });
+  const helpers = found.size && base ? notImportedByCode(root, base, found, { isCode, testGlobs, files: baseFiles }) : found;
+  for (const p of byUse) helpers.add(p);
+  return Object.assign(helpers, { byUse });
 }
 
 export const DEFAULT_GUARD_MUTANTS = 10;

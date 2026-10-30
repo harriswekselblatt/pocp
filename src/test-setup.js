@@ -537,16 +537,17 @@ const JVM_IMPORT = /^[ \t]*import[ \t]+(?:static[ \t]+)?([\w.]+)/gm;
 const PHP_REQUIRE = /\b(?:require|include)(?:_once)?[ \t]*\(?[ \t]*(__DIR__[ \t]*\.[ \t]*)?['"]([^'"]+\.php)['"]/g;
 const SH_SOURCE = /^[ \t]*(?:source|\.)[ \t]+["']?([^\s"';|&$`]+)/gm;
 
-// Test-framework imports: a guarded file that pulls one in is test support, not code.
+// Test-framework and assertion-library imports: a guarded file that pulls one in is test
+// support, not code (a module the code under check imports stays code: notImportedByCode).
 const TEST_FRAMEWORK = new RegExp([
-  String.raw`['"](?:node:test|vitest|@jest/globals|chai|sinon|uvu|ava|tap|tape|mocha|expect|@testing-library/[^'"]+|@playwright/test)['"]`,
+  String.raw`['"](?:node:test|vitest|@jest/globals|chai|sinon|uvu|uvu/assert|ava|tap|tape|mocha|expect|power-assert|should|(?:node:)?assert(?:/strict)?|@testing-library/[^'"]+|@playwright/test)['"]`,
   String.raw`^[ \t]*(?:import|from)[ \t]+(?:pytest|unittest|hypothesis|nose2?)\b`,
   String.raw`^[ \t]*require[ \t]*\(?[ \t]*['"](?:rspec|minitest)`,
   String.raw`^[ \t]*import[ \t]*\(?[\s\S]{0,200}?"testing"`,
   String.raw`^[ \t]*import[ \t]+(?:static[ \t]+)?(?:org\.junit|org\.assertj|org\.hamcrest|org\.testng|kotlin\.test|io\.kotest|org\.scalatest)`,
   String.raw`\bPHPUnit\\`,
 ].join('|'), 'm');
-const SUPPORT_PATH = /(^|\/)(test[-_]?utils?|test[-_]?helpers?|test[-_]?support|testing|__mocks__|__fixtures__|mocks|fakes)(\/|\.|$)/i;
+const SUPPORT_PATH = /(^|\/)(test[-_]?utils?|test[-_]?helpers?|test[-_]?support|test[-_]?kit|testing|__mocks__|__fixtures__|mocks|fakes)(\/|\.|$)/i;
 
 /** Does a file look like test support (by its path or its imports)? */
 export function looksLikeTestSupport(rel, text) {
@@ -772,6 +773,50 @@ export function testHelperFiles(root, rev, { testGlobs = [], seeds = [], isCode 
     if (depth === HELPER_LIMITS.depth && next.length) truncated = true;
   }
   return { helpers, truncated };
+}
+
+// "math" for test/math.test.js, tests/test_math.py, math_test.go, MathTest.java, math_spec.rb.
+function testStem(rel) {
+  const b = path.posix.basename(rel).replace(/\.[^.]*$/, '');
+  return b.replace(/^tests?[-_]/i, '').replace(/([-_.](test|tests|spec|check))+$/i, '').replace(/(Test|Tests|Spec|IT)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// "math" for src/math.js, src/math/index.ts, math/__init__.py.
+function moduleStem(rel) {
+  const b = path.posix.basename(rel).replace(/\.[^.]*$/, '');
+  const name = /^(index|__init__|mod|main)$/.test(b) ? path.posix.basename(path.posix.dirname(rel)) : b;
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Of `candidates` (changed files under check that don't look like test support), the ones that
+ * are test support by how they are used at `rev`: a test imports the file directly next to
+ * other code under check, no test is named after it, it imports no code under check itself,
+ * and no code under check imports it. A hand-written assertion helper (src/testkit.js with an
+ * eq() the tests call) fits; the module a test exercises does not (it is named after the test,
+ * or it is the only code the test imports). Only `rev` is asked (the base), so the change
+ * being judged can't move a file in or out. Returns a Set.
+ */
+export function supportByUse(root, rev, candidates, { isCode, testGlobs = [], files = null } = {}) {
+  const list = [...candidates].filter((p) => CODE_EXT.test(p));
+  if (!list.length || !rev) return new Set();
+  const tracked = files || trackedBlobs(root, rev);
+  const isTest = (p) => testGlobs.some((gl) => matchGlob(p, gl));
+  const tests = [...tracked.keys()].filter((p) => isTest(p) && CODE_EXT.test(p)).slice(0, HELPER_LIMITS.files);
+  const stems = new Set(tests.map(testStem).filter(Boolean));
+  const want = list.filter((p) => tracked.has(p) && !stems.has(moduleStem(p)));
+  if (!want.length) return new Set();
+  const importsOf = makeResolver(root, tracked);
+  const texts = readBlobs(root, [...tests, ...want].map((p) => tracked.get(p)));
+  const isGuarded = (p) => isCode(p) && CODE_EXT.test(p) && !isTest(p);
+  const used = new Set();
+  for (const t of tests) {
+    const deps = [...importsOf(t, texts.get(tracked.get(t)) ?? null)].filter(isGuarded);
+    if (deps.length < 2) continue;
+    for (const d of deps) used.add(d);
+  }
+  const leaves = want.filter((p) => used.has(p) && ![...importsOf(p, texts.get(tracked.get(p)) ?? null)].some(isGuarded));
+  return notImportedByCode(root, rev, leaves, { isCode, testGlobs, files: tracked });
 }
 
 /**

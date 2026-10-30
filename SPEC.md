@@ -339,8 +339,13 @@ treats these changes as guarded:
   imports, Ruby `require`/`require_relative`, Go imports within the module, Java/Kotlin/Scala
   imports, PHP `require`/`include` and shell `source`. A file a required check guards (by
   the rules in force or the base's rules) counts as code (not a helper) unless it looks like test support (a `testing/`, `test-utils/`,
-  `mocks/` path, or a test-framework import); so does a file the code under check imports at
-  the base. With no required check, only files that look like test support are helpers.
+  `testkit`, `mocks/` path, or a test-framework or assertion-library import such as `node:assert`,
+  `chai`, `should`, `power-assert`, `uvu/assert`, `pytest`, `unittest`) or is used as it: at the
+  base, a test imports it directly next to other guarded code, no test file is named after it,
+  and it imports no guarded code. A file used as test support is restored like a helper but
+  stays where mutants are planted, since that reading of the imports can mistake a module under
+  test for one. A file the code under check imports at the base counts as code in every case.
+  With no required check, only files that look like test support are helpers.
   Not followed: build-tool aliases (tsconfig `paths`), C# namespaces, Rust `use`;
 - test-runner configuration (`jest.config.*`, `vitest.config.*`, `vite.config.*`, `.mocharc*`,
   `pytest.ini`, `conftest.py`, `.npmrc`, …);
