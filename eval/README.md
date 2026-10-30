@@ -30,6 +30,8 @@ This folder implements [docs/EVAL-PLAN.md](../docs/EVAL-PLAN.md). The plan says 
 8. **No network in agent runs beyond the model API**, where the CLI allows it. What was allowed is recorded.
 9. **No personal paths in results.** Every record and raw file under `results/` has absolute paths redacted (`lib/redact.js`): this checkout becomes `<pocp>`, temp folders `$TMPDIR`, home folders `~`. `appendRecord` does it for records; `tools/redact-results.js` does it for raw files; a test fails if a committed result still holds one.
 
+10. **The eval is guarded by POCP itself.** In this repository's `.proof/` policy, any change under `eval/` needs a packet proven with `./eval/run-tests.sh`. The files that judge results (`tasks/frozen/`, `reference/`, `lib/` and `PREREG.md`) are listed in `ci.files`, so in CI any change to them also needs a maintainer's approval (`pocp-approve-policy`), the same as a change to the rules or the CI workflow. Moving a bar, editing a frozen task or changing how a cheat is labelled can't land quietly.
+
 ## The run record
 
 One JSON object per line in `results/<eval>/<batch-id>.jsonl`. Fields every eval writes:

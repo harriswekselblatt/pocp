@@ -61,6 +61,17 @@
         "run": "npm test --silent"
       },
       "source": "author"
+    },
+    {
+      "id": "eval-tests",
+      "globs": [
+        "eval/**"
+      ],
+      "obligation": {
+        "kind": "test",
+        "run": "./eval/run-tests.sh"
+      },
+      "source": "author"
     }
   ]
 }
