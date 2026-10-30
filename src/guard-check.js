@@ -75,6 +75,13 @@ export async function runGuardCheck({
   try {
     oldTpl = copySnapshot(newTpl.dir);
     result.old_tests.restored = restoreOldTests(root, base, changes, oldTpl.dir);
+    // Tests the change adds aren't old tests: they stay out of the old-tests run, or a new test
+    // of changed test support would run against the old support and read as a behavior change.
+    // One a check's command names by path stays (removing it would only break the command).
+    const added = addedTestFiles(root, base, rev, guardGlobs.test?.length ? guardGlobs.test : exclude)
+      .filter((f) => !checks.some((c) => String(c.run || '').includes(f)));
+    for (const f of added) fs.rmSync(path.join(oldTpl.dir, f), { force: true });
+    if (added.length) result.old_tests.left_out = added;
 
     // Baselines: the checks on the new code with the new tests (as proven), then with the old.
     const speed = new Map();
@@ -94,7 +101,8 @@ export async function runGuardCheck({
           }
           copy = copy || copySnapshot(tplDir);
           const r = await runObligation(ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
-          into.push({ check: ob.id, passed: r.passed, exit: r.exit, timed_out: r.timed_out || undefined, signal: r.signal || undefined, error: r.error || undefined, duration_ms: r.duration_ms });
+          const names = r.passed ? [] : failingTests(r.output);
+          into.push({ check: ob.id, passed: r.passed, exit: r.exit, timed_out: r.timed_out || undefined, signal: r.signal || undefined, error: r.error || undefined, duration_ms: r.duration_ms, ...(names.length ? { failed_tests: names } : {}) });
           speed.set(ob, r.duration_ms);
           if (label === 'old' && !r.passed) abandon = true;
           if (label === 'new' && r.passed && typeof onPass === 'function') onPass(ob, r);
@@ -238,12 +246,26 @@ export async function runGuardCheck({
       }
       // A check that passes at the base but fails on the new code: the change did that.
       if (result.baseline.runs.some((r) => r.passed)) {
-        return finish('behavior-changed', `the old tests fail on the new code (${failedList(result.old_tests.runs, checks)}): behavior changed, so a person must approve it`);
+        const names = testNames(result.old_tests.runs);
+        return finish('behavior-changed', `the old tests fail on the new code (${failedList(result.old_tests.runs, checks)})${names.length ? `; failing: ${names.join('; ')}` : ''}: behavior changed, so a person must approve it`);
       }
       // Already red only if every base run ended normally with a failing result. A timeout,
       // a signal, a spawn error or "command not found" says nothing about the tests.
       if (result.baseline.runs.every(ranAndFailed)) {
-        return finish('baseline-red', `the old tests already fail at the base (${failedList(result.baseline.runs, checks)}), so the guard can't tell whether this change altered behavior: a person must approve it`);
+        // The guard compares whole checks, not single tests. When the output names the failing
+        // tests, say which fail on each side: if they differ, the base's failure says nothing
+        // about the ones that fail on the new code, and a person has to look at those.
+        const onNew = testNames(result.old_tests.runs);
+        const atBase = testNames(result.baseline.runs);
+        const onlyNew = onNew.filter((t) => !atBase.includes(t));
+        let detail = '';
+        if (onNew.length && atBase.length) {
+          result.adjudication = { automatic: false, reason: 'baseline-red', failing_on_new_code: onNew, failing_at_base: atBase, same_tests: onlyNew.length === 0 };
+          detail = onlyNew.length === 0
+            ? `. The same tests fail on both sides (${atBase.join('; ')})`
+            : `. Different tests fail: at the base ${atBase.join('; ')}, but on the new code with the old tests ${onlyNew.join('; ')}, which the base's failure doesn't explain. The guard compares whole checks, not single tests, so it can't decide this automatically: a person must review the tests that fail only on the new code`;
+        }
+        return finish('baseline-red', `the old tests already fail at the base (${failedList(result.baseline.runs, checks)}), so the guard can't tell whether this change altered behavior: a person must approve it${detail}`);
       }
       return finish('inconclusive', `the old tests fail on the new code, and on the base the same checks didn't finish normally (${failedList(result.baseline.runs.filter((r) => !ranAndFailed(r)), checks)}), so it can't be told whether they were already failing: a person must approve it`);
     }
@@ -340,6 +362,32 @@ function semaphore(n) {
       else free++;
     },
   };
+}
+
+/** Failing test names in a check's output: TAP ("not ok N - name"), node --test's spec reporter ("✖ name"), pytest ("FAILED a::b"), Jest/Vitest ("FAIL path"). At most 10. */
+export function failingTests(output) {
+  const names = [];
+  for (const line of String(output || '').split('\n')) {
+    if (/^\s*not ok \d+ .*#\s*(TODO|SKIP)\b/i.test(line)) continue; // a TODO/SKIP directive isn't a failure
+    const m = /^\s*not ok \d+ - (.+?)(?:\s+#\s.*)?$/.exec(line) || /^\s*\u2716 (.+?)(?: \([\d.]+m?s\))?$/.exec(line) || /^FAILED (\S+)/.exec(line) || /^\s*FAIL\s+(\S+)/.exec(line);
+    if (m && /^failing tests:?$/.test(m[1].trim())) continue; // the spec reporter's summary header
+    if (m && !names.includes(m[1].trim())) names.push(m[1].trim());
+    if (names.length >= 10) break;
+  }
+  return names;
+}
+
+const testNames = (runs) => [...new Set(runs.filter((r) => !r.passed).flatMap((r) => r.failed_tests || []))];
+
+/** Test files added between `base` and `rev` (null: the staged index). Renames count as added. */
+export function addedTestFiles(root, base, rev, testGlobs) {
+  const args = rev ? ['diff', '--name-status', '--no-renames', '-z', base, rev] : ['diff', '--cached', '--name-status', '--no-renames', '-z', base];
+  const parts = (g.git(root, args, { allowFail: true, trim: false }) || '').split('\0');
+  const out = [];
+  for (let i = 0; i + 1 < parts.length; i += 2) {
+    if (parts[i] === 'A' && testGlobs.some((gl) => matchGlob(parts[i + 1], gl))) out.push(parts[i + 1]);
+  }
+  return out;
 }
 
 function failedList(runs, checks) {
