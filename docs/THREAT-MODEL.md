@@ -155,11 +155,25 @@ check isn't required, pull requests aren't required, or admins can merge past th
   That is a cleanup limit, not a way around a proof: the check's own result is still what
   counts. Raising the check's
   `timeout_ms` makes fewer runs unfinished.
-- **Harnesses it doesn't know.** The guard knows common JavaScript, Python, Rust and PHP
-  test setup, and follows files that setup and the required checks' commands name. A
-  `Makefile` target, a build file or a script reached some other way (a `Makefile` calling a
-  script, a config that imports a helper) is unguarded until listed in
-  `guard.extra_runner_globs`.
+- **Harnesses it doesn't know.** The guard knows the common test layouts and harness files
+  of JavaScript/TypeScript, Python, Ruby, Go, Rust, Java/Kotlin, C# and PHP, follows files
+  that setup and the required checks' commands name or run, and follows what the tests
+  import. A `Makefile` target, a build file or a script reached some other way (a `Makefile`
+  calling a script, a config that imports a helper) is unguarded until listed in
+  `guard.extra_runner_globs`; a test layout outside the defaults that `pocp init` didn't find
+  is unguarded until listed in `guard.extra_test_globs`.
+- **Test helpers it can't see.** Helpers are found by reading imports, not by running
+  anything, and within limits (6 imports deep, 5,000 files per revision). A helper reached
+  through a build-tool alias (tsconfig `paths`, a webpack alias), a C# namespace, a Rust
+  `use`, dynamic loading, or past those limits is not guarded. Neither is a helper inside the
+  globs a required check guards that doesn't look like test support (no `testing/`,
+  `test-utils/`, `mocks/` path, no test-framework import), or one the code under check itself
+  imports: that is treated as code. Keep assertion helpers outside the guarded source or
+  under a test folder.
+- **Rust inline tests.** Only top-level `#[cfg(test)]` items count as test code. One nested
+  inside another module, and `#[test]` functions outside a `#[cfg(test)]` item, are treated
+  as source. Adding inline tests changes the file's test part, so it runs the mechanical
+  check (which passes when nothing was weakened) where adding a test file is free.
 - **Merge commits.** `verify base..head` skips merge commits; a change introduced while
   resolving a merge is only seen by the head re-run.
 - **History before POCP.** Commits are judged by the rules in force at their base; commits

@@ -12,7 +12,8 @@ pocp init --hooks
 ```
 
 `.proof/` now holds `config.json`, `rules.json` and empty `packets/` and `misses/` folders.
-Commit them.
+`init` also prints the test layout it found; check it, and add any test folder it missed to
+`guard.extra_test_globs` in `config.json`. Commit them.
 
 ## 2. Say what must be proven
 

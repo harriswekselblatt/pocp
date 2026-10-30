@@ -1,0 +1,225 @@
+{
+  "pocp": 1,
+  "id": "p-bcb9eaf5",
+  "intent": "Guard test helpers, wider default test layouts, executed test files, Rust inline tests; chain hooks pocp can't append to",
+  "touches": [
+    "src/cli.js",
+    "src/doctor.js",
+    "src/guard.js",
+    "src/init.js",
+    "src/mutants.js",
+    "src/test-setup.js",
+    "test/guard-test-layout.test.js",
+    "test/hooks-chain.test.js",
+    "test/init-layout.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-10-30T02:14:49.552Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:d5e4bcc0eebac3f2ab27a6da095a2221f1c82be682014c2709276976c0e2dc64",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:14:49.948Z",
+      "duration_ms": 3072,
+      "stdout_sha256": "e5bd044f057c73133ee0709e98be2ffbde54674df54f0cdc63433df58a37d03f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-6df43f96",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:d5e4bcc0eebac3f2ab27a6da095a2221f1c82be682014c2709276976c0e2dc64",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:14:53.087Z",
+      "duration_ms": 52053,
+      "stdout_sha256": "e8def1fd72a9f44046bcf02b92e81f4f67a31b6e5ffbdb031f31de023a57c1bf",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-8346c3c8",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:d5e4bcc0eebac3f2ab27a6da095a2221f1c82be682014c2709276976c0e2dc64",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-10-30T02:15:45.302Z",
+      "duration_ms": 243079,
+      "stdout_sha256": "a502ddaf022643cfb89a8360797840ec3ce6ea7e1fe83fbcbec446892c3a75e2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b21265d3",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:70bb62ad26f3fba02bf9a243e95bb108b6957d52ea67f7014f5342b73e4c398a",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:24:33.081Z",
+      "duration_ms": 3181,
+      "stdout_sha256": "a75cf30df6c586c3e4155704e0b36f633897f14eaddfd43cfdab6573f5427572",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-f9006770",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:70bb62ad26f3fba02bf9a243e95bb108b6957d52ea67f7014f5342b73e4c398a",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:24:36.341Z",
+      "duration_ms": 46708,
+      "stdout_sha256": "0507a95dfd4c37446af2b48ccbd90085e0c12acc92d31e3c3a482a2ca80e08bf",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-5f387263",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:70bb62ad26f3fba02bf9a243e95bb108b6957d52ea67f7014f5342b73e4c398a",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T02:25:23.134Z",
+      "duration_ms": 164142,
+      "stdout_sha256": "4dba54a5186106a7d98928c609af9181bfd0c560aa0bfeceb4b6baae75bd2dcb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-5c5fefbe",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T02:14:49.552Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-10-30T02:14:49.552Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-10-30T02:19:48.467Z",
+      "event": "proof_failed",
+      "obligation": "o3",
+      "subject": "sha256:d5e4bcc0eebac3f2ab27a6da095a2221f1c82be682014c2709276976c0e2dc64"
+    },
+    {
+      "at": "2026-10-30T02:19:48.515Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:d5e4bcc0eebac3f2ab27a6da095a2221f1c82be682014c2709276976c0e2dc64"
+    },
+    {
+      "at": "2026-10-30T02:28:07.451Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:70bb62ad26f3fba02bf9a243e95bb108b6957d52ea67f7014f5342b73e4c398a"
+    }
+  ]
+}

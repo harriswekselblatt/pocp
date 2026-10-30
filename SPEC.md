@@ -317,7 +317,31 @@ A check can be hollowed out without touching its command: gut the assertions in 
 existing test, add `.skip`, or change `"test": "…"` in `package.json` to `echo ok`. POCP
 treats these changes as guarded:
 
-- existing test files modified, deleted or renamed (added test files are fine);
+- existing test files modified, deleted or renamed (added test files are fine). The default
+  test patterns cover the common layouts of JavaScript/TypeScript (`test/`, `spec/`,
+  `__tests__/`, `*.test.*`, `*.spec.*`, `*_spec.*`, snapshots, `__mocks__/`), Python
+  (`tests/`, `test_*.py`, `*_test.py`), Ruby (`spec/`, `*_spec.rb`, `*_test.rb`), Go
+  (`*_test.go`, `testdata/`), Rust (`tests/`), Java/Kotlin/Scala (`src/test/`,
+  `src/androidTest/` and the other `src/*Test/` source sets, `*Test.java`, `*IT.java`), C#
+  (`*Tests.cs`, `*.Tests/`) and PHP (`*Test.php`), at the root or inside a package. `pocp init`
+  writes test folders it finds declared elsewhere (pytest `testpaths`, jest `roots`, rspec
+  `--default-path`, phpunit test suites, Maven `testSourceDirectory`, Cargo `[[test]]`) to
+  `guard.extra_test_globs`;
+- the `#[cfg(test)]` items at the top level of a Rust file (usually `mod tests { … }`): only
+  that part of the file is compared and, in the mechanical check, restored, so the code beside
+  it stays new. A file declared as `#[cfg(test)] mod name;` is test code as a whole. Not seen:
+  a `#[cfg(test)]` item nested inside another module, and `#[test]` functions outside one;
+- test helpers: files the tests import, followed transitively (up to 6 imports deep and 5,000
+  files read per revision), when they aren't the code the required checks guard. A helper
+  whose assertion can't fail hollows every test that calls it, so changing one is a test
+  change and the mechanical check runs the old helper with the old tests on the new code.
+  Imports are read without running anything: relative JavaScript/TypeScript imports, Python
+  imports, Ruby `require`/`require_relative`, Go imports within the module, Java/Kotlin/Scala
+  imports, PHP `require`/`include` and shell `source`. A file a required check guards (by
+  the rules in force or the base's rules) counts as code (not a helper) unless it looks like test support (a `testing/`, `test-utils/`,
+  `mocks/` path, or a test-framework import); so does a file the code under check imports at
+  the base. With no required check, only files that look like test support are helpers.
+  Not followed: build-tool aliases (tsconfig `paths`), C# namespaces, Rust `use`;
 - test-runner configuration (`jest.config.*`, `vitest.config.*`, `vite.config.*`, `.mocharc*`,
   `pytest.ini`, `conftest.py`, `.npmrc`, …);
 - the test settings inside files that also hold other things: the `scripts`, `jest`, `mocha`,
@@ -329,10 +353,12 @@ treats these changes as guarded:
   `require`, `testEnvironment`, `reporters`, …), and tracked files a required check's command
   names (`node --import ./setup.mjs`, `bash scripts/check.sh`), following the package scripts
   it runs (`npm test` → `scripts.test`, with `pretest`/`posttest`). A file the requirement
-  itself guards is what the check checks (`node --check src/a.js`), not setup. A runner
-  config's imports are not followed.
+  itself guards is what the check checks (`node --check src/a.js`), not setup, unless the
+  command executes it (the program of a command, the first file after an interpreter such as
+  `node` or `python`, every file after a test runner such as `pytest`, `rspec` or
+  `node --test`) or it matches a test pattern. A runner config's imports are not followed.
 
-Defaults cover common JavaScript, Python, Rust and PHP harness files. `guard.test_globs` and
+Defaults cover common JavaScript, Python, Ruby, Rust, PHP, JVM and .NET harness files. `guard.test_globs` and
 `guard.runner_globs` replace the defaults; `guard.extra_test_globs` and
 `guard.extra_runner_globs` add to them, for harnesses POCP can't know about (a Makefile
 target, a Gradle task, a custom script). Added, modified, deleted and renamed runner files
@@ -507,8 +533,17 @@ Lines written before `source` existed have none; readers treat them as unknown. 
 installed by an older pocp don't set the variable, so their lines say `gate` until
 `pocp hooks install` is run again.
 
-**Hooks without pocp.** If a hook can't find pocp (`POCP_BIN`, `pocp` on `PATH`, or
-`node_modules/.bin/pocp`), pre-commit fails closed: it is the gate. prepare-commit-msg and
+**Existing hooks.** `pocp hooks install` keeps hooks that are already there. A plain sh hook
+gets pocp's block appended. A hook pocp can't safely append to (one with a non-shell
+shebang such as node or python, where the block would be a syntax error, or one that uses
+`exec` or `exit`, where the block might never run) is chained: it moves to
+`<hook>.pre-pocp` and pocp installs a hook that runs it first (so formatters see the commit
+first; a failure still stops it), then pocp's step. Reinstalling changes nothing, and
+`pocp hooks uninstall` moves the original back. Hooks an older pocp appended to such a hook
+are reported by `pocp hooks status` and `pocp doctor`, and repaired by `pocp hooks install`.
+
+**Hooks without pocp.** The hooks look for pocp in `POCP_BIN`, then the project's own
+`node_modules/.bin/pocp`, then `PATH`. If none is found, pre-commit fails closed: it is the gate. prepare-commit-msg and
 post-commit also run under `git commit --no-verify`; they print a warning and exit 0, since
 they only add trailers and record landings. A commit made that way carries no proof
 trailers, and `verify --require-coverage` in CI flags it if it needed coverage.

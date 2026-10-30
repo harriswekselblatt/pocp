@@ -8,7 +8,30 @@ import { ranAndFailed, unfinishedReason } from './run-result.js';
 import { createIndexSnapshot } from './workspace.js';
 
 // Mutating a test file only breaks the test itself, which would inflate the catch rate.
-export const DEFAULT_EVAL_EXCLUDE = ['test/**', 'tests/**', '**/__tests__/**', '**/*.test.*', '**/*.spec.*', '**/test_*.py', '**/*_test.go'];
+// These are also the test guard's default test patterns (guard.js), so they cover the common
+// layouts of each ecosystem. A layout outside them goes in guard.extra_test_globs (pocp init
+// detects the usual ones and writes them there).
+export const DEFAULT_EVAL_EXCLUDE = Object.freeze([
+  // Test folders, at the root or inside a package (monorepos, Maven/Gradle src/test/).
+  'test/**', 'tests/**', 'spec/**', '**/test/**', '**/tests/**', '**/spec/**',
+  '**/__tests__/**', '**/__test__/**', '**/__mocks__/**', '**/__snapshots__/**', '**/__fixtures__/**',
+  '**/test-utils/**', '**/test_utils/**', '**/testutils/**', '**/test-helpers/**', '**/test_helpers/**', '**/test-support/**', '**/test_support/**',
+  // JavaScript / TypeScript (and anything else named this way): a.test.js, a.spec.ts, a_spec.js, a_test.js.
+  '**/*.test.*', '**/*.spec.*', '**/*_spec.*', '**/*_test.*', '**/*.snap',
+  // Python: test_a.py, a_test.py (above), Django's tests.py.
+  '**/test_*.py', '**/tests.py',
+  // Ruby: a_spec.rb, a_test.rb (above), test_a.rb.
+  '**/test_*.rb',
+  // Go: a_test.go (above) and golden files.
+  '**/testdata/**',
+  // Java / Kotlin / Scala / Groovy: src/test/ (above), androidTest, commonTest, testFixtures, ...
+  '**/src/*Test/**', '**/src/testFixtures/**', '**/*Test.java', '**/*Tests.java', '**/*IT.java', '**/*Test.kt', '**/*Tests.kt', '**/*Spec.kt',
+  '**/*Test.scala', '**/*Spec.scala', '**/*Suite.scala', '**/*Spec.groovy', '**/*Test.groovy',
+  // C# and Swift: FooTests.cs, Foo.Tests/, Tests/MyLibTests/.
+  '**/*Tests.cs', '**/*Test.cs', '**/*Tests/**', '**/*.Test/**', '**/*Tests.swift',
+  // PHP: FooTest.php.
+  '**/*Test.php',
+]);
 
 export const SOURCE_EXT = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.py', '.rb', '.go', '.java', '.rs', '.c', '.cc', '.cpp', '.h', '.cs', '.php', '.swift', '.kt']);
 
