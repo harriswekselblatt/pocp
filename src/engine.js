@@ -1642,11 +1642,20 @@ export function createPocp(opts = {}) {
    * a fixed identity and date so the same range always gives the same object.
    */
   function netChangeCommit(netBase, tip) {
-    const env = {
-      GIT_AUTHOR_NAME: 'pocp', GIT_AUTHOR_EMAIL: 'pocp@invalid', GIT_AUTHOR_DATE: '1970-01-01T00:00:00Z',
-      GIT_COMMITTER_NAME: 'pocp', GIT_COMMITTER_EMAIL: 'pocp@invalid', GIT_COMMITTER_DATE: '1970-01-01T00:00:00Z',
-    };
-    return g.git(root, ['commit-tree', '--no-gpg-sign', `${tip}^{tree}`, '-p', netBase, '-m', `pocp net change ${netBase}..${tip}`], { env });
+    const tree = g.git(root, ['rev-parse', '--verify', '--quiet', `${tip}^{tree}`]);
+    const text = `tree ${tree}\nparent ${netBase}\nauthor pocp <pocp@invalid> 0 +0000\ncommitter pocp <pocp@invalid> 0 +0000\n\npocp net change ${netBase}..${tip}\n`;
+    const id = g.git(root, ['hash-object', '-t', 'commit', '--stdin'], { input: text });
+    // The id is predictable, so an object may already be stored under it (an earlier verify,
+    // or something planted there). Git reads an object without checking its content against
+    // its id, so one that is there must hold exactly this content.
+    const stored = g.git(root, ['cat-file', 'commit', id], { allowFail: true, trim: false });
+    if (stored === null) {
+      g.git(root, ['hash-object', '-t', 'commit', '-w', '--stdin'], { input: text });
+      g.trustObjects();
+    } else if (stored !== text) {
+      throw new g.GitTamperError(`the object store holds different content under the id of the net change's commit ${id.slice(0, 12)}: run verify on a fresh checkout`);
+    }
+    return id;
   }
 
   /**
@@ -1685,6 +1694,10 @@ export function createPocp(opts = {}) {
       && g.git(root, ['rev-parse', '--verify', '--quiet', `${lastCommit}^1`], { allowFail: true }) === netBase;
     const seed = netBase && pol ? rangeGuardSeed(guardBudget(pol.cfgAt).seed, netBase, tip) : undefined;
 
+    // The net change's commit is written before any code under review runs: verify trusts the
+    // object store as it was then (git.js watches it from the start of isolation).
+    const synth = netBase && !single ? netChangeCommit(netBase, tip) : null;
+
     // Required CI results are checked once, at the tip (where CI ran), after the range's re-runs.
     const memo = createRunMemo();
     for (const c of commits) {
@@ -1694,7 +1707,7 @@ export function createPocp(opts = {}) {
     if (!any) return result;
 
     let net = null;
-    if (netBase && !single) net = await prepareNetChange({ tip, netBase, pol, options });
+    if (synth) net = await prepareNetChange({ tip, netBase, synth, pol, options });
     else if (!netBase && commits.length + merges.length > 1) result.notes = [`no range base, so the range's net change was not judged as one change`];
 
     const rerun = options.rerun === true ? 'all' : options.rerun;
@@ -1738,9 +1751,8 @@ export function createPocp(opts = {}) {
   }
 
   /** What the net change is, before the tip's re-runs: its changes, test guard and required checks. */
-  async function prepareNetChange({ tip, netBase, pol, options }) {
+  async function prepareNetChange({ tip, netBase, synth, pol, options }) {
     const useHost = options.useHost ?? Boolean(opts.policy);
-    const synth = netChangeCommit(netBase, tip);
     const changes = g.commitChanges(root, synth);
     const paths = g.changedPaths(changes);
     const files = [...paths];

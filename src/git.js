@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { digest } from './hash.js';
 
 export const PROOF_DIR = '.proof';
@@ -44,7 +45,7 @@ const REPO_ENV = new Set([
   'GIT_REPLACE_REF_BASE', 'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE', 'GIT_CEILING_DIRECTORIES',
 ]);
 
-let isolation = null; // { root, commonDir, gitDir, safeDirs, watched, fast, refs, tampered }
+let isolation = null; // { root, commonDir, gitDir, safeDirs, watched, fast, refs, objectDirs, objects, marks, checked, tampered }
 let noRepoEnv = false;
 
 /**
@@ -115,9 +116,20 @@ export function git(cwd, args, { input, allowFail = false, trim = true, env } = 
 // repository's git config, hooks and refs. In isolation: global and system config are not read
 // (the code can write ~/.gitconfig too), repository-locating environment variables are not
 // inherited, replace refs are ignored, and before every git call the repository's config, its
-// included files, info/attributes, alternates and hooks are compared with what they were when
-// isolation began. Any difference stops the run (GitTamperError) and stays recorded, so the
-// final check fails even if the code put things back. Refs are compared at the end.
+// included files, info/attributes, grafts, shallow, alternates and hooks are compared with what
+// they were when isolation began. Any difference stops the run (GitTamperError) and stays
+// recorded, so the final check fails even if the code put things back. Refs are compared at the
+// end.
+//
+// The object store is watched too: git does not check an object's content against its id when
+// it reads it, so code that rewrites a loose object or a pack would otherwise change what verify
+// reads as the base or the head. Every file under objects/ (and under alternate object
+// directories) is recorded when isolation begins by inode, size, mtime and ctime. A process
+// can't set a file's ctime, so a file written, replaced, renamed or put back afterwards no
+// longer matches by inode or size, or has new times and then has its content checked (see
+// contentMark). A new file is accepted only as a loose object whose content hashes to its name
+// (writing a new object is harmless: ids are content hashes), or as a name git never reads as
+// an object. Anything else (a new pack, a commit-graph, a removed file) is tampering.
 
 function readOrMissing(file) {
   try {
@@ -146,6 +158,184 @@ function refsState(root) {
   return `${run(['for-each-ref', '--format=%(refname) %(objectname)'])}\nHEAD ${run(['symbolic-ref', '-q', 'HEAD']).trim() || run(['rev-parse', '-q', '--verify', 'HEAD']).trim()}`;
 }
 
+const HEX_NAME = /^[0-9a-f]+$/;
+
+function objectDirs(commonDir) {
+  const dirs = [path.join(commonDir, 'objects')];
+  const seen = new Set();
+  // Alternates may chain; each listed directory is an object store git reads from.
+  for (let i = 0; i < dirs.length && i < 16; i++) {
+    const real = (() => { try { return fs.realpathSync(dirs[i]); } catch { return dirs[i]; } })();
+    if (seen.has(real)) continue;
+    seen.add(real);
+    let text = '';
+    try { text = fs.readFileSync(path.join(dirs[i], 'info', 'alternates'), 'utf8'); } catch { continue; }
+    for (const line of text.split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))) dirs.push(path.resolve(dirs[i], line));
+  }
+  return [...new Set(dirs)];
+}
+
+function statOf(st) {
+  return { id: `${st.mode}:${st.ino}:${st.size}`, times: `${st.mtimeNs}:${st.ctimeNs}` };
+}
+
+/** Every file under the object directories: Map<absolute path, { id, times }>. */
+function objectsState(dirs) {
+  const files = new Map();
+  const walk = (d, depth) => {
+    let names;
+    try { names = fs.readdirSync(d); } catch { return; }
+    for (const n of names) {
+      const full = path.join(d, n);
+      let st;
+      try { st = fs.lstatSync(full, { bigint: true }); } catch { continue; }
+      if (st.isDirectory() && depth < 4) walk(full, depth + 1);
+      else files.set(full, statOf(st));
+    }
+  };
+  for (const d of dirs) walk(d, 0);
+  return files;
+}
+
+/** The object id a file holds when it is a loose object (objects/ab/cdef…), else null. */
+function looseId(file) {
+  const dir = path.dirname(file);
+  const fan = path.basename(dir);
+  const name = path.basename(file);
+  if (!/^[0-9a-f]{2}$/.test(fan) || !isolation.objectDirs.includes(path.dirname(dir))) return null;
+  return HEX_NAME.test(name) && (name.length === 38 || name.length === 62) ? fan + name : null;
+}
+
+/** Does this loose object file hold content whose hash is its name? */
+function looseObjectValid(file, id) {
+  try {
+    const raw = zlib.inflateSync(fs.readFileSync(file));
+    const algo = id.length === 64 ? 'sha256' : 'sha1';
+    return crypto.createHash(algo).update(raw).digest('hex') === id;
+  } catch {
+    return false;
+  }
+}
+
+// How a file's content is checked when its times change but it is the same file (same inode
+// and size). That happens without anyone writing it: git refreshes an object's mtime when it
+// writes one that is already there, and a hard link made or removed elsewhere (local clones
+// share object files) changes its ctime. A loose object is checked against its id. Other
+// files are recorded when isolation begins: a small one by its content's SHA-256, a larger
+// one (packs, their indexes, commit-graph, multi-pack-index all end with a checksum of what
+// precedes it) by its last bytes, which must then still be the hash of the rest.
+const SMALL_FILE = 64 * 1024;
+
+function contentMark(file, size) {
+  try {
+    if (size <= SMALL_FILE) return { sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') };
+    const fd = fs.openSync(file, 'r');
+    try {
+      const tail = Buffer.alloc(isolation.hashBytes);
+      fs.readSync(fd, tail, 0, tail.length, size - tail.length);
+      return { tail: tail.toString('hex') };
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return null;
+  }
+}
+
+function sameContent(file, mark) {
+  if (!mark) return false;
+  try {
+    const data = fs.readFileSync(file);
+    if (mark.sha256) return crypto.createHash('sha256').update(data).digest('hex') === mark.sha256;
+    const n = isolation.hashBytes;
+    if (data.length <= n || data.subarray(data.length - n).toString('hex') !== mark.tail) return false;
+    return crypto.createHash(n === 32 ? 'sha256' : 'sha1').update(data.subarray(0, data.length - n)).digest('hex') === mark.tail;
+  } catch {
+    return false;
+  }
+}
+
+/** Record the object store as it is now: the trusted state. */
+function recordObjects() {
+  isolation.objects = objectsState(isolation.objectDirs);
+  isolation.marks = new Map();
+  for (const [f, st] of isolation.objects) {
+    if (looseId(f)) continue;
+    isolation.marks.set(f, contentMark(f, Number(st.id.split(':')[2])));
+  }
+  isolation.objectDirsKey = objectDirsState(isolation.objectDirs);
+  isolation.checked = new Map();
+}
+
+/** The object directories and the directories directly in them (fan-out, pack, info). */
+function objectDirsState(dirs) {
+  const out = [];
+  for (const d of dirs) {
+    const stat = (p) => { try { const st = fs.lstatSync(p, { bigint: true }); return `${st.ino}:${st.mtimeNs}:${st.ctimeNs}`; } catch { return 'missing'; } };
+    out.push(`${d}\0${stat(d)}`);
+    let names = [];
+    try { names = fs.readdirSync(d).sort(); } catch { /* missing */ }
+    for (const n of names) out.push(`${n}\0${stat(path.join(d, n))}`);
+  }
+  return out.join('\n');
+}
+
+/**
+ * Before each git call: a full look at the object store only when a directory in it changed
+ * (a file added, removed or renamed). A file rewritten in place changes no directory; the full
+ * look at the end of isolation (gitStateProblem) catches it, and verify fails then.
+ */
+function objectsProblemQuick() {
+  const dirs = objectDirsState(isolation.objectDirs);
+  if (dirs === isolation.objectDirsKey) return null;
+  const problem = objectsProblem();
+  if (!problem) isolation.objectDirsKey = dirs;
+  return problem;
+}
+
+function objectsProblem() {
+  const now = objectsState(isolation.objectDirs);
+  const rel = (f) => path.relative(isolation.root, f) || f;
+  for (const [f, was] of isolation.objects) {
+    const is = now.get(f);
+    if (!is) return `${rel(f)} removed`;
+    if (is.id !== was.id) return `${rel(f)} changed`;
+    if (is.times === was.times || isolation.checked.get(f) === is.times) continue;
+    // Same file, new times: its content decides.
+    const id = looseId(f);
+    if (!(id ? looseObjectValid(f, id) : sameContent(f, isolation.marks.get(f)))) return `${rel(f)} changed`;
+    isolation.checked.set(f, is.times);
+  }
+  for (const [f, is] of now) {
+    if (isolation.objects.has(f)) continue;
+    const id = looseId(f);
+    if (!id) {
+      // Git reads only hex-named files in a fan-out directory as loose objects.
+      if (/^[0-9a-f]{2}$/.test(path.basename(path.dirname(f))) && isolation.objectDirs.includes(path.dirname(path.dirname(f)))) continue;
+      return `${rel(f)} appeared`;
+    }
+    const key = `${is.id}:${is.times}`;
+    if (isolation.checked.get(f) === key) continue;
+    if (!looseObjectValid(f, id)) return `${rel(f)} appeared with content that doesn't match its id`;
+    isolation.checked.set(f, key);
+  }
+  return null;
+}
+
+/**
+ * Record an object POCP itself just wrote as part of the trusted state (call it only while no
+ * code under review runs). Its content is checked against its id first.
+ */
+export function trustObjects() {
+  if (!isolation) return;
+  const problem = objectsProblem();
+  if (problem) {
+    isolation.tampered = isolation.tampered || problem;
+    throw new GitTamperError(tamperMessage(isolation.tampered));
+  }
+  recordObjects();
+}
+
 function describeChange(before, after) {
   const changed = after.filter(([f, h], i) => before[i][1] !== h).map(([f]) => path.relative(isolation.root, f) || f);
   return changed.length ? `${changed.join(', ')} changed` : null;
@@ -153,14 +343,14 @@ function describeChange(before, after) {
 
 function assertIntact() {
   if (!isolation.tampered) {
-    const problem = describeChange(isolation.fast, fastState(isolation.watched));
+    const problem = describeChange(isolation.fast, fastState(isolation.watched)) || objectsProblemQuick();
     if (problem) isolation.tampered = problem;
   }
   if (isolation.tampered) throw new GitTamperError(tamperMessage(isolation.tampered));
 }
 
 function tamperMessage(problem) {
-  return `the repository's git state changed while verify ran the pull request's code (${problem}): its config, hooks or refs are not what verify started with, so nothing this verify ran is trusted. Run verify again on a fresh checkout`;
+  return `the repository's git state changed while verify ran the pull request's code (${problem}): its config, hooks, refs or objects are not what verify started with, so nothing this verify ran is trusted. Run verify again on a fresh checkout`;
 }
 
 /**
@@ -175,7 +365,8 @@ export function isolateGit(root) {
   const abs = (p) => path.resolve(root, p);
   const commonDir = abs(git(root, ['rev-parse', '--git-common-dir']));
   const gitDir = abs(git(root, ['rev-parse', '--git-dir']));
-  isolation = { root, commonDir, gitDir, safeDirs, watched: [], fast: [], refs: '', tampered: null };
+  const hashBytes = git(root, ['hash-object', '--stdin'], { input: '' }).length / 2;
+  isolation = { root, commonDir, gitDir, safeDirs, watched: [], fast: [], refs: '', objectDirs: [], objectDirsKey: '', hashBytes, objects: new Map(), marks: new Map(), checked: new Map(), tampered: null };
   try {
     // The repository's config files and the files they include, as git resolves them now
     // (global and system config are not read in isolation, so they are not watched either).
@@ -187,11 +378,14 @@ export function isolateGit(root) {
       path.join(gitDir, 'config.worktree'),
       path.join(commonDir, 'info', 'attributes'),
       path.join(commonDir, 'info', 'grafts'),
+      path.join(commonDir, 'shallow'),
       path.join(commonDir, 'objects', 'info', 'alternates'),
       path.join(commonDir, 'hooks'),
       ...origins,
     ])];
     isolation.fast = fastState(isolation.watched);
+    isolation.objectDirs = objectDirs(commonDir);
+    recordObjects();
     isolation.refs = refsState(root);
   } catch (err) {
     isolation = null;
@@ -210,7 +404,7 @@ export function gitIsolated() {
 /** null when the isolated repository's git state is unchanged; otherwise what changed. Sticky. */
 export function gitStateProblem() {
   if (!isolation) return null;
-  if (!isolation.tampered) isolation.tampered = describeChange(isolation.fast, fastState(isolation.watched));
+  if (!isolation.tampered) isolation.tampered = describeChange(isolation.fast, fastState(isolation.watched)) || objectsProblem();
   if (!isolation.tampered && refsState(isolation.root) !== isolation.refs) isolation.tampered = 'refs changed';
   return isolation.tampered;
 }

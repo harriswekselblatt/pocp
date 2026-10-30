@@ -90,8 +90,17 @@ What POCP does about it:
   external diff and textconv drivers), ignores global and system config and replace refs, and
   doesn't inherit `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE` or config-injecting variables.
 - Before each git call, verify compares the repository's config (and the files it includes),
-  hooks, `info/attributes` and alternates with what they were when it started, and compares
-  refs at the end. Any change fails the verify, even if the code put things back.
+  hooks, `info/attributes`, grafts, `shallow` and alternates with what they were when it
+  started, and compares refs at the end. Any change fails the verify, even if the code put
+  things back.
+- The object store is watched the same way. Git doesn't check an object's content against its
+  id when it reads it, so code that rewrites a loose object or a pack could otherwise change
+  what verify reads as the base or the head. Verify records every file under `.git/objects`
+  (and alternate object directories) by inode, size and change time when it starts; a process
+  can't set a file's change time, so a file rewritten, replaced or put back no longer matches.
+  The only new files accepted are loose objects whose content hashes to their name. The net
+  change's commit is written before any pull-request code runs, and one already stored under
+  its id must hold exactly the expected content.
 - The example workflows check out with `persist-credentials: false`, so no token is left in
   `.git/config`, and run with read-only permissions and no secrets.
 
