@@ -37,15 +37,24 @@ It's only a pointer. CI recomputes everything from the commit and re-runs whatev
 
 ## What it does and doesn't catch
 
+What CI's `pocp verify <base>..HEAD --require-coverage --rerun` decides, with the default settings (test guard in `block` mode):
+
 | An agent… | Plain CI | POCP |
 |---|---|---|
-| deletes or weakens the failing assertion | passes | blocked: the old tests fail on the new code |
-| marks the test `.skip`, `.only` or skipped | passes | blocked |
-| hollows out the test script or runner config | passes | blocked |
-| deletes the requirement from the rules | n/a | blocked: judged by the base branch's rules |
-| forges a proof or a CI result | n/a | blocked: CI re-runs it |
+| deletes or weakens a failing assertion, in one commit, split across commits, or inside a merge commit | passes | blocked: the old tests fail on the new code, judged on the whole pull request |
+| marks tests `.skip`, `.only` or skipped | passes | blocked |
+| hollows out the test script, the runner config, or an assertion helper the tests import | passes | blocked, for helpers POCP can find (see the limits) |
+| deletes or loosens the rule that requires a check | n/a | blocked: judged by the base branch's rules |
+| forges a proof | n/a | blocked: verify re-runs the checks itself |
+| forges a CI result | n/a | blocked with the default recipe above. The faster `--ci-results` mode trusts everything that ran in the job and can be forged |
 | removes POCP from the CI workflow | passes | blocked only if your Git host *requires* the POCP check (see [Merge enforcement](#merge-enforcement)) |
-| special-cases the test inputs in the code | passes | **not caught**: POCP checks that the declared checks ran on the exact code, not whether the code is honest |
+| writes code that games its own tests: special-cases the inputs, overrides `process.exit`, detects the test run | passes | **not caught**: POCP checks that the declared checks ran on the exact code, not whether the code is honest |
+
+These rows hold within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md), and the main ones are:
+- **Re-runs execute the pull request's code** in your CI job, as the same user. That's as trustworthy as your CI, plus the checks the pull request can't edit.
+- **The mechanical test check samples** planted bugs.
+- **Helpers are found by reading imports,** within depth and size limits; a helper inside your guarded source that doesn't look like test support counts as code.
+- **A test layout POCP doesn't recognise** needs `guard.extra_test_globs`. `pocp init` detects common ones.
 
 ## Results so far
 
@@ -62,7 +71,7 @@ Every number below links to its raw data and the command that produced it. All o
   - **Getting through is usually quick:** a median of about 2 minutes, mostly running `pocp fix`.
   - **Changing an existing test file is the slow, strict case.** The mechanical test check runs the suite once per planted bug. It took up to about 17 minutes, and it passed only 2 of the 9 times it ran; the others needed a maintainer's approval in CI.
   - **Adding new tests costs nothing extra.**
-  - **Every proven change adds a small record** (`.proof/packets/*.json`, typically 70–170 lines) to the repository.
+  - **Every proven change adds a small record** (`.proof/packets/*.json`, typically 70–170 lines) to the repository. It names who made it (the git user name, or `POCP_ACTOR` if set) and the Node version and platform the checks ran on.
 
 ## Quick start
 
