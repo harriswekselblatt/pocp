@@ -35,6 +35,14 @@ Proof-Of-Change: p-2f007850 subject=sha256:2ad8c12023b7 policy=sha256:f21acbea74
 
 It's only a pointer. CI recomputes everything from the commit and re-runs whatever no trusted signer or CI result already covers.
 
+## Why this exists
+
+I started building with AI coding agents without knowing much about software, and I still can't read the code they write, not at the scale they write it. That left one question I couldn't let go of: if I can't read it, how do I trust it? How do I know a change does what I meant, doesn't quietly break something, and doesn't fake its way past the tests?
+
+POCP is my answer. Instead of trusting a sentence an agent typed ("tests pass"), it records proof: the checks that ran, on the exact code that was committed, under rules the change itself can't loosen. Then it checks that proof again in CI.
+
+It's measured the same way. I can't vouch for the code by reading it, so it has an independent evaluation: a checker written separately, outside benchmarks, passing bars set before the runs, and outside reviews that tried to break it. Their findings are fixed and published here. Every result links to its data.
+
 ## What it does and doesn't catch
 
 What CI's `pocp verify <base>..HEAD --require-coverage --rerun` decides, with the default settings (test guard in `block` mode):
