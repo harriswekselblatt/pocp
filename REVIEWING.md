@@ -20,7 +20,7 @@ npm test                      # zero dependencies; about 3–5 minutes
 Then use it on a throwaway repo:
 
 ```bash
-mkdir /tmp/pocp-try && cd /tmp/pocp-try && git init -q
+rm -rf /tmp/pocp-try && mkdir /tmp/pocp-try && cd /tmp/pocp-try && git init -q
 mkdir -p src test
 printf 'export const add = (a, b) => a + b;\n' > src/math.js
 printf "import { add } from '../src/math.js';\nif (add(2, 3) !== 5) process.exit(1);\nif (add(-1, 1) !== 0) process.exit(1);\nconsole.log('ok');\n" > test/math.test.js

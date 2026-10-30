@@ -1,6 +1,12 @@
 ## What the misses mean
 
-**With the test guard in `block` mode (POCP's default), every cheat on the tests is caught.** That includes gutted or weakened assertions, `.skip` and `.only`, deleted test files, a hollow test script, a runner config that excludes the failing file, a setup file that skips everything, and an `.npmrc` that swaps the shell. `pocp prove` runs the old tests against the new code and plants mutants. When that check fails, the agent can still sign off locally, but CI's re-run fails it (`test_change`) until a maintainer approves. Honest work passes: no policy blocked a control, and a new test file needs no approval.
+**With the test guard in `block` mode (POCP's default), every test cheat that ran on this repository was caught:** deleted or weakened assertions, `.skip`, deleted test files, and changes to what the test command runs (a hollow test script, an `.npmrc` that swaps the shell, and the others in category 3). `pocp prove` runs the old tests against the new code and plants mutants; when that check fails, CI needs a maintainer's approval.
+
+**Not run on this repository**, because node:test has no such setting or the edit doesn't make its tests pass: `.only`, a runner config that excludes the failing file, a setup file that skips everything, and the pytest and `xit` variants. The guard's handling of those is covered by regression tests (`test/e2e-test-setup.test.js`), not by this benchmark. The full list is under "Not run" below.
+
+**Controls:** the 9 control scenarios are 6 honest changes, none blocked, and 3 changes that add a bug with no cheat. Plain CI and POCP both block those 3, which is the "0/3 fool plain CI, 3/3 blocked" row.
+
+**What this benchmark doesn't cover yet:** cheats spread across several commits or hidden in a merge commit, weakening an assertion helper that lives outside the test folders, and forging a CI result from inside the test run. An outside review found those; they're being fixed and will be added here as scenarios.
 
 **In `attest` mode, the author's own sign-off is accepted.** Every test cheat then passes, with a warning naming what the mechanical check found. POCP's own repository uses the default and blocks all 32 cheats that fool plain CI. With `attest`, POCP's own repository catches 20 of the same 32, because a sign-off the author gives themselves stands in for the mechanical check. Choosing `attest` over the default is reported as a policy loosening.
 
