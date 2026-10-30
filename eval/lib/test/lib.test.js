@@ -54,7 +54,7 @@ test('cluster bootstrap is seeded and wider than ignoring clusters when clusters
 test('pins name the commit (when in a git checkout) and hash the verifier', () => {
   const p = basePins();
   // POCP runs checks in a snapshot without .git, where there's no commit to name.
-  if (p.pocp_commit !== null) assert.match(p.pocp_commit, /^[0-9a-f]{40}/);
+  assert.match(p.pocp_commit, /^([0-9a-f]{40}|no-git:[0-9a-f]{16})/);
   assert.match(verifierHash(), /^[0-9a-f]{64}$/);
   assert.ok(p.node.startsWith('v'));
 });
