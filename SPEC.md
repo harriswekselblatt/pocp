@@ -367,7 +367,8 @@ runnable obligations. Every run below is in its own fresh copy of the code.
    guarded by those checks' requirements, never in tests or runner config. Sites on lines
    the change touched, and in files the changed tests import, come first; other guarded sites
    fill the rest of the budget (`guard.mutants`, default 10). The sample is drawn with
-   `guard.seed` (default 1), so the same code always gets the same sample. Each mutant runs
+   `guard.seed` (default 1), so the same code always gets the same sample (in CI, a seed derived
+   from it and the range; see *The seed in CI*). Each mutant runs
    with the old tests (checks fastest first, stopping at the first that catches it); each
    mutant the old tests catch then runs with the new tests. Every mutant the old tests catch,
    the new tests must catch too (which implies they catch at least as many). Otherwise the
@@ -450,12 +451,29 @@ keyed by the subject, base, guarded changes, checks, source globs, budget and se
 another packet over the same change reuses it; `--force` runs it again. `verify` never reads
 that cache: in CI, the baseline reuses a passing re-run by the same `verify` or a `ci-run`
 result for the same commit, subject and command (never one with `expect`), and the range's
-head re-run reuses the baseline the guard ran on the head commit.
+head re-run reuses the baseline the guard ran on the head commit. The net change's check (§7.2) reuses
+the head re-run as its new-code baseline.
 
 **In CI.** `verify --rerun` (and `--rerun-unsigned`, for unsigned guard proofs) runs the
 check again from the commit and its parent alone, with the policy in force (§7.2), so its
 budget and seed can't be loosened by the change. For a range, it runs per commit with a test
-change. A re-run that fails where the packet claimed a pass is `rerun_failed`.
+change, and once on the range's net change (§7.2): old tests and test setup from the merge
+base, new code and tests from the head, merges included. Judging each commit alone would let
+a change split "drop an assertion" (code unchanged, so the guard passes) from "add the bug the
+assertion caught" (no test changed, so no guard), or hide either in a merge commit. A re-run
+that fails where the packet claimed a pass is `rerun_failed`.
+
+**The seed in CI.** For checks that judge a pull request (the net change, or the single
+commit of a one-commit range), verify doesn't use `guard.seed` as is: it derives the seed
+from `guard.seed`, the merge base and the head (the first 8 hex digits of
+`sha256("pocp-guard-seed\0<seed>\0<base>\0<head>")`, masked to 31 bits). A sample fixed in advance (`guard.seed` alone) lets an agent looping locally
+learn exactly which mutants it must keep catching; the derived seed is not the one `prove`
+used, and it changes with every new head. It is still a pure function of the range, so a
+verify re-run on the same range draws the same sample, and the seed is recorded (`net.seed`,
+`detection.seed`, and in the re-run's name). It is not secret: an author who knows the base
+can compute it for a candidate head, and could try heads until the sample misses what the
+change weakened, paying a full guard run per try. Part 1 (old tests on the new code) doesn't
+depend on the seed at all.
 
 Packets made before this check carry a free-text `manual` sign-off instead. `verify` still
 accepts it for those commits, as an attestation, and says so.
@@ -516,7 +534,8 @@ trailers, and `verify --require-coverage` in CI flags it if it needed coverage.
 **Merges.** While a merge is in progress (`MERGE_HEAD`), a staged file that matches a
 commit being merged in came from that branch and carries its proofs; the gate judges only
 files that differ from `HEAD` and from every merged commit (conflict resolutions and edits
-made while merging). Verify skips merge commits, so this is still stricter than CI.
+made while merging). Verify doesn't check merge commits one by one; it judges what a merge
+adds as part of the range's net change (§7.2).
 
 **Every block explains itself.** The result carries `remedies`, in order, each
 `{ code, what, why, next, by }`: `by` is `pocp fix` (a mechanical step), `agent` (the author
@@ -568,7 +587,41 @@ The trailer is a pointer, not proof. Anyone can type one.
 4. Every proof's obligation digest matches the obligation in the packet, and every
    runnable obligation has a passing proof for this commit's subject hash.
 
-`pocp verify <base>..<head>` checks every non-merge commit in a range.
+`pocp verify <base>..<head>` checks every non-merge commit in a range, and then the range
+as a whole (below).
+
+**The net change of a range.** A pull request is also judged as one change: its *net
+change*, from the merge base of `<base>` and `<head>` to `<head>`, merges included. The test
+guard (§6.2) and, with `--require-coverage`, coverage run on it, so splitting a test change
+and a code change across commits, or making either inside a merge commit, gives the same
+verdict as making them in one commit. The old tests and test setup come from the merge base,
+the new code and tests from the head. Starting at the merge base (not `<base>` itself) means
+changes the branch took from main by merging it are not the branch's; anything a merge commit
+adds beyond its parents (a conflict resolution, an edit made while merging) is. The result is
+reported as `net` (shaped like a commit's result, with `kind: "net"`, `base`, `merges`,
+`seed`, `test_guard`, `coverage` and `findings`); its findings use the same codes and
+`verify.fail_on` as a commit's, and it fails the range like a failing commit.
+
+- *Test guard.* Computed by verify itself, like a re-run; nothing in it comes from the
+  author, so no proof or signature can stand in for it. In block mode, a net test change
+  passes only on this verify's own mechanical re-run (`--rerun` or `--rerun-unsigned`),
+  using checks a rule requires for the net change; without a re-run, or when no rule requires
+  a check covering the changed tests, it is `test_change` (fails closed).
+  `--accept-test-change` accepts it, as for a commit. In attest mode, a re-run that doesn't
+  pass needs a current sign-off on a guard obligation naming each changed file, from some
+  packet in the range; without `--rerun` it is a warning (attest mode accepts local results).
+  In warn mode it is only reported.
+- *Coverage.* Files the net change makes required must be covered by some packet in the
+  range. Files a commit already reported are not repeated.
+- *Merge at the head.* When `<head>` is a merge commit, no per-commit result saw the final
+  policy, so the net change is also checked for policy loosening (base against head) and for
+  CI definition files that only a merge changed (`ci_config_changed`).
+- *One plain commit on the merge base* is its own net change: it is checked once, as a commit,
+  and `net` is absent.
+
+verify writes one commit object (the head's tree with the merge base as its only parent) to
+the object store to compute this; no ref points to it, and its identity and date are fixed,
+so the same range always gives the same object. If that fails, verify fails.
 
 **Policy comes from the base.** A commit is judged by its base's rules (by default its
 parent; for a range, the range's base; or `--policy-from <rev>`), combined with the
@@ -588,9 +641,12 @@ signer (§5.5) are not re-run. With `--ci-results <file>`, a check is also skipp
 file holds a passing `ci-result` record (written by `pocp ci-run`, §7.3) whose subject hash
 equals the commit being re-run and whose command equals the obligation's `run`; checks
 with `expect` are always re-run. POCP thereby adds to CI without running anything twice. For a range, digests, coverage and signatures are checked
-per commit (nothing runs), and re-runs happen **once**, at the head of the range, for the
-union of checks across the range. Only a re-run, or a proof signed by someone you trust,
-counts as an independent result.
+per commit (nothing runs), and re-runs happen **once**, at the head of the range (the range's
+right side, even when it is a merge commit), for the union of checks across the range plus the
+checks the rules require for the net change. When the head is a merge commit, no signature
+covers its code, so `--rerun-unsigned` re-runs everything there. The test guard re-runs per
+commit with a test change, and once more on the net change. Only a re-run, or a proof signed
+by someone you trust, counts as an independent result.
 
 **Fails closed.** If `rules.json` or `config.json` at the commit or at its base doesn't
 parse, or doesn't validate (§6, `validateConfig`), verify fails and names each problem.
@@ -611,8 +667,8 @@ base, strictly combined with the commit), so narrowing it is itself a loosening.
 **Required CI results.** `verify.require_ci` lists commands that need a passing result for
 the exact subject being verified: the latest `ci-result` (§7.3) for that command, or a passing
 re-run of the same command by this verify. It fails closed: with neither, every required
-command is `ci_missing`. For a range it is checked at the head only, where CI ran, after the
-range's re-runs. A latest result that failed is `ci_failed`.
+command is `ci_missing`. For a range it is checked at the head only (for the head's subject, also
+when the head is a merge commit), where CI ran, after the range's re-runs. A latest result that failed is `ci_failed`.
 
 **CI definitions.** Files matching `ci.files` (default: GitHub workflows and actions, GitLab,
 CircleCI, Jenkins, Azure, Bitbucket, Buildkite, Drone, Woodpecker) can switch POCP off in CI.

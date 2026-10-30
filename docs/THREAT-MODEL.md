@@ -13,7 +13,7 @@ environment.
 | The set of required checks | Rules re-derived on every gate and verify; requirements matched against the changed files a packet covers (§6, §7) |
 | The rules themselves | Policy files need a packet; CI judges each commit by the **base** branch's rules and fails any loosening without approval (§7.2) |
 | The trust root for signatures | `allowed_signers` read from the base (or a pinned file), never from the commit under review (§7.2) |
-| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code and the new tests must catch every sampled mutant the old ones caught; otherwise a sign-off, or approval in block mode (§6.2) |
+| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code and the new tests must catch every sampled mutant the old ones caught; otherwise a sign-off, or approval in block mode (§6.2). In CI the whole pull request is also judged as one change, merges included (§7.2) |
 | Lessons from escapes | Misses close only through a runnable rule; replay shows it catches the old code (§8) |
 
 ## Who it defends against
@@ -29,7 +29,10 @@ glob or a replaced guard glob is a loosening), requirement matching on covered f
 test guard's mechanical check: gutting a test while breaking the code fails the old tests on
 the new code; weakening an assertion loses mutants the old tests caught. The check's commands
 come from the rules in force, and its budget and seed from the base, so the change can't pick
-an easier check or a friendlier sample. *Partly covered:* when the mechanical check fails, a
+an easier check or a friendlier sample. `verify base..head` also runs the guard on the pull
+request's net change (old tests from the merge base, new code from the head, merges included),
+computed by verify itself, so splitting "drop an assertion" and "add the bug it caught" into
+separate commits, or making either inside a merge commit, is judged as if it were one commit. *Partly covered:* when the mechanical check fails, a
 sign-off stands in. In `block` mode (the default) that isn't enough for CI: only an
 independent mechanical pass (`verify --rerun`, or a trusted signature) or a maintainer's
 `--accept-test-change` lets it through. In `attest` mode the sign-off is a free-text name, so
@@ -127,8 +130,8 @@ check isn't required, pull requests aren't required, or admins can merge past th
   weakening that only matters on lines outside the sample can pass. Raise `guard.mutants`
   for more confidence. It needs the old tests to catch something in the sample, or it can't
   measure a drop (it then asks for a sign-off). A change can still alter the code until a
-  sample happens to pass; the seed is fixed by policy, but the sites move with the code, so
-  this is a matter of budget. Mutants are the simple operators of §11.2, so a test that only
+  sample happens to pass; the seed is fixed by policy (in CI, derived from it and the range),
+  but the sites move with the code, so this is a matter of budget. Mutants are the simple operators of §11.2, so a test that only
   guards behavior those operators can't break is not measured. Test changes that need other
   files changed in step (a shared fixture, a helper outside the test globs) can make the old
   tests fail for reasons other than behavior; the result is then `behavior-changed` and needs
@@ -160,7 +163,28 @@ check isn't required, pull requests aren't required, or admins can merge past th
   `Makefile` target, a build file or a script reached some other way (a `Makefile` calling a
   script, a config that imports a helper) is unguarded until listed in
   `guard.extra_runner_globs`.
-- **Merge commits.** `verify base..head` skips merge commits; a change introduced while
-  resolving a merge is only seen by the head re-run.
+- **Merge commits.** `verify base..head` doesn't verify merge commits as commits (they carry
+  no trailers). What a merge adds beyond its parents is part of the range's net change (§7.2):
+  the test guard judges test changes made in it against the merge base's tests, with
+  `--require-coverage` every file it changes must be covered by some packet in the range, and
+  the head re-run runs on the head itself, merge or not, including the checks the rules require
+  for the net change. When the head is a merge, the final policy and CI files are checked too.
+  Not covered: a merge's code change in a file some packet in the range covers needs no proof
+  of its own; it is checked only by the head re-run (and the net test guard if tests changed).
+  A merge can't weaken a test unnoticed, but it can add code no test exercises, as any covered
+  commit can. Without `--rerun`, nothing runs on the merge's code; in block mode a net test
+  change then fails (`test_change`), so the guard part fails closed, but a code-only merge is
+  judged by coverage alone.
+- **The net change starts at the merge base.** Changes the branch took from main by merging
+  it are main's and aren't judged again. A range without a base (`verify <rev>`) has no net
+  change. The net test guard needs `--rerun` (in block mode it fails without one), and a
+  maintainer's `--accept-test-change` covers it like any test change.
+- **The mutant sample is not secret.** In CI the guard's seed is derived from `guard.seed`, the
+  merge base and the head, so it differs from the one `prove` uses and changes with every head,
+  but it is a pure function of the range (verify must be reproducible). An author who knows the
+  base can compute it for a candidate head and try heads until the sample misses what the
+  change weakened, at the cost of a full guard run per try. Part 1 (old tests on the new code)
+  doesn't depend on the sample, and is what catches a weakened test followed by the bug it
+  pinned down.
 - **History before POCP.** Commits are judged by the rules in force at their base; commits
   made before a protection existed may not satisfy it.
