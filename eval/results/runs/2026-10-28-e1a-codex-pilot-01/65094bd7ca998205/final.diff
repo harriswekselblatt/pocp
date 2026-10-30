@@ -1,0 +1,39 @@
+diff --git a/solution.py b/solution.py
+index 083ef08..a9a1d96 100644
+--- a/solution.py
++++ b/solution.py
+@@ -22,4 +22,33 @@ def count_in_degree_sequences(n: int, s: str) -> int:
+     >>> count_in_degree_sequences(20, '00001100111010100101')
+     261339902
+     """
+-    pass
++    # Distinct in-degree vectors are the lattice points of the graphical
++    # zonotope. Their number equals the number of spanning forests of G
++    # (isolated vertices are allowed).
++    #
++    # Removing at least one rim edge splits the rim into paths. Each path
++    # may have zero or one selected spoke; two spokes would create a cycle
++    # through the hub. Track whether the current path has a selected spoke.
++    # The transition matrix at a vertex with spoke availability t is
++    # [[2, 1], [2*t, 1+t]], including both cutting and keeping the rim edge.
++    # Taking the trace closes the rim and counts every configuration with
++    # a cut once. With no cuts it counts the invalid complete rim twice
++    # (one for each state), so subtract those two configurations.
++    modulus = 998244353
++    a, b, c, d = 1, 0, 0, 1
++    for bit in s:
++        if bit == '1':
++            a, b, c, d = (
++                (2 * a + 2 * b) % modulus,
++                (a + 2 * b) % modulus,
++                (2 * c + 2 * d) % modulus,
++                (c + 2 * d) % modulus,
++            )
++        else:
++            a, b, c, d = (
++                2 * a % modulus,
++                (a + b) % modulus,
++                2 * c % modulus,
++                (c + d) % modulus,
++            )
++    return (a + d - 2) % modulus

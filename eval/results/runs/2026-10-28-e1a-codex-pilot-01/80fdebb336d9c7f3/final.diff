@@ -1,0 +1,41 @@
+diff --git a/solution.py b/solution.py
+index 00f8fc6..ecd77bb 100644
+--- a/solution.py
++++ b/solution.py
+@@ -26,4 +26,35 @@ def can_transform_string(n: int, x: int, y: int, s: str, t: str) -> bool:
+     >>> can_transform_string(3, 1, 2, '001', '001')
+     True
+     """
+-    pass
++    if s.count('0') != t.count('0'):
++        return False
++
++    def normal_form(word):
++        # Orient every swap as 0^x 1^y -> 1^y 0^x. This decreases
++        # inversions, and distinct occurrences cannot overlap, so the
++        # resulting irreducible word is unique.
++        runs = []
++        for char in word:
++            pending = [(char, 1)]
++            while pending:
++                bit, count = pending.pop()
++                if runs and runs[-1][0] == bit:
++                    count += runs.pop()[1]
++                if (bit == '1' and count >= y and runs
++                        and runs[-1][0] == '0' and runs[-1][1] >= x):
++                    zeros = runs.pop()[1]
++                    zero_tail = zeros % x
++                    one_tail = count % y
++                    # Append in reverse order to process the leftmost run
++                    # first, including any newly exposed swaps.
++                    if one_tail:
++                        pending.append(('1', one_tail))
++                    pending.append(('0', zeros - zero_tail))
++                    pending.append(('1', count - one_tail))
++                    if zero_tail:
++                        pending.append(('0', zero_tail))
++                else:
++                    runs.append((bit, count))
++        return runs
++
++    return normal_form(s) == normal_form(t)

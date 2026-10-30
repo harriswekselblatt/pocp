@@ -1,0 +1,76 @@
+diff --git a/solution.py b/solution.py
+index 59e40c1..1f27f9a 100644
+--- a/solution.py
++++ b/solution.py
+@@ -1,3 +1,65 @@
++from functools import lru_cache
++from math import gcd
++
++
++@lru_cache(maxsize=None)
++def _suffix_count(length: int, digit_sum: int, required: int) -> int:
++    """Count nonzero digit strings whose product supplies required factors."""
++    if length == 0:
++        return int(digit_sum == 0 and required == 1)
++    if not length <= digit_sum <= 9 * length:
++        return 0
++    return sum(
++        _suffix_count(length - 1, digit_sum - digit, required // gcd(required, digit))
++        for digit in range(1, 10)
++    )
++
++
++def _count_up_to(bound: int) -> int:
++    if bound <= 0:
++        return 0
++    digits = [int(digit) for digit in str(bound)]
++    size = len(digits)
++
++    # Every positive number containing a zero is beautiful. Count these
++    # by subtracting all numbers made entirely of nonzero digits.
++    nonzero_count = sum(9 ** length for length in range(1, size))
++    for index, digit in enumerate(digits):
++        nonzero_count += max(0, digit - 1) * 9 ** (size - index - 1)
++        if digit == 0:
++            break
++    else:
++        nonzero_count += 1
++    result = bound - nonzero_count
++
++    for target in range(1, 9 * size + 1):
++        # A nonzero digit product has no prime factors other than these.
++        rest = target
++        for prime in (2, 3, 5, 7):
++            while rest % prime == 0:
++                rest //= prime
++        if rest != 1:
++            continue
++        for length in range(1, size):
++            result += _suffix_count(length, target, target)
++
++        remaining_sum, required = target, target
++        for index, digit in enumerate(digits):
++            for smaller in range(1, digit):
++                result += _suffix_count(
++                    size - index - 1,
++                    remaining_sum - smaller,
++                    required // gcd(required, smaller),
++                )
++            if digit == 0:
++                break
++            remaining_sum -= digit
++            required //= gcd(required, digit)
++        else:
++            result += int(remaining_sum == 0 and required == 1)
++    return result
++
++
+ def count_beautiful_numbers(l: int, r: int) -> int:
+     """ Count the number of beautiful numbers in the range [l, r] inclusive.
+     
+@@ -20,4 +82,4 @@ def count_beautiful_numbers(l: int, r: int) -> int:
+     >>> count_beautiful_numbers(4, 4)
+     1
+     """
+-    pass
++    return _count_up_to(r) - _count_up_to(l - 1)

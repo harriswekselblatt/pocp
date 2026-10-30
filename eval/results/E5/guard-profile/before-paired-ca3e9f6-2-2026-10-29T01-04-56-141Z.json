@@ -1,0 +1,1659 @@
+{
+ "schema": "pocp-e5-guard-profile/1",
+ "label": "before-paired",
+ "pair": "ca3e9f6-2026-10-29T01:04:50.993Z",
+ "timeout_ms": 3600000,
+ "commit": "ca3e9f69072eea669c342a65ff44b0f58d663628",
+ "parent": "08b58c7923a3dc995ab677d8149828cdf5627cb9",
+ "files": [
+  "SPEC.md",
+  "docs/THREAT-MODEL.md",
+  "src/guard-check.js",
+  "test/e2e-guard-mechanical.test.js"
+ ],
+ "pocp_root_commit": null,
+ "pins": {
+  "pocp_commit": "21ff4e07e010020f822c845569ba1519e7614063",
+  "pocp_verifier_sha256": "13e81eb04815e4b32d98cb2a90ca24bd5626a58104b30a18e3aa06028c7818db",
+  "os": "darwin 24.6.0",
+  "arch": "arm64",
+  "node": "v22.13.1",
+  "python": "3.13.1",
+  "git": "2.50.1 (Apple Git-155)"
+ },
+ "cpus": 8,
+ "cpu_model": "Apple M1 Pro",
+ "started_at": "2026-10-29T01:04:56.141Z",
+ "total_ms": 2047578,
+ "error": null,
+ "fix": {
+  "ok": true,
+  "actions": [
+   {
+    "action": "open",
+    "packet": "p-ffcc7a56",
+    "files": [
+     "src/guard-check.js",
+     "test/e2e-guard-mechanical.test.js"
+    ],
+    "checks": [
+     "o1 (rule:unit-tests)",
+     "o2 (rule:engine-tests)",
+     "o3 (rule:test-suite)",
+     "o4 (guard:tests)"
+    ]
+   },
+   {
+    "action": "prove",
+    "packets": [
+     "p-ffcc7a56"
+    ],
+    "mode": "clean",
+    "ran": 4,
+    "ms": 2041734,
+    "failed": []
+   }
+  ]
+ },
+ "runs": [
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "r-87b17945.log",
+   "start_ms": 3134,
+   "load_at_start": 213.48828125,
+   "end_ms": 9659,
+   "duration_ms": 6525,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "plain",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/engine.test.js",
+   "log": "r-64d8b378.log",
+   "start_ms": 9827,
+   "load_at_start": 215.443359375,
+   "end_ms": 103926,
+   "duration_ms": 94099,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "plain",
+   "check": "engine-tests"
+  },
+  {
+   "command": "npm test --silent",
+   "log": "r-0fa81dfe.log",
+   "start_ms": 104045,
+   "load_at_start": 204.00146484375,
+   "end_ms": 361216,
+   "duration_ms": 257171,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "plain",
+   "check": "test-suite"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-old-unit-tests.log",
+   "start_ms": 362531,
+   "load_at_start": 182.5712890625,
+   "end_ms": 370644,
+   "duration_ms": 8113,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "guard-old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/engine.test.js",
+   "log": "guard-p-ffcc7a56-o4-old-engine-tests.log",
+   "start_ms": 370645,
+   "load_at_start": 196.97021484375,
+   "end_ms": 549387,
+   "duration_ms": 178742,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "guard-old",
+   "check": "engine-tests"
+  },
+  {
+   "command": "npm test --silent",
+   "log": "guard-p-ffcc7a56-o4-old-test-suite.log",
+   "start_ms": 549388,
+   "load_at_start": 349.48583984375,
+   "end_ms": 1055488,
+   "duration_ms": 506100,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "guard-old",
+   "check": "test-suite"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m0-old-unit-tests.log",
+   "start_ms": 1055898,
+   "load_at_start": 299.564453125,
+   "end_ms": 1063576,
+   "duration_ms": 7678,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 0,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m1-old-unit-tests.log",
+   "start_ms": 1055965,
+   "load_at_start": 299.564453125,
+   "end_ms": 1063438,
+   "duration_ms": 7473,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 1,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m2-old-unit-tests.log",
+   "start_ms": 1056055,
+   "load_at_start": 299.564453125,
+   "end_ms": 1063439,
+   "duration_ms": 7384,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 2,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m3-old-unit-tests.log",
+   "start_ms": 1056146,
+   "load_at_start": 299.564453125,
+   "end_ms": 1063027,
+   "duration_ms": 6880,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 3,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m3-new-unit-tests.log",
+   "start_ms": 1063267,
+   "load_at_start": 301.04052734375,
+   "end_ms": 1070101,
+   "duration_ms": 6834,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 3,
+   "side": "new",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/engine.test.js",
+   "log": "guard-p-ffcc7a56-o4-m1-old-engine-tests.log",
+   "start_ms": 1063438,
+   "load_at_start": 301.04052734375,
+   "end_ms": 1178290,
+   "duration_ms": 114851,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 1,
+   "side": "old",
+   "check": "engine-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m2-new-unit-tests.log",
+   "start_ms": 1063575,
+   "load_at_start": 301.04052734375,
+   "end_ms": 1070408,
+   "duration_ms": 6833,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 2,
+   "side": "new",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m0-new-unit-tests.log",
+   "start_ms": 1063716,
+   "load_at_start": 301.04052734375,
+   "end_ms": 1070621,
+   "duration_ms": 6905,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 0,
+   "side": "new",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m4-old-unit-tests.log",
+   "start_ms": 1070212,
+   "load_at_start": 300.1435546875,
+   "end_ms": 1077014,
+   "duration_ms": 6802,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 4,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m5-old-unit-tests.log",
+   "start_ms": 1070493,
+   "load_at_start": 300.1435546875,
+   "end_ms": 1077681,
+   "duration_ms": 7188,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 5,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m6-old-unit-tests.log",
+   "start_ms": 1070794,
+   "load_at_start": 300.1435546875,
+   "end_ms": 1077786,
+   "duration_ms": 6992,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 6,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/engine.test.js",
+   "log": "guard-p-ffcc7a56-o4-m4-old-engine-tests.log",
+   "start_ms": 1077014,
+   "load_at_start": 299.4111328125,
+   "end_ms": 1189465,
+   "duration_ms": 112451,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 4,
+   "side": "old",
+   "check": "engine-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m5-new-unit-tests.log",
+   "start_ms": 1077757,
+   "load_at_start": 299.4111328125,
+   "end_ms": 1084612,
+   "duration_ms": 6855,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 5,
+   "side": "new",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m6-new-unit-tests.log",
+   "start_ms": 1077890,
+   "load_at_start": 299.4111328125,
+   "end_ms": 1084390,
+   "duration_ms": 6500,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 6,
+   "side": "new",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m7-old-unit-tests.log",
+   "start_ms": 1084557,
+   "load_at_start": 295.93310546875,
+   "end_ms": 1090842,
+   "duration_ms": 6285,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 7,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m8-old-unit-tests.log",
+   "start_ms": 1084714,
+   "load_at_start": 295.93310546875,
+   "end_ms": 1090983,
+   "duration_ms": 6269,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 8,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/engine.test.js",
+   "log": "guard-p-ffcc7a56-o4-m7-old-engine-tests.log",
+   "start_ms": 1090843,
+   "load_at_start": 293.13525390625,
+   "end_ms": 1215529,
+   "duration_ms": 124686,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 7,
+   "side": "old",
+   "check": "engine-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m8-new-unit-tests.log",
+   "start_ms": 1091145,
+   "load_at_start": 293.13525390625,
+   "end_ms": 1096241,
+   "duration_ms": 5096,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 8,
+   "side": "new",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m9-old-unit-tests.log",
+   "start_ms": 1096320,
+   "load_at_start": 288.3193359375,
+   "end_ms": 1101184,
+   "duration_ms": 4864,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 9,
+   "side": "old",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/engine.test.js",
+   "log": "guard-p-ffcc7a56-o4-m9-old-engine-tests.log",
+   "start_ms": 1101184,
+   "load_at_start": 285.33056640625,
+   "end_ms": 1241910,
+   "duration_ms": 140726,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 9,
+   "side": "old",
+   "check": "engine-tests"
+  },
+  {
+   "command": "npm test --silent",
+   "log": "guard-p-ffcc7a56-o4-m1-old-test-suite.log",
+   "start_ms": 1178292,
+   "load_at_start": 258.67626953125,
+   "end_ms": 1686979,
+   "duration_ms": 508687,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 1,
+   "side": "old",
+   "check": "test-suite"
+  },
+  {
+   "command": "npm test --silent",
+   "log": "guard-p-ffcc7a56-o4-m4-old-test-suite.log",
+   "start_ms": 1189468,
+   "load_at_start": 258.22900390625,
+   "end_ms": 1719839,
+   "duration_ms": 530371,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 4,
+   "side": "old",
+   "check": "test-suite"
+  },
+  {
+   "command": "npm test --silent",
+   "log": "guard-p-ffcc7a56-o4-m7-old-test-suite.log",
+   "start_ms": 1215532,
+   "load_at_start": 268.1884765625,
+   "end_ms": 1734292,
+   "duration_ms": 518760,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 7,
+   "side": "old",
+   "check": "test-suite"
+  },
+  {
+   "command": "npm test --silent",
+   "log": "guard-p-ffcc7a56-o4-m9-old-test-suite.log",
+   "start_ms": 1241922,
+   "load_at_start": 291.62353515625,
+   "end_ms": 1745791,
+   "duration_ms": 503869,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 9,
+   "side": "old",
+   "check": "test-suite"
+  },
+  {
+   "command": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "log": "guard-p-ffcc7a56-o4-m1-new-unit-tests.log",
+   "start_ms": 1687199,
+   "load_at_start": 374.17919921875,
+   "end_ms": 1695240,
+   "duration_ms": 8041,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 1,
+   "side": "new",
+   "check": "unit-tests"
+  },
+  {
+   "command": "node --test test/engine.test.js",
+   "log": "guard-p-ffcc7a56-o4-m1-new-engine-tests.log",
+   "start_ms": 1695241,
+   "load_at_start": 369.1865234375,
+   "end_ms": 1808994,
+   "duration_ms": 113753,
+   "exit": 0,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 1,
+   "side": "new",
+   "check": "engine-tests"
+  },
+  {
+   "command": "npm test --silent",
+   "log": "guard-p-ffcc7a56-o4-m1-new-test-suite.log",
+   "start_ms": 1808996,
+   "load_at_start": 277.07080078125,
+   "end_ms": 2045852,
+   "duration_ms": 236856,
+   "exit": 1,
+   "timed_out": false,
+   "signal": null,
+   "phase": "mutant",
+   "mutant": 1,
+   "side": "new",
+   "check": "test-suite"
+  }
+ ],
+ "load": [
+  {
+   "t_ms": 10001,
+   "load1": 215.443359375
+  },
+  {
+   "t_ms": 20001,
+   "load1": 215.99609375
+  },
+  {
+   "t_ms": 30004,
+   "load1": 213.33447265625
+  },
+  {
+   "t_ms": 40007,
+   "load1": 211.787109375
+  },
+  {
+   "t_ms": 50007,
+   "load1": 204.9072265625
+  },
+  {
+   "t_ms": 60009,
+   "load1": 199.892578125
+  },
+  {
+   "t_ms": 70010,
+   "load1": 197.40087890625
+  },
+  {
+   "t_ms": 80011,
+   "load1": 198.03076171875
+  },
+  {
+   "t_ms": 90014,
+   "load1": 200.783203125
+  },
+  {
+   "t_ms": 100015,
+   "load1": 203.65380859375
+  },
+  {
+   "t_ms": 110018,
+   "load1": 206.5634765625
+  },
+  {
+   "t_ms": 120020,
+   "load1": 211.7900390625
+  },
+  {
+   "t_ms": 130021,
+   "load1": 213.81103515625
+  },
+  {
+   "t_ms": 140022,
+   "load1": 212.29541015625
+  },
+  {
+   "t_ms": 150023,
+   "load1": 210.53564453125
+  },
+  {
+   "t_ms": 160024,
+   "load1": 208.68798828125
+  },
+  {
+   "t_ms": 170026,
+   "load1": 215.9423828125
+  },
+  {
+   "t_ms": 180029,
+   "load1": 223.69873046875
+  },
+  {
+   "t_ms": 190031,
+   "load1": 232.5048828125
+  },
+  {
+   "t_ms": 200032,
+   "load1": 238.70166015625
+  },
+  {
+   "t_ms": 210033,
+   "load1": 242.0234375
+  },
+  {
+   "t_ms": 220035,
+   "load1": 240.9306640625
+  },
+  {
+   "t_ms": 230036,
+   "load1": 238.2470703125
+  },
+  {
+   "t_ms": 240037,
+   "load1": 235.95703125
+  },
+  {
+   "t_ms": 250040,
+   "load1": 231.091796875
+  },
+  {
+   "t_ms": 260041,
+   "load1": 229.7509765625
+  },
+  {
+   "t_ms": 270043,
+   "load1": 221.34228515625
+  },
+  {
+   "t_ms": 280044,
+   "load1": 212.03857421875
+  },
+  {
+   "t_ms": 290045,
+   "load1": 204.3447265625
+  },
+  {
+   "t_ms": 300046,
+   "load1": 198.474609375
+  },
+  {
+   "t_ms": 310048,
+   "load1": 192.28662109375
+  },
+  {
+   "t_ms": 320049,
+   "load1": 187.23876953125
+  },
+  {
+   "t_ms": 330050,
+   "load1": 184.283203125
+  },
+  {
+   "t_ms": 340051,
+   "load1": 181.54541015625
+  },
+  {
+   "t_ms": 350052,
+   "load1": 181.19189453125
+  },
+  {
+   "t_ms": 361087,
+   "load1": 182.5712890625
+  },
+  {
+   "t_ms": 371086,
+   "load1": 196.97021484375
+  },
+  {
+   "t_ms": 381089,
+   "load1": 224.97802734375
+  },
+  {
+   "t_ms": 391091,
+   "load1": 249.9736328125
+  },
+  {
+   "t_ms": 401097,
+   "load1": 269.6083984375
+  },
+  {
+   "t_ms": 411100,
+   "load1": 286.12548828125
+  },
+  {
+   "t_ms": 421101,
+   "load1": 302.59130859375
+  },
+  {
+   "t_ms": 431104,
+   "load1": 320.66748046875
+  },
+  {
+   "t_ms": 441106,
+   "load1": 336.33935546875
+  },
+  {
+   "t_ms": 451113,
+   "load1": 347.8525390625
+  },
+  {
+   "t_ms": 461114,
+   "load1": 353.8037109375
+  },
+  {
+   "t_ms": 471115,
+   "load1": 365.06640625
+  },
+  {
+   "t_ms": 481120,
+   "load1": 370.09423828125
+  },
+  {
+   "t_ms": 491126,
+   "load1": 372.73486328125
+  },
+  {
+   "t_ms": 501129,
+   "load1": 380.88818359375
+  },
+  {
+   "t_ms": 511133,
+   "load1": 381.02685546875
+  },
+  {
+   "t_ms": 521134,
+   "load1": 375.82080078125
+  },
+  {
+   "t_ms": 531136,
+   "load1": 369.73046875
+  },
+  {
+   "t_ms": 541137,
+   "load1": 356.32275390625
+  },
+  {
+   "t_ms": 551139,
+   "load1": 349.48583984375
+  },
+  {
+   "t_ms": 561145,
+   "load1": 348.1298828125
+  },
+  {
+   "t_ms": 571147,
+   "load1": 347.09716796875
+  },
+  {
+   "t_ms": 581149,
+   "load1": 346.576171875
+  },
+  {
+   "t_ms": 591152,
+   "load1": 343.73583984375
+  },
+  {
+   "t_ms": 601154,
+   "load1": 337.27099609375
+  },
+  {
+   "t_ms": 611155,
+   "load1": 330.48974609375
+  },
+  {
+   "t_ms": 621161,
+   "load1": 327.19775390625
+  },
+  {
+   "t_ms": 631162,
+   "load1": 323.76513671875
+  },
+  {
+   "t_ms": 641219,
+   "load1": 319.29736328125
+  },
+  {
+   "t_ms": 651222,
+   "load1": 318.296875
+  },
+  {
+   "t_ms": 661224,
+   "load1": 312.79296875
+  },
+  {
+   "t_ms": 671229,
+   "load1": 311.3828125
+  },
+  {
+   "t_ms": 681232,
+   "load1": 309.943359375
+  },
+  {
+   "t_ms": 691234,
+   "load1": 304.03564453125
+  },
+  {
+   "t_ms": 701236,
+   "load1": 303.99462890625
+  },
+  {
+   "t_ms": 711239,
+   "load1": 306.896484375
+  },
+  {
+   "t_ms": 721244,
+   "load1": 323.1923828125
+  },
+  {
+   "t_ms": 731246,
+   "load1": 347.81591796875
+  },
+  {
+   "t_ms": 741321,
+   "load1": 369.07958984375
+  },
+  {
+   "t_ms": 751326,
+   "load1": 383.09912109375
+  },
+  {
+   "t_ms": 761431,
+   "load1": 387.18310546875
+  },
+  {
+   "t_ms": 771436,
+   "load1": 393.89013671875
+  },
+  {
+   "t_ms": 781438,
+   "load1": 401.078125
+  },
+  {
+   "t_ms": 791439,
+   "load1": 412.47509765625
+  },
+  {
+   "t_ms": 801445,
+   "load1": 419.7783203125
+  },
+  {
+   "t_ms": 811447,
+   "load1": 427.74560546875
+  },
+  {
+   "t_ms": 821448,
+   "load1": 433.25830078125
+  },
+  {
+   "t_ms": 831449,
+   "load1": 444.52783203125
+  },
+  {
+   "t_ms": 841452,
+   "load1": 450.16650390625
+  },
+  {
+   "t_ms": 851457,
+   "load1": 453.83642578125
+  },
+  {
+   "t_ms": 861507,
+   "load1": 455.83740234375
+  },
+  {
+   "t_ms": 871510,
+   "load1": 450.67626953125
+  },
+  {
+   "t_ms": 881513,
+   "load1": 445.21044921875
+  },
+  {
+   "t_ms": 891514,
+   "load1": 442.29150390625
+  },
+  {
+   "t_ms": 901517,
+   "load1": 437.8837890625
+  },
+  {
+   "t_ms": 911519,
+   "load1": 435.7490234375
+  },
+  {
+   "t_ms": 921520,
+   "load1": 433.34326171875
+  },
+  {
+   "t_ms": 931522,
+   "load1": 425.19921875
+  },
+  {
+   "t_ms": 941523,
+   "load1": 414.341796875
+  },
+  {
+   "t_ms": 951524,
+   "load1": 404.15087890625
+  },
+  {
+   "t_ms": 961526,
+   "load1": 393.27880859375
+  },
+  {
+   "t_ms": 971529,
+   "load1": 385.27294921875
+  },
+  {
+   "t_ms": 981533,
+   "load1": 379.974609375
+  },
+  {
+   "t_ms": 991535,
+   "load1": 376.12158203125
+  },
+  {
+   "t_ms": 1001536,
+   "load1": 368.88623046875
+  },
+  {
+   "t_ms": 1011538,
+   "load1": 358.78173828125
+  },
+  {
+   "t_ms": 1021539,
+   "load1": 344.89111328125
+  },
+  {
+   "t_ms": 1031541,
+   "load1": 329.4208984375
+  },
+  {
+   "t_ms": 1041543,
+   "load1": 314.75
+  },
+  {
+   "t_ms": 1051548,
+   "load1": 305.35888671875
+  },
+  {
+   "t_ms": 1061551,
+   "load1": 301.04052734375
+  },
+  {
+   "t_ms": 1071554,
+   "load1": 300.1435546875
+  },
+  {
+   "t_ms": 1081557,
+   "load1": 298.0166015625
+  },
+  {
+   "t_ms": 1091560,
+   "load1": 293.13525390625
+  },
+  {
+   "t_ms": 1101561,
+   "load1": 285.33056640625
+  },
+  {
+   "t_ms": 1111562,
+   "load1": 277.806640625
+  },
+  {
+   "t_ms": 1121564,
+   "load1": 272.25634765625
+  },
+  {
+   "t_ms": 1131565,
+   "load1": 265.0029296875
+  },
+  {
+   "t_ms": 1141566,
+   "load1": 264.14013671875
+  },
+  {
+   "t_ms": 1151566,
+   "load1": 259.69189453125
+  },
+  {
+   "t_ms": 1161569,
+   "load1": 258.05078125
+  },
+  {
+   "t_ms": 1171570,
+   "load1": 260.4765625
+  },
+  {
+   "t_ms": 1181571,
+   "load1": 259.8232421875
+  },
+  {
+   "t_ms": 1191576,
+   "load1": 258.22900390625
+  },
+  {
+   "t_ms": 1201578,
+   "load1": 258.45263671875
+  },
+  {
+   "t_ms": 1211586,
+   "load1": 262.4599609375
+  },
+  {
+   "t_ms": 1221588,
+   "load1": 268.73388671875
+  },
+  {
+   "t_ms": 1231594,
+   "load1": 278.7705078125
+  },
+  {
+   "t_ms": 1241596,
+   "load1": 291.62353515625
+  },
+  {
+   "t_ms": 1251601,
+   "load1": 306.18408203125
+  },
+  {
+   "t_ms": 1261602,
+   "load1": 312.90673828125
+  },
+  {
+   "t_ms": 1271603,
+   "load1": 319.63720703125
+  },
+  {
+   "t_ms": 1281606,
+   "load1": 325.56689453125
+  },
+  {
+   "t_ms": 1291610,
+   "load1": 330.59814453125
+  },
+  {
+   "t_ms": 1301616,
+   "load1": 333.4716796875
+  },
+  {
+   "t_ms": 1311619,
+   "load1": 339.1513671875
+  },
+  {
+   "t_ms": 1321620,
+   "load1": 346.33447265625
+  },
+  {
+   "t_ms": 1331621,
+   "load1": 357.74951171875
+  },
+  {
+   "t_ms": 1341622,
+   "load1": 360.6318359375
+  },
+  {
+   "t_ms": 1351626,
+   "load1": 359.35546875
+  },
+  {
+   "t_ms": 1361628,
+   "load1": 361.09716796875
+  },
+  {
+   "t_ms": 1371630,
+   "load1": 354.7080078125
+  },
+  {
+   "t_ms": 1381633,
+   "load1": 346.4375
+  },
+  {
+   "t_ms": 1391635,
+   "load1": 342.4013671875
+  },
+  {
+   "t_ms": 1401637,
+   "load1": 340.14208984375
+  },
+  {
+   "t_ms": 1411640,
+   "load1": 338.76171875
+  },
+  {
+   "t_ms": 1421643,
+   "load1": 341.732421875
+  },
+  {
+   "t_ms": 1431647,
+   "load1": 343.19189453125
+  },
+  {
+   "t_ms": 1441648,
+   "load1": 352.005859375
+  },
+  {
+   "t_ms": 1451652,
+   "load1": 362.388671875
+  },
+  {
+   "t_ms": 1461655,
+   "load1": 368.458984375
+  },
+  {
+   "t_ms": 1471669,
+   "load1": 376.078125
+  },
+  {
+   "t_ms": 1481673,
+   "load1": 379.94140625
+  },
+  {
+   "t_ms": 1491677,
+   "load1": 389.41455078125
+  },
+  {
+   "t_ms": 1501683,
+   "load1": 396.78466796875
+  },
+  {
+   "t_ms": 1511684,
+   "load1": 401.13232421875
+  },
+  {
+   "t_ms": 1521687,
+   "load1": 410.3203125
+  },
+  {
+   "t_ms": 1531692,
+   "load1": 419.197265625
+  },
+  {
+   "t_ms": 1541692,
+   "load1": 430.94677734375
+  },
+  {
+   "t_ms": 1551695,
+   "load1": 437.55908203125
+  },
+  {
+   "t_ms": 1561696,
+   "load1": 440.3681640625
+  },
+  {
+   "t_ms": 1571696,
+   "load1": 436.4130859375
+  },
+  {
+   "t_ms": 1581699,
+   "load1": 433.0341796875
+  },
+  {
+   "t_ms": 1591704,
+   "load1": 427.97412109375
+  },
+  {
+   "t_ms": 1601707,
+   "load1": 416.10107421875
+  },
+  {
+   "t_ms": 1611710,
+   "load1": 412.17431640625
+  },
+  {
+   "t_ms": 1621712,
+   "load1": 404.1298828125
+  },
+  {
+   "t_ms": 1631714,
+   "load1": 398.9140625
+  },
+  {
+   "t_ms": 1641716,
+   "load1": 388.53955078125
+  },
+  {
+   "t_ms": 1651719,
+   "load1": 382.1943359375
+  },
+  {
+   "t_ms": 1661720,
+   "load1": 377.1259765625
+  },
+  {
+   "t_ms": 1671721,
+   "load1": 376.958984375
+  },
+  {
+   "t_ms": 1681722,
+   "load1": 376.02294921875
+  },
+  {
+   "t_ms": 1691725,
+   "load1": 372.16259765625
+  },
+  {
+   "t_ms": 1701728,
+   "load1": 366.84912109375
+  },
+  {
+   "t_ms": 1711730,
+   "load1": 362.7080078125
+  },
+  {
+   "t_ms": 1725738,
+   "load1": 348.93115234375
+  },
+  {
+   "t_ms": 1735741,
+   "load1": 339.23291015625
+  },
+  {
+   "t_ms": 1745743,
+   "load1": 326.81396484375
+  },
+  {
+   "t_ms": 1755744,
+   "load1": 316.3330078125
+  },
+  {
+   "t_ms": 1765745,
+   "load1": 305.47119140625
+  },
+  {
+   "t_ms": 1775746,
+   "load1": 293.97607421875
+  },
+  {
+   "t_ms": 1785746,
+   "load1": 290.51318359375
+  },
+  {
+   "t_ms": 1795750,
+   "load1": 284.20361328125
+  },
+  {
+   "t_ms": 1805752,
+   "load1": 277.07080078125
+  },
+  {
+   "t_ms": 1815754,
+   "load1": 275.4482421875
+  },
+  {
+   "t_ms": 1825755,
+   "load1": 272.0732421875
+  },
+  {
+   "t_ms": 1835757,
+   "load1": 258.83935546875
+  },
+  {
+   "t_ms": 1845759,
+   "load1": 249.64208984375
+  },
+  {
+   "t_ms": 1855759,
+   "load1": 240.28955078125
+  },
+  {
+   "t_ms": 1865760,
+   "load1": 233.0537109375
+  },
+  {
+   "t_ms": 1875763,
+   "load1": 228.20849609375
+  },
+  {
+   "t_ms": 1885765,
+   "load1": 219.9951171875
+  },
+  {
+   "t_ms": 1895767,
+   "load1": 214.83203125
+  },
+  {
+   "t_ms": 1905769,
+   "load1": 207.23095703125
+  },
+  {
+   "t_ms": 1915770,
+   "load1": 203.09521484375
+  },
+  {
+   "t_ms": 1925771,
+   "load1": 198.9130859375
+  },
+  {
+   "t_ms": 1935772,
+   "load1": 196.21630859375
+  },
+  {
+   "t_ms": 1945772,
+   "load1": 191.8779296875
+  },
+  {
+   "t_ms": 1955773,
+   "load1": 188.587890625
+  },
+  {
+   "t_ms": 1965774,
+   "load1": 190.0732421875
+  },
+  {
+   "t_ms": 1975775,
+   "load1": 193.2607421875
+  },
+  {
+   "t_ms": 1985776,
+   "load1": 207.73046875
+  },
+  {
+   "t_ms": 1995779,
+   "load1": 223.47265625
+  },
+  {
+   "t_ms": 2005781,
+   "load1": 238.7900390625
+  },
+  {
+   "t_ms": 2015783,
+   "load1": 248.5458984375
+  },
+  {
+   "t_ms": 2025786,
+   "load1": 255.3125
+  },
+  {
+   "t_ms": 2035789,
+   "load1": 258.341796875
+  },
+  {
+   "t_ms": 2045792,
+   "load1": 260.501953125
+  }
+ ],
+ "proofs": [
+  {
+   "packet": "p-ffcc7a56",
+   "obligation": "o1",
+   "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+   "subject": "sha256:71c175fba23f025993a24dcbd1b1ec76cf4454f344679d99bdc2bc538ab4cea7",
+   "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+   "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+   "mode": "clean",
+   "exit": 0,
+   "signal": null,
+   "timed_out": false,
+   "passed": true,
+   "started_at": "2026-10-29T01:04:59.247Z",
+   "duration_ms": 6525,
+   "stdout_sha256": "e11b1f6eb1d03d27933e2ebf003044d7f694ccd6723770321696028b64a76aea",
+   "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "run_id": "r-87b17945",
+   "runner": {
+    "pocp": "0.1.0",
+    "node": "22.13.1",
+    "platform": "darwin-arm64",
+    "ci": false,
+    "lockfile_sha256": null
+   }
+  },
+  {
+   "packet": "p-ffcc7a56",
+   "obligation": "o2",
+   "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+   "subject": "sha256:71c175fba23f025993a24dcbd1b1ec76cf4454f344679d99bdc2bc538ab4cea7",
+   "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+   "run": "node --test test/engine.test.js",
+   "mode": "clean",
+   "exit": 0,
+   "signal": null,
+   "timed_out": false,
+   "passed": true,
+   "started_at": "2026-10-29T01:05:05.940Z",
+   "duration_ms": 94099,
+   "stdout_sha256": "dfb296a4499c823244233e56f7a9488a2aaba4328610841ed84a6d73986da97b",
+   "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "run_id": "r-64d8b378",
+   "runner": {
+    "pocp": "0.1.0",
+    "node": "22.13.1",
+    "platform": "darwin-arm64",
+    "ci": false,
+    "lockfile_sha256": null
+   }
+  },
+  {
+   "packet": "p-ffcc7a56",
+   "obligation": "o3",
+   "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+   "subject": "sha256:71c175fba23f025993a24dcbd1b1ec76cf4454f344679d99bdc2bc538ab4cea7",
+   "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+   "run": "npm test --silent",
+   "mode": "clean",
+   "exit": 0,
+   "signal": null,
+   "timed_out": false,
+   "passed": true,
+   "started_at": "2026-10-29T01:06:40.158Z",
+   "duration_ms": 257171,
+   "stdout_sha256": "54cde35e9fccaf506cbb4d04024dcbf9b589fd1d28effdc57cd2d5db17e17aec",
+   "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "run_id": "r-0fa81dfe",
+   "runner": {
+    "pocp": "0.1.0",
+    "node": "22.13.1",
+    "platform": "darwin-arm64",
+    "ci": false,
+    "lockfile_sha256": null
+   }
+  },
+  {
+   "packet": "p-ffcc7a56",
+   "obligation": "o4",
+   "obligation_digest": "sha256:fb564f39201fe9e101a08be926ce1d44bb608584ef7c8ff6a6d70d1f68b5028f",
+   "subject": "sha256:71c175fba23f025993a24dcbd1b1ec76cf4454f344679d99bdc2bc538ab4cea7",
+   "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+   "kind": "guard",
+   "mode": "snapshot",
+   "passed": true,
+   "started_at": "2026-10-29T01:10:58.064Z",
+   "duration_ms": 1683939,
+   "runner": {
+    "pocp": "0.1.0",
+    "node": "22.13.1",
+    "platform": "darwin-arm64",
+    "ci": false,
+    "lockfile_sha256": null
+   },
+   "guard": {
+    "pocp": 1,
+    "verdict": "passed",
+    "passed": true,
+    "summary": "the old tests pass on the new code, and the new tests catch all 7 of the 10 sampled mutants the old tests caught (seed 1)",
+    "base": "87a98a8dad72d0eccc1e3afd42d18010cb243bbc",
+    "checks": [
+     {
+      "id": "unit-tests",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+     },
+     {
+      "id": "engine-tests",
+      "run": "node --test test/engine.test.js"
+     },
+     {
+      "id": "test-suite",
+      "run": "npm test --silent"
+     }
+    ],
+    "old_tests": {
+     "result": "pass",
+     "restored": [
+      "test/e2e-guard-mechanical.test.js"
+     ],
+     "runs": [
+      {
+       "check": "unit-tests",
+       "passed": true,
+       "exit": 0,
+       "duration_ms": 8113
+      },
+      {
+       "check": "engine-tests",
+       "passed": true,
+       "exit": 0,
+       "duration_ms": 178742
+      },
+      {
+       "check": "test-suite",
+       "passed": true,
+       "exit": 0,
+       "duration_ms": 506100
+      }
+     ]
+    },
+    "new_tests": {
+     "result": "pass",
+     "runs": [
+      {
+       "check": "unit-tests",
+       "passed": true,
+       "reused": true,
+       "duration_ms": 0
+      },
+      {
+       "check": "engine-tests",
+       "passed": true,
+       "reused": true,
+       "duration_ms": 0
+      },
+      {
+       "check": "test-suite",
+       "passed": true,
+       "reused": true,
+       "duration_ms": 0
+      }
+     ]
+    },
+    "baseline": {
+     "result": "not-run",
+     "runs": []
+    },
+    "detection": {
+     "result": "kept",
+     "budget": 10,
+     "seed": 1,
+     "sites": 1967,
+     "focus_sites": 246,
+     "files": 29,
+     "sampled": 10,
+     "old_caught": 7,
+     "new_caught": 7,
+     "lost": [],
+     "mutants": [
+      {
+       "file": "src/store.js",
+       "line": 284,
+       "operator": "and",
+       "before": "const isPosInt = (n) => Number.isInteger(n) && n > 0;",
+       "after": "const isPosInt = (n) => Number.isInteger(n) || n > 0;",
+       "focus": true,
+       "old": "caught",
+       "new": "caught"
+      },
+      {
+       "file": "src/guard-check.js",
+       "line": 245,
+       "operator": "strict-eq",
+       "before": "return g.indexEntries(root).filter((e) => e.stage === 0 && e.mode.startsWith('100')).map((e) => e.path);",
+       "after": "return g.indexEntries(root).filter((e) => e.stage !== 0 && e.mode.startsWith('100')).map((e) => e.path);",
+       "focus": true,
+       "old": "caught",
+       "new": "caught"
+      },
+      {
+       "file": "src/store.js",
+       "line": 133,
+       "operator": "true",
+       "before": "return true;",
+       "after": "return false;",
+       "focus": true,
+       "old": "caught",
+       "new": "caught"
+      },
+      {
+       "file": "src/store.js",
+       "line": 130,
+       "operator": "lte",
+       "before": "if (!Number.isInteger(pid) || pid <= 0) return false;",
+       "after": "if (!Number.isInteger(pid) || pid > 0) return false;",
+       "focus": true,
+       "old": "caught",
+       "new": "caught"
+      },
+      {
+       "file": "src/store.js",
+       "line": 174,
+       "operator": "and",
+       "before": "if (moved !== deadPid && pidAlive(moved)) {",
+       "after": "if (moved !== deadPid || pidAlive(moved)) {",
+       "focus": true,
+       "old": "missed",
+       "new": "not-run"
+      },
+      {
+       "file": "src/store.js",
+       "line": 304,
+       "operator": "or",
+       "before": "const sign = c.sign || {};",
+       "after": "const sign = c.sign && {};",
+       "focus": true,
+       "old": "caught",
+       "new": "caught"
+      },
+      {
+       "file": "src/store.js",
+       "line": 302,
+       "operator": "and",
+       "before": "if (run.lockfile !== null && typeof run.lockfile !== 'string') problems.push('run.lockfile must be a path or null');",
+       "after": "if (run.lockfile !== null || typeof run.lockfile !== 'string') problems.push('run.lockfile must be a path or null');",
+       "focus": true,
+       "old": "caught",
+       "new": "caught"
+      },
+      {
+       "file": "src/guard-check.js",
+       "line": 330,
+       "operator": "zero-one",
+       "before": "before: text.split('\\n')[site.line - 1].trim().slice(0, 160),",
+       "after": "before: text.split('\\n')[site.line - 1].trim().slice(1, 160),",
+       "focus": true,
+       "old": "missed",
+       "new": "not-run"
+      },
+      {
+       "file": "src/store.js",
+       "line": 313,
+       "operator": "and",
+       "before": "if (guard[k] !== null && !isStrArray(guard[k])) problems.push(`guard.${k} must be an array of globs or null`);",
+       "after": "if (guard[k] !== null || !isStrArray(guard[k])) problems.push(`guard.${k} must be an array of globs or null`);",
+       "focus": true,
+       "old": "caught",
+       "new": "caught"
+      },
+      {
+       "file": "src/store.js",
+       "line": 292,
+       "operator": "zero-one",
+       "before": "if (!(Number.isFinite(c.packet_ttl_days) && c.packet_ttl_days >= 0)) problems.push('packet_ttl_days must be a number ≥ 0');",
+       "after": "if (!(Number.isFinite(c.packet_ttl_days) && c.packet_ttl_days >= 1)) problems.push('packet_ttl_days must be a number ≥ 0');",
+       "focus": true,
+       "old": "missed",
+       "new": "not-run"
+      }
+     ]
+    },
+    "duration_ms": 1683939,
+    "checks_from": "rules"
+   }
+  }
+ ],
+ "microbench": {
+  "tree_snapshot_ms": [
+   172,
+   220,
+   179
+  ],
+  "copy_snapshot_ms": [
+   67,
+   82,
+   98
+  ]
+ }
+}

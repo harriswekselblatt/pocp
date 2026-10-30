@@ -1,0 +1,33 @@
+{
+  "pocp": 1,
+  "packet_ttl_days": 14,
+  "run": {
+    "mode": "clean",
+    "timeout_ms": 600000,
+    "env": "inherit"
+  },
+  "snapshot": {
+    "link": [
+      "node_modules"
+    ]
+  },
+  "verify": {
+    "require_ci": [
+      "npm test --silent"
+    ]
+  },
+  "ci": {
+    "branch": "main",
+    "required_checks": [
+      "verify",
+      "test (ubuntu-latest, 20)",
+      "test (ubuntu-latest, 22)",
+      "test (ubuntu-latest, 24)",
+      "test (macos-latest, 20)",
+      "test (macos-latest, 22)",
+      "test (macos-latest, 24)"
+    ],
+    "require_pull_request": true,
+    "enforce_admins": true
+  }
+}

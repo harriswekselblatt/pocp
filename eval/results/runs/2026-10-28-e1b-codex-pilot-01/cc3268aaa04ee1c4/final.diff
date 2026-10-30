@@ -1,0 +1,91 @@
+diff --git a/solution.py b/solution.py
+index b7192c8..5585605 100644
+--- a/solution.py
++++ b/solution.py
+@@ -20,4 +20,43 @@ def count_polish_sequences(n: int, a: list[int]) -> int:
+     >>> count_polish_sequences(4, [1, 1, 0, 0])
+     0
+     """
+-    pass
++    modulus = 998244353
++    factorial = [1] * (2 * n + 1)
++    for i in range(1, len(factorial)):
++        factorial[i] = factorial[i - 1] * i % modulus
++    inverse_factorial = [1] * len(factorial)
++    inverse_factorial[-1] = pow(factorial[-1], modulus - 2, modulus)
++    for i in range(2 * n, 0, -1):
++        inverse_factorial[i - 1] = inverse_factorial[i] * i % modulus
++
++    def choose(total: int, selected: int) -> int:
++        if selected < 0 or selected > total:
++            return 0
++        return (factorial[total] * inverse_factorial[selected]
++                * inverse_factorial[total - selected]) % modulus
++
++    answer = 0
++    slots = 1
++    for i, degree in enumerate(a):
++        remaining = n - i - 1
++        # A smaller degree leaves between low and high pending subtrees.
++        low = slots - 1
++        high = slots + degree - 2
++        if remaining == 0:
++            answer += int(low <= 0 <= high)
++        else:
++            low = max(low, 1)
++            high = min(high, remaining)
++            if low <= high:
++                # Forests on r nodes with s roots number
++                # C(2r-s-1, r-1) - C(2r-s-1, r).
++                # Summing over s telescopes by the hockey-stick identity.
++                answer += (choose(2 * remaining - low, remaining)
++                           - choose(2 * remaining - high - 1, remaining)
++                           - choose(2 * remaining - low, remaining + 1)
++                           + choose(2 * remaining - high - 1, remaining + 1))
++        answer %= modulus
++        slots += degree - 1
++        if slots <= 0 or slots > remaining:
++            return (answer + int(slots == 0 and remaining == 0)) % modulus
++    return answer
+diff --git a/tests/test_task.py b/tests/test_task.py
+new file mode 100644
+index 0000000..b175e5a
+--- /dev/null
++++ b/tests/test_task.py
+@@ -0,0 +1,36 @@
++def check(candidate):
++    # Sample test cases
++    assert candidate(6, [1, 1, 1, 2, 0, 0]) == 2
++    assert candidate(11, [3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8]) == 13002
++    assert candidate(19, [18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18]) == 477638700
++    assert candidate(4, [1, 1, 0, 0]) == 0
++    
++    # Additional test cases
++    assert candidate(10, [3, 4, 0, 3, 9, 2, 1, 5, 8, 2]) == 3846
++    assert candidate(5, [4, 4, 4, 4, 4]) == 14
++    assert candidate(1, [0]) == 1
++    assert candidate(3, [1, 0, 0]) == 0
++    assert candidate(5, [4, 3, 2, 1, 0]) == 14
++    assert candidate(4, [2, 2, 2, 0]) == 4
++    assert candidate(7, [0, 1, 2, 4, 6, 1, 2]) == 8
++    assert candidate(5, [0, 0, 0, 0, 0]) == 0
++    assert candidate(5, [0, 1, 2, 3, 4]) == 0
++    assert candidate(2, [0, 1]) == 0
++    assert candidate(7, [0, 1, 2, 4, 6, 1, 2]) == 0
++    
++    # More complex test cases
++    assert candidate(7, [3, 2, 2, 4, 0, 5, 2]) == 111
++    assert candidate(11, [5, 10, 1, 2, 3, 3, 0, 9, 10, 4, 3]) == 16159
++    assert candidate(10, [4, 9, 9, 1, 2, 2, 5, 7, 3, 3]) == 4433
++    assert candidate(6, [3, 0, 3, 1, 0, 3]) == 33
++    assert candidate(10, [3, 0, 1, 1, 1, 3, 7, 9, 7, 9]) == 3062
++
++
++import os as _os
++import sys as _sys
++_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
++from solution import count_polish_sequences  # noqa: E402
++
++if __name__ == "__main__":
++    check(count_polish_sequences)
++    print("POCP_EVAL_TESTS_PASSED")

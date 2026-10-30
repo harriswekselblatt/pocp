@@ -1,0 +1,32 @@
+diff --git a/solution.py b/solution.py
+index 083ef08..f8c263f 100644
+--- a/solution.py
++++ b/solution.py
+@@ -22,4 +22,26 @@ def count_in_degree_sequences(n: int, s: str) -> int:
+     >>> count_in_degree_sequences(20, '00001100111010100101')
+     261339902
+     """
+-    pass
++    # Distinct orientation in-degree vectors are counted by the forests of G
++    # (the graphical zonotope lattice-point / forest identity).
++    # A proper subset of the rim consists of paths. Each path may have at
++    # most one selected spoke, so track whether its component has a spoke.
++    # Cutting a rim edge resets that state; keeping it preserves the state.
++    # The resulting transfer matrix at a vertex with spoke indicator b is
++    # [[2 + b, b], [1, 1]]. Taking the trace closes the rim.
++    modulus = 998244353
++    a, b, c, d = 1, 0, 0, 1
++    for bit in s:
++        if bit == '1':
++            a, b, c, d = (
++                (3 * a + b) % modulus,
++                (a + b) % modulus,
++                (3 * c + d) % modulus,
++                (c + d) % modulus,
++            )
++        else:
++            a = (2 * a + b) % modulus
++            c = (2 * c + d) % modulus
++    # With no cuts, both constant states count the full rim cycle, which
++    # is forbidden in a forest.
++    return (a + d - 2) % modulus

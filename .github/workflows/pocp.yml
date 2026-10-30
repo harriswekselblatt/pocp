@@ -1,0 +1,27 @@
+# POCP verifying its own pull requests, through its own Action.
+name: pocp
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The test step, recorded against this exact commit (this repo has no dependencies to install).
+      - run: node bin/pocp.js ci-run --results ci-results.jsonl -- npm test --silent
+      - uses: ./
+        with:
+          pocp-command: node bin/pocp.js
+          rerun: unsigned
+          ci-results: ci-results.jsonl
+          accept-policy-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') }}
+          accept-test-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') }}

@@ -1,0 +1,21 @@
+# POCP on GitLab CI. Make the "pocp" job required for merging with
+# Settings → Merge requests → "Pipelines must succeed".
+pocp:
+  image: node:22
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    GIT_DEPTH: 0                      # verify reads the whole range of commits
+    POCP_REF: "<commit-sha>"          # pin the POCP commit you run
+  script:
+    # ▶ Install your toolchain, then wrap your test command:
+    - npx --yes "github:harriswekselblatt/pocp#${POCP_REF}" ci-run --results ci-results.jsonl -- make test
+    - >
+      npx --yes "github:harriswekselblatt/pocp#${POCP_REF}" verify "$CI_MERGE_REQUEST_DIFF_BASE_SHA..$CI_COMMIT_SHA"
+      --require-coverage --rerun-unsigned --ci-results ci-results.jsonl
+      ${POCP_ACCEPT_POLICY:+--accept-policy-change} ${POCP_ACCEPT_TESTS:+--accept-test-change}
+# ci-run runs the merge request's code before verify, in the same job. For an independent
+# check, add a job that runs only `verify ... --require-coverage --rerun` (no ci-run, no
+# --ci-results) and make that one required; see docs/THREAT-MODEL.md.
+# Approvals: a maintainer sets POCP_ACCEPT_POLICY / POCP_ACCEPT_TESTS (protected CI
+# variables, or a manual job) after reviewing a change that loosens rules or edits tests.

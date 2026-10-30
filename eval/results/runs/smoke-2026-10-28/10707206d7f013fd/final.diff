@@ -1,0 +1,10 @@
+diff --git a/solution.py b/solution.py
+index a445c3d..e0e59f8 100644
+--- a/solution.py
++++ b/solution.py
+@@ -1,4 +1,4 @@
+ def add_numbers(a: int, b: int) -> int:
+     """Return the sum of a and b.
+     """
+-    pass
++    return a + b

@@ -1,0 +1,22 @@
+{
+  "dataset": "fixture/not-a-dataset@0000000",
+  "files": {
+    "lcb-conflicting.jsonl": {
+      "sha256": "8bd856637be5439413e2e239a36cb215acd31215158124a86e68b8c48f737417"
+    },
+    "lcb-original.jsonl": {
+      "sha256": "95591989dac8752b80e056b7641d6fbafcd1ceb9d049b57eeefb0c45abf329c2"
+    }
+  },
+  "selfcheck": {
+    "dataset_task_broken_candidates": [
+      {
+        "split": "conflicting",
+        "task_id": "fx_broken_3",
+        "problems": [
+          "test-syntax-error"
+        ]
+      }
+    ]
+  }
+}

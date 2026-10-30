@@ -1,0 +1,11 @@
+{
+  "name": "pocp",
+  "about": "POCP itself, under its own committed rules (three test requirements on src/, bin/, test/) with the test guard in block mode.",
+  "source": ".",
+  "head": "d6efd6a",
+  "policyRev": "d6efd6a",
+  "commits": 16,
+  "ciCommand": "npm test --silent",
+  "config": { "guard": { "tests": "block" } },
+  "link": []
+}

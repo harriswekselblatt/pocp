@@ -1,0 +1,72 @@
+diff --git a/solution.py b/solution.py
+index 1032d77..18d2139 100644
+--- a/solution.py
++++ b/solution.py
+@@ -20,4 +20,28 @@ def min_cost_to_sort(n: int, permutation: List[int]) -> int:
+     >>> min_cost_to_sort(2, [1, 2])
+     0
+     """
+-    pass
++    # Fix values from largest to smallest, moving each to the right end
++    # of the remaining prefix before using the more expensive edges again.
++    positions = [0] * (n + 1)
++    for index, value in enumerate(permutation, 1):
++        positions[value] = index
++
++    # A Fenwick tree tracks the original positions still in the prefix.
++    remaining = [index & -index for index in range(n + 1)]
++    cost = 0
++    for value in range(n, 0, -1):
++        index = positions[value]
++        rank = 0
++        cursor = index
++        while cursor:
++            rank += remaining[cursor]
++            cursor -= cursor & -cursor
++
++        # Sum the edge costs rank, ..., value - 1.
++        cost += (value - rank) * (value + rank - 1) // 2
++
++        while index <= n:
++            remaining[index] -= 1
++            index += index & -index
++
++    return cost
+diff --git a/tests/test_task.py b/tests/test_task.py
+new file mode 100644
+index 0000000..80518d6
+--- /dev/null
++++ b/tests/test_task.py
+@@ -0,0 +1,32 @@
++def check(candidate):
++    # Sample test cases
++    assert candidate(3, [3, 2, 1]) == 4
++    assert candidate(5, [2, 4, 1, 3, 5]) == 6
++    assert candidate(2, [1, 2]) == 0
++    
++    # Additional test cases
++    assert candidate(10, [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]) == 165
++    assert candidate(4, [1, 2, 3, 4]) == 0
++    assert candidate(2, [2, 1]) == 1
++    assert candidate(3, [2, 3, 1]) == 3
++    assert candidate(5, [2, 4, 1, 3, 5]) == 9
++    assert candidate(9, [9, 8, 7, 6, 5, 4, 3, 2, 1]) == 120
++    assert candidate(7, [1, 5, 3, 7, 2, 6, 4]) == 31
++    assert candidate(6, [6, 5, 4, 3, 2, 1]) == 35
++    assert candidate(7, [4, 1, 7, 6, 2, 5, 3]) == 40
++    assert candidate(3, [3, 2, 1]) == 4
++    assert candidate(5, [1, 3, 2, 4, 5]) == 2
++    assert candidate(4, [3, 4, 2, 1]) == 9
++    assert candidate(8, [8, 7, 6, 5, 4, 3, 2, 1]) == 84
++    assert candidate(5, [5, 4, 3, 2, 1]) == 20
++    assert candidate(7, [7, 1, 2, 3, 4, 5, 6]) == 21
++
++
++import os as _os
++import sys as _sys
++_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
++from solution import min_cost_to_sort  # noqa: E402
++
++if __name__ == "__main__":
++    check(min_cost_to_sort)
++    print("POCP_EVAL_TESTS_PASSED")

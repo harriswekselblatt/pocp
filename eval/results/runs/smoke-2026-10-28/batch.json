@@ -1,0 +1,77 @@
+{
+  "batch": "smoke-2026-10-28",
+  "eval": "E1a",
+  "starts": [
+    {
+      "at": "2026-10-28T22:47:44.413Z",
+      "phase": "invalid",
+      "invalid_reason": "smoke: fixture task and stub checker; CLI flag check only",
+      "argv": "--eval E1a --agents claude --arms plain,pocp-ci --task-ids fx_add_0 --phase pilot --batch smoke-2026-10-28 --frozen-dir eval/e1/test/fixtures/frozen --reference eval/e1/test/fixtures/stub_check.py --invalid smoke: fixture task and stub checker; CLI flag check only --keep",
+      "split": "conflicting",
+      "seed": 1,
+      "arms": [
+        "plain",
+        "pocp-ci"
+      ],
+      "agents": [
+        "claude"
+      ],
+      "agents_info": {
+        "claude": {
+          "agent": "claude",
+          "cli": "claude",
+          "bin": "claude",
+          "version": "2.1.178 (Claude Code)"
+        }
+      },
+      "models": {},
+      "timeout_s": 900,
+      "concurrency": 1,
+      "tasks": [
+        "fx_add_0"
+      ],
+      "canary": {
+        "ok": false,
+        "path": "eval/reference/canaries.py",
+        "reason": "missing"
+      },
+      "frozen": {
+        "file": "eval/e1/test/fixtures/frozen/lcb-conflicting.jsonl",
+        "sha256": "d7b42393e67fcb0c5b4431afb3d7a996852947b050d6ad21204df595962457b3",
+        "manifest_ok": true,
+        "dataset": "fixture/not-a-dataset@0000000"
+      },
+      "prompt_sha256": "bc11e8aac2051029168f833973a877e3d40f57337fef6e09ef78af9d9e929ab8",
+      "pins": {
+        "pocp_commit": "2f670120dea6fd16acfa181e70f045ab1bfd02df",
+        "pocp_verifier_sha256": "498593fc6afdebdcf819c2904eeae26a4cbd1ec351e61312a07b1a6d752989d7",
+        "os": "darwin 24.6.0",
+        "arch": "arm64",
+        "node": "v22.13.1",
+        "python": "3.13.1",
+        "git": "2.50.1 (Apple Git-155)",
+        "harness_sha256": "f19098fe88e8200839d081db8fe2090c9c4bfa9005cda8f1348ae57c55dc3c00",
+        "global_instructions": {
+          "claude_user_claude_md_sha256": "eed1b471bd9fcedeedeb49751ed2767e68f6693eee6125f8638b7eb65ab6d5e7",
+          "claude_user_claude_md_loaded": "not expected: --setting-sources project (see README, check the init event)",
+          "codex_agents_md_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "schedule": [
+        {
+          "task": "fx_add_0",
+          "agent": "claude",
+          "arm": "pocp-ci",
+          "position": 0
+        },
+        {
+          "task": "fx_add_0",
+          "agent": "claude",
+          "arm": "plain",
+          "position": 1
+        }
+      ],
+      "skipped_already_recorded": 0
+    }
+  ]
+}

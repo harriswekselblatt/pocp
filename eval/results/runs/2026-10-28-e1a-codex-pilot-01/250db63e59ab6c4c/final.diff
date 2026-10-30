@@ -1,0 +1,56 @@
+diff --git a/solution.py b/solution.py
+index 083ef08..8290671 100644
+--- a/solution.py
++++ b/solution.py
+@@ -22,4 +22,50 @@ def count_in_degree_sequences(n: int, s: str) -> int:
+     >>> count_in_degree_sequences(20, '00001100111010100101')
+     261339902
+     """
+-    pass
++    # The lattice points of a graphical zonotope (the in-degree vectors)
++    # are counted by the acyclic edge subsets of the underlying graph.
++    # Count those forests with a connectivity DP. Keep the hub, the first
++    # rim vertex, and the current rim vertex until the rim is closed.
++    mod = 998244353
++    states = [(0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1), (0, 1, 2)]
++    indices = {state: i for i, state in enumerate(states)}
++    transitions = []
++    for has_spoke in (0, 1):
++        table = []
++        for state in states:
++            counts = {}
++            for rim in (0, 1):
++                for spoke in range(has_spoke + 1):
++                    labels = list(state) + [3]
++                    valid = True
++                    for a, b, chosen in ((2, 3, rim), (0, 3, spoke)):
++                        if chosen:
++                            old, new = labels[a], labels[b]
++                            if old == new:
++                                valid = False
++                                break
++                            labels = [new if x == old else x for x in labels]
++                    if valid:
++                        # Forget the previous rim vertex and canonicalize.
++                        names = {}
++                        key = tuple(names.setdefault(labels[i], len(names))
++                                    for i in (0, 1, 3))
++                        target = indices[key]
++                        counts[target] = counts.get(target, 0) + 1
++            table.append(tuple(counts.items()))
++        transitions.append(table)
++
++    dp = [0] * 5
++    dp[3] = 1  # Initially the first and current rim vertices coincide.
++    if s[0] == '1':
++        dp[0] = 1
++    for bit in s[1:]:
++        next_dp = [0] * 5
++        for source, edges in enumerate(transitions[bit == '1']):
++            for target, multiplicity in edges:
++                next_dp[target] += dp[source] * multiplicity
++        dp = [value % mod for value in next_dp]
++
++    # The closing rim edge can be included only between separate components.
++    return sum(value * (1 if state[1] == state[2] else 2)
++               for state, value in zip(states, dp)) % mod

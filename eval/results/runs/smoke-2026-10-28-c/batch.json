@@ -1,0 +1,104 @@
+{
+  "batch": "smoke-2026-10-28-c",
+  "eval": "E1a",
+  "starts": [
+    {
+      "at": "2026-10-28T23:10:46.474Z",
+      "phase": "invalid",
+      "invalid_reason": "smoke: fixture task and stub checker; CLI flag check only",
+      "argv": "--eval E1a --agents claude,codex --arms plain,pocp-ci --task-ids fx_add_0 --phase pilot --batch smoke-2026-10-28-c --frozen-dir eval/e1/test/fixtures/frozen --reference eval/e1/test/fixtures/stub_check.py --invalid smoke: fixture task and stub checker; CLI flag check only",
+      "split": "conflicting",
+      "seed": 1,
+      "arms": [
+        "plain",
+        "pocp-ci"
+      ],
+      "agents": [
+        "claude",
+        "codex"
+      ],
+      "agents_info": {
+        "claude": {
+          "agent": "claude",
+          "cli": "claude",
+          "bin": "claude",
+          "version": "2.1.178 (Claude Code)"
+        },
+        "codex": {
+          "agent": "codex",
+          "cli": "codex",
+          "bin": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex",
+          "version": "codex-cli 0.163.0-alpha.11.2"
+        }
+      },
+      "models": {},
+      "timeout_s": 900,
+      "concurrency": 1,
+      "tasks": [
+        "fx_add_0"
+      ],
+      "skipped_dataset_task_broken": [
+        "fx_broken_3"
+      ],
+      "canary": {
+        "ok": false,
+        "path": "eval/reference/canaries.py",
+        "reason": "missing"
+      },
+      "frozen": {
+        "file": "eval/e1/test/fixtures/frozen/lcb-conflicting.jsonl",
+        "sha256": "8bd856637be5439413e2e239a36cb215acd31215158124a86e68b8c48f737417",
+        "manifest_ok": true,
+        "dataset": "fixture/not-a-dataset@0000000"
+      },
+      "prompt_sha256": "bc11e8aac2051029168f833973a877e3d40f57337fef6e09ef78af9d9e929ab8",
+      "pins": {
+        "pocp_commit": "c006989c3a32129e9659b2ee4e0dc60fc48cfe32",
+        "pocp_verifier_sha256": "498593fc6afdebdcf819c2904eeae26a4cbd1ec351e61312a07b1a6d752989d7",
+        "os": "darwin 24.6.0",
+        "arch": "arm64",
+        "node": "v22.13.1",
+        "python": "3.13.1",
+        "git": "2.50.1 (Apple Git-155)",
+        "python_path": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "python_executable": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+        "harness_sha256": "7ac95400f4466061108d429e53d1493a797584f1a9b1b46a72a118e3e2808da5",
+        "global_instructions": {
+          "claude_user_claude_md_sha256": "eed1b471bd9fcedeedeb49751ed2767e68f6693eee6125f8638b7eb65ab6d5e7",
+          "claude_user_claude_md_loaded": "not expected: --setting-sources project (see README, check the init event)",
+          "codex_agents_md_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "dataset_task_broken_skipped": [
+          "fx_broken_3"
+        ]
+      },
+      "schedule": [
+        {
+          "task": "fx_add_0",
+          "agent": "claude",
+          "arm": "pocp-ci",
+          "position": 0
+        },
+        {
+          "task": "fx_add_0",
+          "agent": "claude",
+          "arm": "plain",
+          "position": 1
+        },
+        {
+          "task": "fx_add_0",
+          "agent": "codex",
+          "arm": "plain",
+          "position": 0
+        },
+        {
+          "task": "fx_add_0",
+          "agent": "codex",
+          "arm": "pocp-ci",
+          "position": 1
+        }
+      ],
+      "skipped_already_recorded": 0
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+diff --git a/solution.py b/solution.py
+index 1032d77..97b00fe 100644
+--- a/solution.py
++++ b/solution.py
+@@ -20,4 +20,28 @@ def min_cost_to_sort(n: int, permutation: List[int]) -> int:
+     >>> min_cost_to_sort(2, [1, 2])
+     0
+     """
+-    pass
++    # Place values from largest to smallest. Moving the next value right
++    # leaves the remaining work on the cheaper edges of the prefix.
++    positions = [0] * (n + 1)
++    for index, value in enumerate(permutation, 1):
++        positions[value] = index
++
++    # Fenwick tree of positions whose values have not yet been placed.
++    remaining = [0] + [index & -index for index in range(1, n + 1)]
++    cost = 0
++    for value in range(n, 0, -1):
++        index = positions[value] - 1
++        preceding = 0
++        while index:
++            preceding += remaining[index]
++            index -= index & -index
++
++        # Cross edges preceding + 1 through value - 1 (1-indexed).
++        cost += (value * (value - 1) - preceding * (preceding + 1)) // 2
++
++        index = positions[value]
++        while index <= n:
++            remaining[index] -= 1
++            index += index & -index
++
++    return cost

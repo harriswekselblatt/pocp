@@ -1,0 +1,37 @@
+diff --git a/solution.py b/solution.py
+index 3316ecf..75c5acf 100644
+--- a/solution.py
++++ b/solution.py
+@@ -13,4 +13,31 @@ def count_power_representations(n: int) -> int:
+     >>> count_power_representations(1000000000000000000)
+     1001003332
+     """
+-    pass
++    # Inclusion-exclusion over prime exponents gives coefficient -mu(b)
++    # for each exponent b. Treat 1 separately, since it is every power.
++    max_exponent = n.bit_length() - 1
++    mobius = [1] * (max_exponent + 1)
++    is_prime = [True] * (max_exponent + 1)
++    for prime in range(2, max_exponent + 1):
++        if is_prime[prime]:
++            for multiple in range(prime, max_exponent + 1, prime):
++                is_prime[multiple] = False
++                mobius[multiple] *= -1
++            for multiple in range(prime * prime, max_exponent + 1, prime * prime):
++                mobius[multiple] = 0
++
++    count = 1
++    for exponent in range(2, max_exponent + 1):
++        if mobius[exponent] == 0:
++            continue
++        # Find floor(n ** (1 / exponent)) with exact integer arithmetic.
++        low = 1
++        high = 1 << ((n.bit_length() + exponent - 1) // exponent)
++        while low + 1 < high:
++            middle = (low + high) // 2
++            if middle ** exponent <= n:
++                low = middle
++            else:
++                high = middle
++        count -= mobius[exponent] * (low - 1)
++    return count

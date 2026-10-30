@@ -1,0 +1,66 @@
+{
+  "pocp": 1,
+  "triggers": {
+    "broad_files": 6,
+    "cross_area": {
+      "areas": 3,
+      "min_files": 4
+    },
+    "globs": [
+      {
+        "id": "docs",
+        "glob": "*.md",
+        "require_packet": false
+      },
+      {
+        "id": "examples",
+        "glob": "examples/**",
+        "require_packet": false
+      }
+    ]
+  },
+  "requirements": [
+    {
+      "id": "unit-tests",
+      "globs": [
+        "src/**",
+        "bin/**",
+        "test/**",
+        "package.json"
+      ],
+      "obligation": {
+        "kind": "test",
+        "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+      },
+      "source": "author"
+    },
+    {
+      "id": "engine-tests",
+      "globs": [
+        "src/**",
+        "bin/**",
+        "test/**",
+        "package.json"
+      ],
+      "obligation": {
+        "kind": "test",
+        "run": "node --test test/engine.test.js"
+      },
+      "source": "author"
+    },
+    {
+      "id": "test-suite",
+      "globs": [
+        "src/**",
+        "bin/**",
+        "test/**",
+        "package.json"
+      ],
+      "obligation": {
+        "kind": "test",
+        "run": "npm test --silent"
+      },
+      "source": "author"
+    }
+  ]
+}

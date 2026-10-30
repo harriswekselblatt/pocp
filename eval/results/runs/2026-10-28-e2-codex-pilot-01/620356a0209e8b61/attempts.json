@@ -1,0 +1,58 @@
+{
+  "commits": [
+    {
+      "sha": "f74b3485daa988ddac262c317670bcb1b4b25052",
+      "tree": "e2f26abd13cbd8ea5af18eddf16277990e7f619b",
+      "parents": [
+        "aef2b9c6429ecb9df05ba7b065046f6b150d94a2"
+      ],
+      "subject": "Implement expected black ball position",
+      "at": 1793231492,
+      "action": "commit",
+      "by": "agent",
+      "through_hooks": true,
+      "in_final_history": true
+    }
+  ],
+  "blocked_hook_runs": [
+    {
+      "at": 1793231481,
+      "exit": 1,
+      "tree": "9fa3971dc683c4fbb038263c16732c35a002bd6b",
+      "gate": {
+        "decision": "blocked",
+        "subject": "sha256:56f2ef03135e31a6c055c07ae3ea4b9921ad2fdca0584735dc8efa8cb8e46bac",
+        "required": 1,
+        "uncovered": 1,
+        "packets": []
+      },
+      "reason": "uncovered"
+    }
+  ],
+  "gate_log": [
+    {
+      "at": "2026-10-28T23:51:21.641Z",
+      "decision": "blocked",
+      "subject": "sha256:56f2ef03135e31a6c055c07ae3ea4b9921ad2fdca0584735dc8efa8cb8e46bac",
+      "required": 1,
+      "uncovered": 1,
+      "packets": []
+    },
+    {
+      "at": "2026-10-28T23:51:33.798Z",
+      "decision": "pass",
+      "subject": "sha256:56f2ef03135e31a6c055c07ae3ea4b9921ad2fdca0584735dc8efa8cb8e46bac",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-995ed47f",
+          "ok": true,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "hooks_modified": false,
+  "hooks_path": null
+}

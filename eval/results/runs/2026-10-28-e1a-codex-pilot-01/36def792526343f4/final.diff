@@ -1,0 +1,43 @@
+diff --git a/solution.py b/solution.py
+index 2edca9e..555a315 100644
+--- a/solution.py
++++ b/solution.py
+@@ -29,4 +29,37 @@ def min_operations_to_rearrange(n: int, s: str, t: str) -> int:
+     >>> min_operations_to_rearrange(3, 'BBW', 'BBW')
+     0
+     """
+-    pass
++    if s.count('B') != t.count('B'):
++        return -1
++    if s == t:
++        return 0
++
++    # A set bit represents a black stone; the empty pair is tracked separately.
++    start = (sum(1 << i for i, stone in enumerate(s) if stone == 'B'), n)
++    goal = (sum(1 << i for i, stone in enumerate(t) if stone == 'B'), n)
++    frontier, other_frontier = {start}, {goal}
++    distances, other_distances = {start: 0}, {goal: 0}
++
++    # Every move can be reversed, so search from both ends, expanding a full
++    # layer of the smaller frontier each time.
++    while frontier and other_frontier:
++        if len(frontier) > len(other_frontier):
++            frontier, other_frontier = other_frontier, frontier
++            distances, other_distances = other_distances, distances
++        next_frontier = set()
++        for mask, empty in frontier:
++            distance = distances[(mask, empty)] + 1
++            for source in range(n + 1):
++                if abs(source - empty) < 2:
++                    continue
++                pair = (mask >> source) & 3
++                moved_mask = (mask & ~(3 << source)) | (pair << empty)
++                state = (moved_mask, source)
++                if state in distances:
++                    continue
++                if state in other_distances:
++                    return distance + other_distances[state]
++                distances[state] = distance
++                next_frontier.add(state)
++        frontier = next_frontier
++    return -1

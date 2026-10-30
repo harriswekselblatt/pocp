@@ -1,0 +1,17 @@
+diff --git a/solution.py b/solution.py
+index c7d454a..cc6e910 100644
+--- a/solution.py
++++ b/solution.py
+@@ -24,4 +24,11 @@ def expected_black_ball_position(N: int, K: int) -> int:
+     >>> expected_black_ball_position(4, 4)
+     592707587
+     """
+-    pass
++    modulus = 998244353
++    inverse_n = pow(N, -1, modulus)
++    midpoint = (N + 1) * pow(2, -1, modulus) % modulus
++
++    # Given position x, each other position is reached with probability 2/N^2.
++    # Thus E[next] - midpoint = (1 - 2/N) * (E[current] - midpoint).
++    decay = pow((1 - 2 * inverse_n) % modulus, K, modulus)
++    return (midpoint + (1 - midpoint) * decay) % modulus

@@ -1,0 +1,58 @@
+diff --git a/solution.py b/solution.py
+index 00f8fc6..325f4a3 100644
+--- a/solution.py
++++ b/solution.py
+@@ -26,4 +26,52 @@ def can_transform_string(n: int, x: int, y: int, s: str, t: str) -> bool:
+     >>> can_transform_string(3, 1, 2, '001', '001')
+     True
+     """
+-    pass
++    if s.count("0") != t.count("0"):
++        return False
++
++    def normal_form(value):
++        # Orient swaps as 1**y 0**x -> 0**x 1**y. Each swap
++        # decreases inversions. Two eligible patterns cannot overlap, so
++        # this terminating rewrite has a unique normal form.
++        runs = []
++
++        def append(bit, count):
++            if not count:
++                return
++            if runs and runs[-1][0] == bit:
++                runs[-1] = (bit, runs[-1][1] + count)
++            else:
++                runs.append((bit, count))
++
++        start = 0
++        while start < len(value):
++            end = start + 1
++            bit = value[start]
++            while end < len(value) and value[end] == bit:
++                end += 1
++            count = end - start
++            if bit == "1":
++                append(bit, count)
++            else:
++                suffix = []
++                if runs and runs[-1][0] == "0":
++                    count += runs.pop()[1]
++                while count >= x and runs and runs[-1][1] >= y:
++                    ones = runs.pop()[1]
++                    moving_ones = ones // y * y
++                    moving_zeros = count // x * x
++                    suffix.append((moving_ones, count % x))
++                    count = moving_zeros
++                    if ones % y:
++                        append("1", ones % y)
++                        break
++                    if runs:
++                        count += runs.pop()[1]
++                append("0", count)
++                for ones, zeros in reversed(suffix):
++                    append("1", ones)
++                    append("0", zeros)
++            start = end
++        return runs
++
++    return normal_form(s) == normal_form(t)

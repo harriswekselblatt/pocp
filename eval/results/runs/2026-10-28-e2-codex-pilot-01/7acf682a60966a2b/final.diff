@@ -1,0 +1,57 @@
+diff --git a/solution.py b/solution.py
+index 59e40c1..a3f53c4 100644
+--- a/solution.py
++++ b/solution.py
+@@ -1,3 +1,46 @@
++from functools import lru_cache
++from math import gcd
++
++
++# Contains every power of 2, 3, 5, and 7 that a digit sum <= 81 needs.
++# No nonzero digit product can contain any other prime factor.
++_PRODUCT_CAP = 2**6 * 3**4 * 5**2 * 7**2
++
++
++@lru_cache(maxsize=None)
++def _count_suffix(remaining: int, digit_sum: int, product: int) -> int:
++    if digit_sum and product == 0:
++        return 10**remaining
++    if remaining == 0:
++        return int(digit_sum > 0 and product % digit_sum == 0)
++
++    total = 0
++    for digit in range(10):
++        # Padding zeroes before the first nonzero digit are not digits.
++        next_product = (1 if digit_sum == 0 and digit == 0
++                        else (gcd(product * digit, _PRODUCT_CAP) if product * digit else 0))
++        total += _count_suffix(remaining - 1, digit_sum + digit, next_product)
++    return total
++
++
++def _count_up_to(bound: int) -> int:
++    if bound <= 0:
++        return 0
++    digits = [int(digit) for digit in str(bound)]
++    total = digit_sum = 0
++    product = 1
++    for index, limit in enumerate(digits):
++        for digit in range(limit):
++            next_product = (1 if digit_sum == 0 and digit == 0
++                            else (gcd(product * digit, _PRODUCT_CAP) if product * digit else 0))
++            total += _count_suffix(len(digits) - index - 1,
++                                   digit_sum + digit, next_product)
++        product = (1 if digit_sum == 0 and limit == 0
++                   else (gcd(product * limit, _PRODUCT_CAP) if product * limit else 0))
++        digit_sum += limit
++    return total + int(product % digit_sum == 0)
++
++
+ def count_beautiful_numbers(l: int, r: int) -> int:
+     """ Count the number of beautiful numbers in the range [l, r] inclusive.
+     
+@@ -20,4 +63,4 @@ def count_beautiful_numbers(l: int, r: int) -> int:
+     >>> count_beautiful_numbers(4, 4)
+     1
+     """
+-    pass
++    return _count_up_to(r) - _count_up_to(l - 1)

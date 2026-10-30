@@ -1,0 +1,49 @@
+diff --git a/solution.py b/solution.py
+index b7192c8..7007962 100644
+--- a/solution.py
++++ b/solution.py
+@@ -20,4 +20,43 @@ def count_polish_sequences(n: int, a: list[int]) -> int:
+     >>> count_polish_sequences(4, [1, 1, 0, 0])
+     0
+     """
+-    pass
++    mod = 998244353
++    factorial = [1] * (2 * n + 1)
++    for i in range(1, len(factorial)):
++        factorial[i] = factorial[i - 1] * i % mod
++    inverse_factorial = [1] * len(factorial)
++    inverse_factorial[-1] = pow(factorial[-1], mod - 2, mod)
++    for i in range(2 * n, 0, -1):
++        inverse_factorial[i - 1] = inverse_factorial[i] * i % mod
++
++    def choose(top, bottom):
++        if bottom < 0 or top < bottom:
++            return 0
++        return (factorial[top] * inverse_factorial[bottom]
++                * inverse_factorial[top - bottom]) % mod
++
++    answer = 0
++    slots = 1
++    for i, value in enumerate(a):
++        remaining = n - i - 1
++        # A smaller value leaves between these many pending subtrees.
++        low = slots - 1
++        high = min(slots + value - 2, remaining)
++        if high >= low:
++            if remaining == 0:
++                answer += int(low == 0)
++            else:
++                # Forests of r nodes with s roots number
++                # C(2r-s-1, r-1) - C(2r-s-1, r).
++                # Sum each binomial column using the hockey-stick identity.
++                answer += (choose(2 * remaining - low, remaining)
++                           - choose(2 * remaining - high - 1, remaining)
++                           - choose(2 * remaining - low, remaining + 1)
++                           + choose(2 * remaining - high - 1, remaining + 1))
++            answer %= mod
++        slots += value - 1
++        if slots == 0:
++            return (answer + int(remaining == 0)) % mod
++        if slots > remaining:
++            return answer
++    return answer

@@ -1,0 +1,24 @@
+diff --git a/solution.py b/solution.py
+index a800cd6..4510432 100644
+--- a/solution.py
++++ b/solution.py
+@@ -24,4 +24,18 @@ def max_eleven_twentytwo_subsequence(s: str, l: int, r: int) -> int:
+     >>> max_eleven_twentytwo_subsequence('111/212/1122', 3, 6)
+     3
+     """
+-    pass
++    window = s[l - 1:r]
++    twos_remaining = window.count('2')
++    ones_seen = 0
++    best = 0
++
++    for char in window:
++        if char == '1':
++            ones_seen += 1
++        elif char == '2':
++            twos_remaining -= 1
++        elif char == '/':
++            # Use this slash as the middle, balancing the two sides.
++            best = max(best, 2 * min(ones_seen, twos_remaining) + 1)
++
++    return best

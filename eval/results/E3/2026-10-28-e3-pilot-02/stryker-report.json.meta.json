@@ -1,0 +1,62 @@
+{
+  "exit": 0,
+  "duration_s": 2236,
+  "dry_run_net_ms": 744853,
+  "dry_run_overhead_ms": 2,
+  "timeout_s": 1477,
+  "concurrency": 4,
+  "mutate_patterns": 16,
+  "sampled": 16,
+  "config": {
+    "$schema": "$SCRATCH/scratchpad/stryker/node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+    "testRunner": "command",
+    "commandRunner": {
+      "command": "sh <pocp>/.claude/worktrees/eval-e3/eval/e3/stryker-gate.sh"
+    },
+    "coverageAnalysis": "off",
+    "mutate": [
+      "src/runner.js:55:12-55:40",
+      "src/remedies.js:145:13-145:164",
+      "src/engine.js:1065:49-1065:68",
+      "src/engine.js:1083:46-1083:67",
+      "src/engine.js:307:12-307:31",
+      "src/guard.js:83:10-83:57",
+      "src/cli.js:337:15-337:29",
+      "src/engine.js:1165:8-1165:20",
+      "src/history.js:25:21-25:54",
+      "src/trailer.js:26:39-35:1",
+      "src/store.js:345:6-345:89",
+      "src/metrics.js:22:32-22:59",
+      "src/cli.js:584:22-594:7",
+      "src/engine.js:560:26-566:3",
+      "src/remedies.js:156:9-156:28",
+      "src/guard-check.js:98:8-98:42"
+    ],
+    "plugins": [
+      "<pocp>/.claude/worktrees/eval-e3/eval/e3/stryker-sample-ignorer.js"
+    ],
+    "ignorers": [
+      "e3-sample"
+    ],
+    "concurrency": 4,
+    "timeoutFactor": 1.5,
+    "timeoutMS": 360000,
+    "dryRunTimeoutMinutes": 20,
+    "disableTypeChecks": false,
+    "reporters": [
+      "json",
+      "progress-append-only"
+    ],
+    "jsonReporter": {
+      "fileName": "<pocp>/.claude/worktrees/eval-e3/eval/results/E3/2026-10-28-e3-pilot-02/stryker-report.json"
+    },
+    "ignorePatterns": [
+      ".e3-*",
+      "eval/results",
+      "stryker.e3.config.json"
+    ],
+    "tempDirName": ".stryker-tmp",
+    "cleanTempDir": "always",
+    "incremental": false
+  }
+}

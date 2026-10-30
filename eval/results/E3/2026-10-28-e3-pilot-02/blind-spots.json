@@ -1,0 +1,134 @@
+{
+  "stryker_kinds": {
+    "ArrayDeclaration": {
+      "total": 672,
+      "pocp_can": 0
+    },
+    "StringLiteral": {
+      "total": 2782,
+      "pocp_can": 0
+    },
+    "ObjectLiteral": {
+      "total": 720,
+      "pocp_can": 0
+    },
+    "ArrowFunction": {
+      "total": 519,
+      "pocp_can": 0
+    },
+    "MethodExpression": {
+      "total": 512,
+      "pocp_can": 0
+    },
+    "ConditionalExpression": {
+      "total": 3347,
+      "pocp_can": 0
+    },
+    "LogicalOperator": {
+      "total": 802,
+      "pocp_can": 702
+    },
+    "OptionalChaining": {
+      "total": 179,
+      "pocp_can": 0
+    },
+    "Regex": {
+      "total": 338,
+      "pocp_can": 0
+    },
+    "BlockStatement": {
+      "total": 959,
+      "pocp_can": 0
+    },
+    "EqualityOperator": {
+      "total": 700,
+      "pocp_can": 609
+    },
+    "BooleanLiteral": {
+      "total": 693,
+      "pocp_can": 254
+    },
+    "ArithmeticOperator": {
+      "total": 144,
+      "pocp_can": 123
+    },
+    "UpdateOperator": {
+      "total": 30,
+      "pocp_can": 0
+    },
+    "UnaryOperator": {
+      "total": 20,
+      "pocp_can": 0
+    },
+    "AssignmentOperator": {
+      "total": 10,
+      "pocp_can": 1
+    }
+  },
+  "pocp_operators": {
+    "strict-eq": {
+      "total": 371,
+      "stryker_can": 369
+    },
+    "strict-neq": {
+      "total": 150,
+      "stryker_can": 148
+    },
+    "gt": {
+      "total": 51,
+      "stryker_can": 49
+    },
+    "and": {
+      "total": 279,
+      "stryker_can": 246
+    },
+    "or": {
+      "total": 514,
+      "stryker_can": 457
+    },
+    "true": {
+      "total": 155,
+      "stryker_can": 147
+    },
+    "false": {
+      "total": 113,
+      "stryker_can": 107
+    },
+    "minus": {
+      "total": 56,
+      "stryker_can": 50
+    },
+    "times": {
+      "total": 31,
+      "stryker_can": 19
+    },
+    "zero-one": {
+      "total": 279,
+      "stryker_can": 0
+    },
+    "neq": {
+      "total": 3,
+      "stryker_can": 1
+    },
+    "lt": {
+      "total": 22,
+      "stryker_can": 20
+    },
+    "lte": {
+      "total": 8,
+      "stryker_can": 6
+    },
+    "gte": {
+      "total": 18,
+      "stryker_can": 16
+    },
+    "plus": {
+      "total": 59,
+      "stryker_can": 54
+    },
+    "eq": {
+      "total": 2,
+      "stryker_can": 0
+    }
+  }
+}

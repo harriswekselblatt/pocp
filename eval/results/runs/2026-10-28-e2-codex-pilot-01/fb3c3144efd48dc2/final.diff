@@ -1,0 +1,43 @@
+diff --git a/solution.py b/solution.py
+index 559d9a5..e7d9aa3 100644
+--- a/solution.py
++++ b/solution.py
+@@ -24,4 +24,37 @@ def find_cube_placement(V1: int, V2: int, V3: int) -> Optional[Tuple[int, int, i
+     >>> find_cube_placement(343, 34, 3)
+     None
+     """
+-    pass
++    if min(V1, V2, V3) < 0 or V1 + 2 * V2 + 3 * V3 != 3 * 7**3:
++        return None
++
++    # Fix the first cube at the origin. On each axis, gaps between
++    # consecutive cube starts can be capped at 7 without changing overlaps.
++    # Thus every possible overlap pattern has a representative in [-14, 14].
++    patterns = {}
++    for b in range(-14, 15):
++        for c in range(-14, 15):
++            overlaps = (
++                max(0, 7 - abs(b)),
++                max(0, 7 - abs(c)),
++                max(0, 7 - abs(b - c)),
++                max(0, min(0, b, c) + 7 - max(0, b, c)),
++            )
++            patterns.setdefault(overlaps, (b, c))
++
++    states = list(patterns.items())
++    pair_sum = V2 + 3 * V3
++    # Axis permutations preserve volumes, so only search ordered triples.
++    for i, (x, (bx, cx)) in enumerate(states):
++        for j in range(i, len(states)):
++            y, (by, cy) = states[j]
++            ab = x[0] * y[0]
++            ac = x[1] * y[1]
++            bc = x[2] * y[2]
++            abc = x[3] * y[3]
++            for k in range(j, len(states)):
++                z, (bz, cz) = states[k]
++                if abc * z[3] != V3:
++                    continue
++                if ab * z[0] + ac * z[1] + bc * z[2] == pair_sum:
++                    return (0, 0, 0, bx, by, bz, cx, cy, cz)
++    return None

@@ -1,0 +1,63 @@
+name: POCP verify
+description: Verify Proof-Of-Change trailers on every commit in a pull request, re-running their proofs.
+branding:
+  icon: check-circle
+  color: green
+inputs:
+  range:
+    description: Commit range to verify. Defaults to the pull request's base..head.
+    required: false
+    default: ''
+  rerun:
+    description: "Re-run mode: all, unsigned (skip proofs signed by a trusted key), or none."
+    required: false
+    default: 'unsigned'
+  ci-results:
+    description: Path to a results file written by `pocp ci-run` earlier in the job; checks with a passing result for the same code and command aren't re-run.
+    required: false
+    default: ''
+  accept-policy-change:
+    description: Set to 'true' only when a maintainer approved loosening .proof/ rules or signers (for example with a label).
+    required: false
+    default: 'false'
+  accept-test-change:
+    description: Set to 'true' only when a maintainer approved changes to existing tests or test setup (separate from policy approval).
+    required: false
+    default: 'false'
+  require-coverage:
+    description: Fail commits whose changed files needed a packet but had none.
+    required: false
+    default: 'true'
+  pocp-version:
+    description: "npm version of pocp to run instead of the copy bundled with this action. Leave empty to use the bundled copy, which is pinned by the ref you use the action at (uses: harriswekselblatt/pocp@<commit>)."
+    required: false
+    default: ''
+  pocp-command:
+    description: Command to run pocp with, instead of npx (for example "node bin/pocp.js" when testing pocp itself).
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Verify
+      shell: bash
+      env:
+        RANGE: ${{ inputs.range != '' && inputs.range || format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+        RERUN: ${{ inputs.rerun }}
+        CI_RESULTS: ${{ inputs.ci-results }}
+        ACCEPT_POLICY: ${{ inputs.accept-policy-change }}
+        ACCEPT_TESTS: ${{ inputs.accept-test-change }}
+        COVERAGE: ${{ inputs.require-coverage }}
+        VERSION: ${{ inputs.pocp-version }}
+        POCP_CMD: ${{ inputs.pocp-command }}
+      run: |
+        args=(verify "$RANGE")
+        [ "$RERUN" = "all" ] && args+=(--rerun)
+        [ "$RERUN" = "unsigned" ] && args+=(--rerun-unsigned)
+        [ -n "$CI_RESULTS" ] && args+=(--ci-results "$CI_RESULTS")
+        [ "$ACCEPT_POLICY" = "true" ] && args+=(--accept-policy-change)
+        [ "$ACCEPT_TESTS" = "true" ] && args+=(--accept-test-change)
+        [ "$COVERAGE" = "true" ] && args+=(--require-coverage)
+        if [ -n "$POCP_CMD" ]; then $POCP_CMD "${args[@]}"
+        elif [ -n "$VERSION" ]; then npx --yes "pocp@$VERSION" "${args[@]}"
+        else node "$GITHUB_ACTION_PATH/bin/pocp.js" "${args[@]}"; fi

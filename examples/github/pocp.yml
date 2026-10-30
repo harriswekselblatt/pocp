@@ -1,0 +1,41 @@
+# .github/workflows/pocp.yml
+# POCP on GitHub Actions, for a project in any language.
+#
+# This job is the independent check: it runs no pull-request code before `pocp verify`, and
+# the verifier comes from the action at a pinned commit, so the change under review can't
+# alter it. verify re-runs the required checks itself (--rerun), which also satisfies
+# verify.require_ci. Your usual test workflow keeps running as it does today.
+name: pocp
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}   # the PR head, not GitHub's merge commit
+          fetch-depth: 0                                    # verify reads the whole range of commits
+      # ▶ Your toolchain (examples: actions/setup-python, dtolnay/rust-toolchain, actions/setup-go).
+      # ▶ Install dependencies without running the PR's install scripts where you can
+      #   (for example `npm ci --ignore-scripts`): anything that runs before verify is PR code.
+      - uses: harriswekselblatt/pocp@<commit-sha>                 # pin a commit; the action runs its bundled pocp
+        with:
+          rerun: all
+          # Two separate approvals, each a label only maintainers can apply. A label stays on
+          # through later pushes; remove it when new commits arrive (see docs/THREAT-MODEL.md).
+          accept-policy-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') }}
+          accept-test-change: ${{ contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') }}
+# Faster, less independent: run your tests through `pocp ci-run --results ci-results.jsonl -- <cmd>`
+# in this job, then pass `ci-results: ci-results.jsonl` and `rerun: unsigned`. The tests then run
+# once, but they run before verify, in the same job.
+#
+# Which findings fail and which CI results are required come from .proof/config.json
+# ("verify.fail_on", "verify.require_ci"), not from this file. To make this job required
+# for merging, list "verify" in "ci.required_checks" and run: pocp ci required --apply
+#
+# Pull requests from forks run the repo's own commands. Treat this job like your test
+# job for outside contributors: no secrets, read-only permissions.

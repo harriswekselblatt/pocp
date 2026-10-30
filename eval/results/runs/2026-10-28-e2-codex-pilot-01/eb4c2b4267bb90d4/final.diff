@@ -1,0 +1,23 @@
+diff --git a/solution.py b/solution.py
+index c8a20d2..6864fb8 100644
+--- a/solution.py
++++ b/solution.py
+@@ -22,4 +22,17 @@ def expected_operations(N: int, M: int) -> int:
+     >>> expected_operations(123456, 185185)
+     69292914
+     """
+-    pass
++    modulus = 998244353
++
++    # Each root-to-root excursion takes 2M steps on average and reaches
++    # its branch's tip with probability 1/M. Collecting all N tips thus
++    # takes MN * H_N excursions on average. The final return from a tip
++    # to the root is unnecessary and has expected length M^2.
++    inverses = [0] * (N + 1)
++    inverses[1] = 1
++    harmonic = 1
++    for i in range(2, N + 1):
++        inverses[i] = -(modulus // i) * inverses[modulus % i] % modulus
++        harmonic = (harmonic + inverses[i]) % modulus
++
++    return M * M * (2 * N * harmonic - 1) % modulus

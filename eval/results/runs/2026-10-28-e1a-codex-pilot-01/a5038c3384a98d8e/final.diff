@@ -1,0 +1,47 @@
+diff --git a/solution.py b/solution.py
+index 2edca9e..11c9e41 100644
+--- a/solution.py
++++ b/solution.py
+@@ -29,4 +29,41 @@ def min_operations_to_rearrange(n: int, s: str, t: str) -> int:
+     >>> min_operations_to_rearrange(3, 'BBW', 'BBW')
+     0
+     """
+-    pass
++    if s.count('W') != t.count('W'):
++        return -1
++    if s == t:
++        return 0
++
++    # A state stores the white-stone bitmask and the left empty cell.
++    # Black stones occupy every remaining nonempty cell.
++    def encode(stones):
++        return sum(1 << i for i, stone in enumerate(stones) if stone == 'W')
++
++    start = (encode(s), n)
++    goal = (encode(t), n)
++    front, back = {start}, {goal}
++    distances, reverse_distances = {start: 0}, {goal: 0}
++
++    # Every move is reversible, so search from both ends, expanding the
++    # smaller frontier to avoid exploring most of the state space.
++    while front and back:
++        if len(front) > len(back):
++            front, back = back, front
++            distances, reverse_distances = reverse_distances, distances
++        next_front = set()
++        for mask, empty in front:
++            distance = distances[(mask, empty)] + 1
++            for source in range(n + 1):
++                if empty - 1 <= source <= empty + 1:
++                    continue
++                pair = (mask >> source) & 3
++                moved = (mask & ~(3 << source)) | (pair << empty)
++                state = (moved, source)
++                if state in distances:
++                    continue
++                if state in reverse_distances:
++                    return distance + reverse_distances[state]
++                distances[state] = distance
++                next_front.add(state)
++        front = next_front
++    return -1

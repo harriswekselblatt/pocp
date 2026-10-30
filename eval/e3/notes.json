@@ -1,0 +1,7 @@
+{
+  "_run": [
+    "A first pilot (batch 2026-10-28-e3-pilot-01, N=100, same seed) was stopped after about 5 hours with no results on disk: Stryker writes its report only when the whole run ends, the mutate ranges made it test 213 live mutants rather than 100 (other mutators on each sampled node), and the machine's load average stayed between 200 and 475 from other agents' test runs. Its sample is kept in eval/results/E3/2026-10-28-e3-pilot-01/; it has no outcomes and no run records.",
+    "This pilot (2026-10-28-e3-pilot-02) is the first 16 mutants of the same seeded shuffle, which is itself a simple random sample of 16. Stryker now runs the checks only for the sampled mutant ids (eval/e3/stryker-gate.sh) and logs every real run, and Stryker and the POCP replay ran at the same time (PARALLEL=1) so both saw the same load.",
+    "16 mutants is a pilot: the intervals below are wide, and nothing here supports a claim beyond 'the two runners were compared on these mutants'."
+  ]
+}

@@ -1,0 +1,244 @@
+{
+  "mutants": [
+    {
+      "id": "src/runner.js:55:13-55:41:AssignmentOperator:capturedBytes -= part.length",
+      "file": "src/runner.js",
+      "mutator": "AssignmentOperator",
+      "start": {
+        "line": 55,
+        "column": 13
+      },
+      "end": {
+        "line": 55,
+        "column": 41
+      },
+      "replacement": "capturedBytes -= part.length",
+      "original": "capturedBytes += part.length"
+    },
+    {
+      "id": "src/remedies.js:145:14-145:165:ObjectLiteral:{}",
+      "file": "src/remedies.js",
+      "mutator": "ObjectLiteral",
+      "start": {
+        "line": 145,
+        "column": 14
+      },
+      "end": {
+        "line": 145,
+        "column": 165
+      },
+      "replacement": "{}",
+      "original": "{ why: 'a required check fails on this code.', next: 'fix the code (not the tests) and commit the fix with \"pocp fix\" then \"git commit\"', by: 'agent' }"
+    },
+    {
+      "id": "src/engine.js:1065:50-1065:69:ConditionalExpression:true",
+      "file": "src/engine.js",
+      "mutator": "ConditionalExpression",
+      "start": {
+        "line": 1065,
+        "column": 50
+      },
+      "end": {
+        "line": 1065,
+        "column": 69
+      },
+      "replacement": "true",
+      "original": "p.state !== 'draft'"
+    },
+    {
+      "id": "src/engine.js:1083:47-1083:68:ArrowFunction:() => undefined",
+      "file": "src/engine.js",
+      "mutator": "ArrowFunction",
+      "start": {
+        "line": 1083,
+        "column": 47
+      },
+      "end": {
+        "line": 1083,
+        "column": 68
+      },
+      "replacement": "() => undefined",
+      "original": "(f) => P.covers(p, f)"
+    },
+    {
+      "id": "src/engine.js:307:13-307:32:BooleanLiteral:mentions.has(m[1])",
+      "file": "src/engine.js",
+      "mutator": "BooleanLiteral",
+      "start": {
+        "line": 307,
+        "column": 13
+      },
+      "end": {
+        "line": 307,
+        "column": 32
+      },
+      "replacement": "mentions.has(m[1])",
+      "original": "!mentions.has(m[1])"
+    },
+    {
+      "id": "src/guard.js:83:11-83:58:ConditionalExpression:false",
+      "file": "src/guard.js",
+      "mutator": "ConditionalExpression",
+      "start": {
+        "line": 83,
+        "column": 11
+      },
+      "end": {
+        "line": 83,
+        "column": 58
+      },
+      "replacement": "false",
+      "original": "runnerGlobs.some((gl) => matchGlob(c.path, gl))"
+    },
+    {
+      "id": "src/cli.js:337:16-337:30:OptionalChaining:hooks.refused",
+      "file": "src/cli.js",
+      "mutator": "OptionalChaining",
+      "start": {
+        "line": 337,
+        "column": 16
+      },
+      "end": {
+        "line": 337,
+        "column": 30
+      },
+      "replacement": "hooks.refused",
+      "original": "hooks?.refused"
+    },
+    {
+      "id": "src/engine.js:1165:9-1165:21:ConditionalExpression:true",
+      "file": "src/engine.js",
+      "mutator": "ConditionalExpression",
+      "start": {
+        "line": 1165,
+        "column": 9
+      },
+      "end": {
+        "line": 1165,
+        "column": 21
+      },
+      "replacement": "true",
+      "original": "raw === null"
+    },
+    {
+      "id": "src/history.js:25:22-25:55:ArrayDeclaration:[]",
+      "file": "src/history.js",
+      "mutator": "ArrayDeclaration",
+      "start": {
+        "line": 25,
+        "column": 22
+      },
+      "end": {
+        "line": 25,
+        "column": 55
+      },
+      "replacement": "[]",
+      "original": "['log', '-1', '--format=%s', sha]"
+    },
+    {
+      "id": "src/trailer.js:26:40-35:2:BlockStatement:{}",
+      "file": "src/trailer.js",
+      "mutator": "BlockStatement",
+      "start": {
+        "line": 26,
+        "column": 40
+      },
+      "end": {
+        "line": 35,
+        "column": 2
+      },
+      "replacement": "{}",
+      "original": "{\n  const paragraphs = String(message || '').replace(/\\s+$/, '').split(/\\n\\s*\\n/);\n  const last = paragraphs[paragraphs.length - 1] || '';\n  const out = [];\n  for (const line of last.split('\\n')) {\n    const m = /^Proof-Of-Change:\\s*(.+)$/i.exec(line.trim());\n    if (m) out.push(parseTrailerValue(m[1]));\n  }\n  return out;\n}"
+    },
+    {
+      "id": "src/store.js:345:7-345:90:EqualityOperator:(GUARD_STRENGTH[head.guard?.tests] ?? 0) >= (GUARD_STRENGTH[base.guard?.tests] ?? 0)",
+      "file": "src/store.js",
+      "mutator": "EqualityOperator",
+      "start": {
+        "line": 345,
+        "column": 7
+      },
+      "end": {
+        "line": 345,
+        "column": 90
+      },
+      "replacement": "(GUARD_STRENGTH[head.guard?.tests] ?? 0) >= (GUARD_STRENGTH[base.guard?.tests] ?? 0)",
+      "original": "(GUARD_STRENGTH[head.guard?.tests] ?? 0) < (GUARD_STRENGTH[base.guard?.tests] ?? 0)"
+    },
+    {
+      "id": "src/metrics.js:22:33-22:60:ArrowFunction:() => undefined",
+      "file": "src/metrics.js",
+      "mutator": "ArrowFunction",
+      "start": {
+        "line": 22,
+        "column": 33
+      },
+      "end": {
+        "line": 22,
+        "column": 60
+      },
+      "replacement": "() => undefined",
+      "original": "(p) => p.state === 'landed'"
+    },
+    {
+      "id": "src/cli.js:584:23-594:8:BlockStatement:{}",
+      "file": "src/cli.js",
+      "mutator": "BlockStatement",
+      "start": {
+        "line": 584,
+        "column": 23
+      },
+      "end": {
+        "line": 594,
+        "column": 8
+      },
+      "replacement": "{}",
+      "original": "{\n        if (rest[0]) {\n          if (!fs.existsSync(rest[0])) throw new UsageError(`no such message file: ${rest[0]}`);\n          const lines = await engine.addTrailersToFile(rest[0], { source: rest[1] });\n          out(json, { trailers: lines }, null);\n        } else {\n          const lines = await engine.trailers();\n          out(json, { trailers: lines }, lines.map((l) => `Proof-Of-Change: ${l}`).join('\\n'));\n        }\n        return EXIT.ok;\n      }"
+    },
+    {
+      "id": "src/engine.js:560:27-566:4:BlockStatement:{}",
+      "file": "src/engine.js",
+      "mutator": "BlockStatement",
+      "start": {
+        "line": 560,
+        "column": 27
+      },
+      "end": {
+        "line": 566,
+        "column": 4
+      },
+      "replacement": "{}",
+      "original": "{\n    const cfg = config();\n    const key = process.env.POCP_SIGN_KEY || cfg.sign?.key || null;\n    if (!key) return null;\n    const principal = process.env.POCP_SIGN_PRINCIPAL || cfg.sign?.principal || g.git(root, ['config', '--get', 'user.email'], { allowFail: true });\n    return { key, principal };\n  }"
+    },
+    {
+      "id": "src/remedies.js:156:10-156:29:StringLiteral:\"\"",
+      "file": "src/remedies.js",
+      "mutator": "StringLiteral",
+      "start": {
+        "line": 156,
+        "column": 10
+      },
+      "end": {
+        "line": 156,
+        "column": 29
+      },
+      "replacement": "\"\"",
+      "original": "'invalid_signature'"
+    },
+    {
+      "id": "src/guard-check.js:98:9-98:43:EqualityOperator:result.new_tests.result !== 'fail'",
+      "file": "src/guard-check.js",
+      "mutator": "EqualityOperator",
+      "start": {
+        "line": 98,
+        "column": 9
+      },
+      "end": {
+        "line": 98,
+        "column": 43
+      },
+      "replacement": "result.new_tests.result !== 'fail'",
+      "original": "result.new_tests.result === 'fail'"
+    }
+  ]
+}

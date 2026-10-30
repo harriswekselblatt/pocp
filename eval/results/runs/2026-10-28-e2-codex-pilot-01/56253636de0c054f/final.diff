@@ -1,0 +1,52 @@
+diff --git a/solution.py b/solution.py
+index 00f8fc6..fb63241 100644
+--- a/solution.py
++++ b/solution.py
+@@ -26,4 +26,46 @@ def can_transform_string(n: int, x: int, y: int, s: str, t: str) -> bool:
+     >>> can_transform_string(3, 1, 2, '001', '001')
+     True
+     """
+-    pass
++    if s.count('1') != t.count('1'):
++        return False
++
++    def normal_form(word):
++        # Orient every swap as 0**x 1**y -> 1**y 0**x. This rule
++        # terminates (ones move left) and has no overlapping occurrences,
++        # so every word has a unique normal form.
++        runs = []
++        start = 0
++        while start < n:
++            end = start + 1
++            char = word[start]
++            while end < n and word[end] == char:
++                end += 1
++            count = end - start
++            start = end
++            if char == '0':
++                if runs and runs[-1][0] == '0':
++                    count += runs.pop()[1]
++                runs.append(('0', count))
++                continue
++
++            tails = []
++            while runs and runs[-1][0] == '0' and runs[-1][1] >= x and count >= y:
++                zeros = runs.pop()[1]
++                leftover = zeros % x
++                tails.append((zeros - leftover, count % y))
++                count -= count % y
++                if leftover:
++                    runs.append(('0', leftover))
++                    break
++                if runs and runs[-1][0] == '1':
++                    count += runs.pop()[1]
++            runs.append(('1', count))
++            for zeros, ones in reversed(tails):
++                if runs[-1][0] == '0':
++                    zeros += runs.pop()[1]
++                runs.append(('0', zeros))
++                if ones:
++                    runs.append(('1', ones))
++        return runs
++
++    return normal_form(s) == normal_form(t)

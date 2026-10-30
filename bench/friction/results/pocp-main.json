@@ -1,0 +1,867 @@
+{
+  "target": "pocp",
+  "label": "main",
+  "pocp": "d6efd6a",
+  "protocol": "manual",
+  "node": "22.13.1",
+  "platform": "darwin-arm64",
+  "cpus": 8,
+  "started_at": "2026-10-27T14:08:10.207Z",
+  "policy": {
+    "rules": {
+      "pocp": 1,
+      "triggers": {
+        "broad_files": 6,
+        "cross_area": {
+          "areas": 3,
+          "min_files": 4
+        },
+        "globs": [
+          {
+            "id": "docs",
+            "glob": "*.md",
+            "require_packet": false
+          },
+          {
+            "id": "examples",
+            "glob": "examples/**",
+            "require_packet": false
+          }
+        ]
+      },
+      "requirements": [
+        {
+          "id": "unit-tests",
+          "globs": [
+            "src/**",
+            "bin/**",
+            "test/**",
+            "package.json"
+          ],
+          "obligation": {
+            "kind": "test",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          "source": "author"
+        },
+        {
+          "id": "engine-tests",
+          "globs": [
+            "src/**",
+            "bin/**",
+            "test/**",
+            "package.json"
+          ],
+          "obligation": {
+            "kind": "test",
+            "run": "node --test test/engine.test.js"
+          },
+          "source": "author"
+        },
+        {
+          "id": "test-suite",
+          "globs": [
+            "src/**",
+            "bin/**",
+            "test/**",
+            "package.json"
+          ],
+          "obligation": {
+            "kind": "test",
+            "run": "npm test --silent"
+          },
+          "source": "author"
+        }
+      ]
+    },
+    "config": {
+      "pocp": 1,
+      "packet_ttl_days": 14,
+      "run": {
+        "mode": "clean",
+        "timeout_ms": 600000,
+        "env": "inherit"
+      },
+      "snapshot": {
+        "link": [
+          "node_modules"
+        ]
+      },
+      "verify": {
+        "require_ci": [
+          "npm test --silent"
+        ]
+      },
+      "ci": {
+        "branch": "main",
+        "required_checks": [
+          "verify",
+          "test (ubuntu-latest, 20)",
+          "test (ubuntu-latest, 22)",
+          "test (ubuntu-latest, 24)",
+          "test (macos-latest, 20)",
+          "test (macos-latest, 22)",
+          "test (macos-latest, 24)"
+        ],
+        "require_pull_request": true,
+        "enforce_admins": true
+      },
+      "guard": {
+        "tests": "block"
+      }
+    }
+  },
+  "commits": [
+    {
+      "commit": "40364d817e",
+      "subject": "Spell out verification vs merge enforcement",
+      "full": false,
+      "files": 5,
+      "gate": {
+        "ms": 258,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 316,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 129,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "7c6854ea37",
+      "subject": "Mark ci required --apply as not yet live-tested",
+      "full": false,
+      "files": 2,
+      "gate": {
+        "ms": 250,
+        "decision": "blocked",
+        "reasons": [
+          "requirement"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 190,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 124,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "52953d977d",
+      "subject": "Only 'ci required --apply' touches host merge settings",
+      "full": false,
+      "files": 3,
+      "gate": {
+        "ms": 259,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 194,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 127,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "2ea57925bc",
+      "subject": "Derive \"landed\" from git; never edit tracked packet files",
+      "full": false,
+      "files": 6,
+      "gate": {
+        "ms": 288,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 204,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 138,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "7aba89c22c",
+      "subject": "Tests skip or adapt when ssh-keygen is missing or running as root",
+      "full": false,
+      "files": 4,
+      "gate": {
+        "ms": 330,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 220,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 154,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "a95ddf9216",
+      "subject": "CI policy: narrowing a rule or the test guard is a loosening",
+      "full": false,
+      "files": 5,
+      "gate": {
+        "ms": 295,
+        "decision": "blocked",
+        "reasons": [
+          "requirement"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 210,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 142,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "e7f5e0425f",
+      "subject": "CI results: refuse planted files, latest result decides",
+      "full": false,
+      "files": 6,
+      "gate": {
+        "ms": 340,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 223,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 156,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "ab138e7eef",
+      "subject": "Clean mode and ci-run refuse files git has been told to ignore",
+      "full": false,
+      "files": 4,
+      "gate": {
+        "ms": 350,
+        "decision": "blocked",
+        "reasons": [
+          "requirement"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 221,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 154,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "dba90bf112",
+      "subject": "Reject globs that can never match; warn on bare folder paths",
+      "full": false,
+      "files": 6,
+      "gate": {
+        "ms": 372,
+        "decision": "blocked",
+        "reasons": [
+          "requirement"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 235,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 168,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "380a52fd04",
+      "subject": "CLI: reasons for every failing commit, ci-run quoting, Git < 2.31",
+      "full": false,
+      "files": 4,
+      "gate": {
+        "ms": 425,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 248,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 182,
+            "exit": 1
+          }
+        ]
+      },
+      "outcome": "ceremony"
+    },
+    {
+      "commit": "5543cfdfd5",
+      "subject": "Packet lifecycle: derive expiry; recognise squash and rebase merges",
+      "full": true,
+      "files": 6,
+      "gate": {
+        "ms": 455,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 261,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 194,
+            "exit": 1
+          }
+        ]
+      },
+      "steps": [
+        {
+          "cmd": "open",
+          "ms": 205,
+          "exit": 0
+        },
+        {
+          "cmd": "prove",
+          "ms": 257874,
+          "exit": 0
+        },
+        {
+          "cmd": "attest p-6bfe4c10",
+          "ms": 134,
+          "exit": 0
+        },
+        {
+          "cmd": "git commit",
+          "ms": 687,
+          "exit": 0,
+          "hooks": [
+            {
+              "cmd": "gate",
+              "ms": 220,
+              "exit": 0
+            },
+            {
+              "cmd": "trailer",
+              "ms": 208,
+              "exit": 0
+            },
+            {
+              "cmd": "land",
+              "ms": 81,
+              "exit": 0
+            }
+          ]
+        }
+      ],
+      "ceremony_commands": 3,
+      "outcome": "ceremony",
+      "repeat_prove": {
+        "ms": 382,
+        "ran": 0
+      },
+      "ci": {
+        "test_step_ms": 60378,
+        "test_step_ok": true,
+        "verify_ms": 207307,
+        "ok": false,
+        "findings": [
+          "test_change"
+        ],
+        "guard_reruns": 1,
+        "reruns": 3,
+        "error": null
+      },
+      "needs_person": true
+    },
+    {
+      "commit": "1ad9886510",
+      "subject": "Store: break stale locks safely; refuse newer record formats",
+      "full": true,
+      "files": 4,
+      "gate": {
+        "ms": 460,
+        "decision": "blocked",
+        "reasons": [
+          "requirement"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 261,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 194,
+            "exit": 1
+          }
+        ]
+      },
+      "steps": [
+        {
+          "cmd": "open",
+          "ms": 175,
+          "exit": 0
+        },
+        {
+          "cmd": "prove",
+          "ms": 86225,
+          "exit": 0
+        },
+        {
+          "cmd": "git commit",
+          "ms": 675,
+          "exit": 0,
+          "hooks": [
+            {
+              "cmd": "gate",
+              "ms": 220,
+              "exit": 0
+            },
+            {
+              "cmd": "trailer",
+              "ms": 198,
+              "exit": 0
+            },
+            {
+              "cmd": "land",
+              "ms": 81,
+              "exit": 0
+            }
+          ]
+        }
+      ],
+      "ceremony_commands": 2,
+      "outcome": "ceremony",
+      "repeat_prove": {
+        "ms": 532,
+        "ran": 0
+      },
+      "ci": {
+        "test_step_ms": 76916,
+        "test_step_ok": true,
+        "verify_ms": 35437,
+        "ok": true,
+        "findings": [],
+        "guard_reruns": 0,
+        "reruns": 3,
+        "error": null
+      },
+      "needs_person": false
+    },
+    {
+      "commit": "acd9984e2b",
+      "subject": "Docs match the code; claims say what backs them",
+      "full": true,
+      "files": 5,
+      "gate": {
+        "ms": 528,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "test_change"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 281,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 215,
+            "exit": 1
+          }
+        ]
+      },
+      "steps": [
+        {
+          "cmd": "open",
+          "ms": 219,
+          "exit": 0
+        },
+        {
+          "cmd": "prove",
+          "ms": 717324,
+          "exit": 0
+        },
+        {
+          "cmd": "git commit",
+          "ms": 758,
+          "exit": 0,
+          "hooks": [
+            {
+              "cmd": "gate",
+              "ms": 255,
+              "exit": 0
+            },
+            {
+              "cmd": "trailer",
+              "ms": 237,
+              "exit": 0
+            },
+            {
+              "cmd": "land",
+              "ms": 82,
+              "exit": 0
+            }
+          ]
+        }
+      ],
+      "ceremony_commands": 2,
+      "outcome": "ceremony",
+      "repeat_prove": {
+        "ms": 453,
+        "ran": 0
+      },
+      "ci": {
+        "test_step_ms": 53145,
+        "test_step_ok": true,
+        "verify_ms": 703069,
+        "ok": true,
+        "findings": [],
+        "guard_reruns": 1,
+        "reruns": 3,
+        "error": null
+      },
+      "needs_person": false
+    },
+    {
+      "commit": "cd522e1f95",
+      "subject": "Action runs its bundled pocp; examples pin what they run",
+      "full": true,
+      "files": 5,
+      "gate": {
+        "ms": 515,
+        "decision": "blocked",
+        "reasons": [
+          "ci_config"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 452,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 382,
+            "exit": 1
+          }
+        ]
+      },
+      "steps": [
+        {
+          "cmd": "open",
+          "ms": 173,
+          "exit": 0
+        },
+        {
+          "cmd": "prove",
+          "ms": 118968,
+          "exit": 0
+        },
+        {
+          "cmd": "git commit",
+          "ms": 929,
+          "exit": 0,
+          "hooks": [
+            {
+              "cmd": "gate",
+              "ms": 330,
+              "exit": 0
+            },
+            {
+              "cmd": "trailer",
+              "ms": 289,
+              "exit": 0
+            },
+            {
+              "cmd": "land",
+              "ms": 101,
+              "exit": 0
+            }
+          ]
+        }
+      ],
+      "ceremony_commands": 2,
+      "outcome": "ceremony",
+      "repeat_prove": {
+        "ms": 658,
+        "ran": 0
+      },
+      "ci": {
+        "test_step_ms": 58565,
+        "test_step_ok": true,
+        "verify_ms": 386,
+        "ok": false,
+        "findings": [
+          "ci_config_changed"
+        ],
+        "guard_reruns": 0,
+        "reruns": 1,
+        "error": null
+      },
+      "needs_person": true
+    },
+    {
+      "commit": "3944dfea6e",
+      "subject": "Test guard: mechanical check replaces the free-text sign-off",
+      "full": true,
+      "files": 15,
+      "gate": {
+        "ms": 535,
+        "decision": "blocked",
+        "reasons": [
+          "requirement",
+          "broad"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 286,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 216,
+            "exit": 1
+          }
+        ]
+      },
+      "steps": [
+        {
+          "cmd": "open",
+          "ms": 173,
+          "exit": 0
+        },
+        {
+          "cmd": "prove",
+          "ms": 157873,
+          "exit": 0
+        },
+        {
+          "cmd": "git commit",
+          "ms": 820,
+          "exit": 0,
+          "hooks": [
+            {
+              "cmd": "gate",
+              "ms": 292,
+              "exit": 0
+            },
+            {
+              "cmd": "trailer",
+              "ms": 259,
+              "exit": 0
+            },
+            {
+              "cmd": "land",
+              "ms": 84,
+              "exit": 0
+            }
+          ]
+        }
+      ],
+      "ceremony_commands": 2,
+      "outcome": "ceremony",
+      "repeat_prove": {
+        "ms": 527,
+        "ran": 0
+      },
+      "ci": {
+        "test_step_ms": 77409,
+        "test_step_ok": true,
+        "verify_ms": 40985,
+        "ok": true,
+        "findings": [],
+        "guard_reruns": 0,
+        "reruns": 3,
+        "error": null
+      },
+      "needs_person": false
+    },
+    {
+      "commit": "e226c7fc68",
+      "subject": "Do nothing in checkouts that haven't adopted POCP",
+      "full": true,
+      "files": 2,
+      "gate": {
+        "ms": 872,
+        "decision": "blocked",
+        "reasons": [
+          "requirement"
+        ],
+        "problems": [],
+        "explained": false
+      },
+      "first_attempt": {
+        "ok": false,
+        "ms": 348,
+        "hooks": [
+          {
+            "cmd": "gate",
+            "ms": 271,
+            "exit": 1
+          }
+        ]
+      },
+      "steps": [
+        {
+          "cmd": "open",
+          "ms": 204,
+          "exit": 0
+        },
+        {
+          "cmd": "prove",
+          "ms": 191483,
+          "exit": 0
+        },
+        {
+          "cmd": "git commit",
+          "ms": 1088,
+          "exit": 0,
+          "hooks": [
+            {
+              "cmd": "gate",
+              "ms": 486,
+              "exit": 0
+            },
+            {
+              "cmd": "trailer",
+              "ms": 275,
+              "exit": 0
+            },
+            {
+              "cmd": "land",
+              "ms": 89,
+              "exit": 0
+            }
+          ]
+        }
+      ],
+      "ceremony_commands": 2,
+      "outcome": "ceremony",
+      "repeat_prove": {
+        "ms": 557,
+        "ran": 0
+      },
+      "ci": {
+        "test_step_ms": 64646,
+        "test_step_ok": true,
+        "verify_ms": 42346,
+        "ok": true,
+        "findings": [],
+        "guard_reruns": 0,
+        "reruns": 3,
+        "error": null
+      },
+      "needs_person": false
+    }
+  ],
+  "finished_at": "2026-10-27T14:57:58.801Z"
+}

@@ -1,0 +1,137 @@
+{
+  "description": "POCP protocol test vectors (pocp: 1). Any implementation must produce these exact values.",
+  "obligation_digests": [
+    {
+      "obligation": {
+        "kind": "test",
+        "run": "npm test"
+      },
+      "digest": "sha256:849c1118beb514a761e62c0b5641f1887531153818dffef76f07379ae3ab00ea"
+    },
+    {
+      "obligation": {
+        "kind": "command",
+        "run": "npm run lint",
+        "expect": "0 problems"
+      },
+      "digest": "sha256:7aa05a81832d1e49e9c5b4eb5c4bcc2f533658148520f060b2772aa52e528043"
+    },
+    {
+      "obligation": {
+        "kind": "test",
+        "run": "cargo test",
+        "cwd": "crates/core",
+        "timeout_ms": 60000
+      },
+      "digest": "sha256:454375dedc2bf11f0800f5e59219160b4494c2e4ede23a38d8341851cdc75278"
+    },
+    {
+      "obligation": {
+        "kind": "test",
+        "run": "pytest",
+        "inputs": [
+          "tests/**",
+          "conftest.py"
+        ]
+      },
+      "digest": "sha256:ac20b8a2653bf25fa34355e5f3f5443992621d30ef752e2683fb63660ff6d8c7"
+    },
+    {
+      "obligation": {
+        "kind": "manual",
+        "text": "Checked the invoice PDF by eye"
+      },
+      "digest": "sha256:288687e1648911f6d9b6c49c4e39f491f7f627d12df5021f548903b4023f4416"
+    }
+  ],
+  "policy_digests": [
+    {
+      "requirements": [
+        {
+          "id": "unit",
+          "digest": "sha256:849c1118beb514a761e62c0b5641f1887531153818dffef76f07379ae3ab00ea"
+        },
+        {
+          "id": "lint",
+          "digest": "sha256:7aa05a81832d1e49e9c5b4eb5c4bcc2f533658148520f060b2772aa52e528043"
+        }
+      ],
+      "digest": "sha256:efe5e4d654f921141e6db52284464dcb9558ca49c0c4cc674e62484e2d23be06"
+    },
+    {
+      "requirements": [],
+      "digest": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    }
+  ],
+  "subjects": [
+    {
+      "entries": [
+        {
+          "mode": "100644",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "path": "src/a.js"
+        },
+        {
+          "mode": "100755",
+          "sha": "5716ca5987cbf97d6bb54920bea6adde242d87e6",
+          "path": "bin/run"
+        },
+        {
+          "mode": "100644",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "path": ".proof/packets/p-1.json"
+        }
+      ],
+      "subject": "sha256:055bdf916e781b9cbefc21633132e93b17d796fd5472d29c24b4fb4447d72402",
+      "note": ".proof/ paths are excluded; lines sorted by path"
+    },
+    {
+      "entries": [],
+      "subject": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "entries": [
+        {
+          "mode": "100644",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "path": "src/été.js"
+        },
+        {
+          "mode": "100644",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "path": "src/！.js"
+        },
+        {
+          "mode": "100644",
+          "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+          "path": "src/😀.js"
+        },
+        {
+          "mode": "120000",
+          "sha": "5716ca5987cbf97d6bb54920bea6adde242d87e6",
+          "path": "link"
+        }
+      ],
+      "subject": "sha256:642e886ca70d4a6408b671992360aa082a31b708a420a4e3661a5f41b875567c",
+      "note": "paths sort by UTF-16 code units (JavaScript string order): src/😀.js sorts before src/！.js, the reverse of UTF-8 byte order; a symlink hashes its target text (mode 120000)"
+    }
+  ],
+  "canonical_json": [
+    {
+      "value": {
+        "b": 1,
+        "a": {
+          "d": [
+            3,
+            {
+              "f": 1,
+              "e": 2
+            }
+          ],
+          "c": null
+        }
+      },
+      "json": "{\"a\":{\"c\":null,\"d\":[3,{\"e\":2,\"f\":1}]},\"b\":1}"
+    }
+  ]
+}

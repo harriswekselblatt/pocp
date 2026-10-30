@@ -1,0 +1,32 @@
+{
+  "name": "pocp",
+  "about": "POCP itself: node:test, zero dependencies. The bench's own repository is the default source.",
+  "source": "self",
+  "framework": "node-test",
+  "ciCommand": "npm test --silent",
+  "testFileCommand": "node --test {files}",
+  "mutate": [
+    "src/glob.js",
+    "src/trailer.js",
+    "src/hash.js",
+    "src/rules.js",
+    "src/packets.js"
+  ],
+  "newTest": {
+    "path": "test/bench-extra.test.js",
+    "content": "import test from 'node:test';\nimport assert from 'node:assert/strict';\n\ntest('bench: an honest new test', () => {\n  assert.equal(1 + 1, 2);\n});\n"
+  },
+  "setup": {
+    "dropRequirements": [
+      "engine-tests"
+    ],
+    "scripts": {
+      "test": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+    }
+  },
+  "setupNote": "The full suite takes minutes per run, so the scratch copy's test script runs the unit tests (about 7s) and the engine-tests requirement is dropped. The other requirements, the config and the CI workflow are POCP's own.",
+  "profiles": [
+    "as-configured",
+    "attest"
+  ]
+}

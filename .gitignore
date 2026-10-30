@@ -1,0 +1,5 @@
+# Local proof run logs (hashes are kept in packets; raw output stays local)
+.proof/runs/
+
+node_modules/
+.DS_Store

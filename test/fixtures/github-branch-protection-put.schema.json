@@ -1,0 +1,172 @@
+{
+ "$comment": "Request body schema for PUT /repos/{owner}/{repo}/branches/{branch}/protection, extracted (descriptions removed) from github/rest-api-description (MIT), descriptions/api.github.com/api.github.com.json, fetched 2026-10-26.",
+ "schema": {
+  "type": "object",
+  "properties": {
+   "required_status_checks": {
+    "type": "object",
+    "nullable": true,
+    "properties": {
+     "strict": {
+      "type": "boolean"
+     },
+     "contexts": {
+      "type": "array",
+      "deprecated": true,
+      "items": {
+       "type": "string"
+      }
+     },
+     "checks": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "context"
+       ],
+       "properties": {
+        "context": {
+         "type": "string"
+        },
+        "app_id": {
+         "type": "integer"
+        }
+       }
+      }
+     }
+    },
+    "required": [
+     "strict",
+     "contexts"
+    ]
+   },
+   "enforce_admins": {
+    "type": "boolean",
+    "nullable": true
+   },
+   "required_pull_request_reviews": {
+    "type": "object",
+    "nullable": true,
+    "properties": {
+     "dismissal_restrictions": {
+      "type": "object",
+      "properties": {
+       "users": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "teams": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "apps": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "dismiss_stale_reviews": {
+      "type": "boolean"
+     },
+     "require_code_owner_reviews": {
+      "type": "boolean"
+     },
+     "required_approving_review_count": {
+      "type": "integer"
+     },
+     "require_last_push_approval": {
+      "type": "boolean",
+      "default": false
+     },
+     "bypass_pull_request_allowances": {
+      "type": "object",
+      "properties": {
+       "users": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "teams": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       "apps": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   },
+   "restrictions": {
+    "type": "object",
+    "nullable": true,
+    "properties": {
+     "users": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "teams": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "apps": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "users",
+     "teams"
+    ]
+   },
+   "required_linear_history": {
+    "type": "boolean"
+   },
+   "allow_force_pushes": {
+    "type": "boolean",
+    "nullable": true
+   },
+   "allow_deletions": {
+    "type": "boolean"
+   },
+   "block_creations": {
+    "type": "boolean"
+   },
+   "required_conversation_resolution": {
+    "type": "boolean"
+   },
+   "lock_branch": {
+    "type": "boolean",
+    "default": false
+   },
+   "allow_fork_syncing": {
+    "type": "boolean",
+    "default": false
+   }
+  },
+  "required": [
+   "required_status_checks",
+   "enforce_admins",
+   "required_pull_request_reviews",
+   "restrictions"
+  ]
+ }
+}

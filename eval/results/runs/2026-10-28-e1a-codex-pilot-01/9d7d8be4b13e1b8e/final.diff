@@ -1,0 +1,62 @@
+diff --git a/solution.py b/solution.py
+index 1f84567..6a2b166 100644
+--- a/solution.py
++++ b/solution.py
+@@ -30,4 +30,56 @@ def can_reach_end(n: int, m: int, a: int, b: int, bad_intervals: List[Tuple[int,
+     >>> can_reach_end(100, 4, 10, 11, [(16, 18), (39, 42), (50, 55), (93, 99)])
+     True
+     """
+-    pass
++    # Bit i records whether the square i places behind the current one
++    # is reachable. An open square shifts this window and applies the
++    # jump recurrence; a blocked square only shifts it.
++    window_mask = (1 << b) - 1
++    jump_mask = ((1 << (b - a + 1)) - 1) << (a - 1)
++
++    def step(state: int) -> int:
++        return ((state << 1) & window_mask) | bool(state & jump_mask)
++
++    def apply(columns, state):
++        result = 0
++        while state:
++            bit = state & -state
++            result |= columns[bit.bit_length() - 1]
++            state ^= bit
++        return result
++
++    # Powers of the open-square transition allow traversing very long
++    # stretches without visiting each square.
++    powers = [[step(1 << i) for i in range(b)]]
++
++    def advance(state, count):
++        if count <= b:
++            for _ in range(count):
++                state = step(state)
++            return state
++        power = 0
++        while count and state:
++            if power == len(powers):
++                previous = powers[-1]
++                powers.append([apply(previous, column) for column in previous])
++            if count & 1:
++                state = apply(powers[power], state)
++            count >>= 1
++            power += 1
++        return state
++
++    state = 1
++    position = 1
++    for left, right in bad_intervals:
++        if left > n:
++            break
++        left = max(left, 2)
++        right = min(right, n)
++        if right < left:
++            continue
++        state = advance(state, left - position - 1)
++        length = right - left + 1
++        state = 0 if length >= b else (state << length) & window_mask
++        if not state:
++            return False
++        position = right
++    return bool(advance(state, n - position) & 1)

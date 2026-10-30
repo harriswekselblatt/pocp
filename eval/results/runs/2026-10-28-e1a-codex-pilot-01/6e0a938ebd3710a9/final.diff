@@ -1,0 +1,32 @@
+diff --git a/solution.py b/solution.py
+index 9a7d7ae..f73dadc 100644
+--- a/solution.py
++++ b/solution.py
+@@ -21,4 +21,26 @@ def count_k_reducible(s: str, k: int) -> int:
+     >>> count_k_reducible("1", 3)
+     0
+     """
+-    pass
++    modulus = 10**9 + 7
++    if k == 0:
++        return int(int(s, 2) > 1)
++
++    # After the first operation, only the number of set bits matters.
++    steps = [0] * (len(s) + 1)
++    for ones in range(2, len(s) + 1):
++        steps[ones] = 1 + steps[ones.bit_count()]
++
++    # counts tracks prefixes already strictly below the corresponding prefix
++    # of s. Leading zeroes let every smaller integer use the same bit length.
++    counts = [0] * (len(s) + 1)
++    prefix_ones = 0
++    for position, bit in enumerate(s):
++        for ones in range(position + 1, 0, -1):
++            counts[ones] = (counts[ones] + counts[ones - 1]) % modulus
++        if bit == "1":
++            counts[prefix_ones] = (counts[prefix_ones] + 1) % modulus
++            prefix_ones += 1
++
++    # Exclude zero, whose set-bit count is zero and which never reaches one.
++    return sum(counts[ones] for ones in range(1, len(s) + 1)
++               if steps[ones] < k) % modulus

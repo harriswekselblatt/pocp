@@ -1,0 +1,34 @@
+{
+  "commits": [
+    {
+      "sha": "ccc926d42535b40ba5cee137546d186c61c970d2",
+      "tree": "883faefe0fac87b8ec774c52e815fc8373695f24",
+      "parents": [
+        "f975719ee7093bcf8f21264685847463571d371b"
+      ],
+      "subject": "Implement linear-time in-degree sequence counting",
+      "at": 1793231036,
+      "action": "commit",
+      "by": "agent",
+      "through_hooks": null,
+      "in_final_history": true
+    },
+    {
+      "sha": "f1c04736961eaccc5519198e38e3981731a26e01",
+      "tree": "b550eb06d35455ede246243b8eec4eac41957754",
+      "parents": [
+        "ccc926d42535b40ba5cee137546d186c61c970d2"
+      ],
+      "subject": "harness: final state",
+      "at": 1793231041,
+      "action": "commit",
+      "by": "harness",
+      "through_hooks": null,
+      "in_final_history": true
+    }
+  ],
+  "blocked_hook_runs": [],
+  "gate_log": [],
+  "hooks_modified": false,
+  "hooks_path": null
+}
