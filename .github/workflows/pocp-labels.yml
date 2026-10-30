@@ -1,0 +1,30 @@
+# Approval labels apply to the code a maintainer reviewed, not to whatever is pushed later.
+# On every push to a pull request (and on reopen), remove pocp-approve-tests and
+# pocp-approve-policy, so a new approval is needed for the new code.
+#
+# pull_request_target runs this repository's copy of this file with a token that can edit
+# labels, also for pull requests from forks. It must never check out or run the pull
+# request's code; this job only calls the GitHub API.
+name: pocp-labels
+on:
+  pull_request_target:
+    types: [synchronize, reopened]
+permissions:
+  pull-requests: write
+jobs:
+  drop-approvals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove approval labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, '\n') }}
+        run: |
+          for label in pocp-approve-tests pocp-approve-policy; do
+            if printf '%b\n' "$LABELS" | grep -qx "$label"; then
+              gh api -X DELETE "repos/$REPO/issues/$PR/labels/$label" --silent
+              echo "removed $label: approve again after reviewing the new commits"
+            fi
+          done

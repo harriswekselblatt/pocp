@@ -10,7 +10,7 @@ import { loadHost } from './host.js';
 import { ValidationError, describeObligation } from './obligations.js';
 import { ruleWarnings, validateRules } from './rules.js';
 import { validateConfig } from './store.js';
-import { GitError } from './git.js';
+import { GitError, git, ignoreRepoEnv, resolveRev } from './git.js';
 import { shortDigest } from './hash.js';
 import { CiResultsError, readCiResults } from './ci-results.js';
 import { DONT_REWRITE, remedyLines, verifyRemedy } from './remedies.js';
@@ -21,6 +21,7 @@ import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatA
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
 const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host']);
+const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change']);
 const OBLIGATION_FLAGS = new Set(['test', 'command', 'probe', 'manual']);
 const OBLIGATION_MODIFIERS = new Set(['expect', 'timeout', 'input', 'target', 'cwd']);
 
@@ -52,7 +53,9 @@ export function parseArgs(argv) {
       key = key.slice(0, eq);
     }
     if (BOOLEAN_FLAGS.has(key)) {
-      push(key, val === undefined ? true : val !== 'false');
+      // An approval may name the commit it was given for: --accept-test-change=<sha>.
+      if (APPROVAL_FLAGS.has(key) && val !== undefined && val !== 'true' && val !== 'false') push(key, val);
+      else push(key, val === undefined ? true : val !== 'false');
       continue;
     }
     if (val === undefined) {
@@ -128,10 +131,11 @@ Checking
                                      exits with the command's exit code (default file .proof/runs/ci-results.jsonl)
   check-edit <file>...               for pre-edit hooks: does editing these files need a packet first?
   verify [<rev>|<base>..<head>] [--rerun | --rerun-unsigned] [--ci-results <file>]... [--require-coverage]
-                                     ranges re-run once at the head; checks with a passing ci-run result
-                                     for the same code and command are not run again
+                                     ranges re-run once at the head; --ci-results trusts the job that wrote it:
+                                     checks with a passing ci-run result for the same code are not run again
                                      rules and signers come from the base (--policy-from <rev>); loosening fails
                                      unless --accept-policy-change; --allowed-signers <file> pins the trust root
+                                     --accept-policy-change=<sha> / --accept-test-change=<sha>: only for that head
   blame <file>                       packets that changed a file
 
 Misses
@@ -322,6 +326,9 @@ export async function main(argv = process.argv.slice(2)) {
     out(json, { version: VERSION }, VERSION);
     return EXIT.ok;
   }
+
+  // verify judges the repository it runs in, never one GIT_DIR or GIT_WORK_TREE points to.
+  if (cmd === 'verify') ignoreRepoEnv();
 
   try {
     switch (cmd) {
@@ -609,13 +616,25 @@ export async function main(argv = process.argv.slice(2)) {
           return r.records;
         });
         if (ignoredCi) process.stderr.write(`pocp: ignored ${ignoredCi} CI result(s) recorded by a different CI run\n`);
+        if (ciResults.length) process.stderr.write('pocp: trusting CI results from --ci-results: anything that ran earlier in this job could have written them (docs/THREAT-MODEL.md)\n');
+        // An approval that names a commit covers only that head: a later push needs a new one.
+        const headRev = rest[0] && rest[0].includes('..') ? rest[0].split(/\.\.\.?/)[1] || 'HEAD' : rest[0] || 'HEAD';
+        const approval = (name) => {
+          const v = [].concat(flags[name] ?? false).pop();
+          if (typeof v !== 'string') return Boolean(v);
+          const head = resolveRev(engine.root, headRev);
+          const given = /^[0-9a-f]{7,64}$/i.test(v) ? git(engine.root, ['rev-parse', '--verify', '--quiet', `${v}^{commit}`], { allowFail: true }) : null;
+          if (given === head) return true;
+          process.stderr.write(`pocp: approval for ${v} does not cover ${head.slice(0, 12)}, the head being verified: a push after the approval needs a new one (--${name})\n`);
+          return false;
+        };
         const vopts = {
           rerun: flags['rerun-unsigned'] ? 'unsigned' : Boolean(flags.rerun),
           requireCoverage: Boolean(flags['require-coverage']),
           ciResults,
           policyFrom: flags['policy-from'],
-          acceptPolicyChange: Boolean(flags['accept-policy-change']),
-          acceptTestChange: Boolean(flags['accept-test-change']),
+          acceptPolicyChange: approval('accept-policy-change'),
+          acceptTestChange: approval('accept-test-change'),
           allowedSignersFile: flags['allowed-signers'],
         };
         const rerunLines = (reruns) => reruns.map((x) => `  rerun ${x.status.padEnd(8)} ${x.run}${x.duration_ms !== undefined ? ` (${x.duration_ms}ms)` : ''}${x.kind === 'guard' && x.summary ? `: ${x.summary}` : ''}`);

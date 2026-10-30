@@ -85,8 +85,9 @@ A check is any command: `npm test`, `pytest`, `cargo test`, `go test ./...`, `ma
 In CI:
 
 ```bash
-pocp ci-run --results ci.jsonl -- npm test      # your existing test step, recorded against this exact commit
-pocp verify origin/main..HEAD --require-coverage --rerun-unsigned --ci-results ci.jsonl
+# Re-runs every required check on the exact code, by the base branch's rules.
+# Keep your existing test step as it is.
+pocp verify origin/main..HEAD --require-coverage --rerun
 ```
 
 Ready-made workflows for GitHub, GitLab and plain shell are in [`examples/`](examples/). There's also a GitHub Action ([`action.yml`](action.yml)) that runs the copy of POCP bundled at its own ref, so `uses: harriswekselblatt/pocp@<commit>` pins the verifier.

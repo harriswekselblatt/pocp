@@ -1399,6 +1399,7 @@ export function createPocp(opts = {}) {
 
     // Required CI results (verify.require_ci). Fails closed: with no results supplied at all,
     // every required command counts as missing. A passing re-run by this verify also counts.
+    if (checkRequiredCiHere && rerun) await rerunRequiredCi(commit, cfgAt, { mode: rerun, ciResults: ciResults || [], subject, into: out.reruns, memo });
     if (checkRequiredCiHere) checkRequiredCi(cfgAt, ciResults, subject, commitFinding, out.reruns, out.notes);
     applyRerunEvidence(out.packets, packetsAt, out.reruns);
     Object.defineProperty(out, 'packetData', { value: packetsAt, enumerable: false });
@@ -1495,19 +1496,32 @@ export function createPocp(opts = {}) {
       else if (memo.ran(subj, job.ob)) into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: d, packets: job.packets, status: 'passed', reused: 'already run on this commit by this verify', duration_ms: 0 });
       else todo.push(job);
     }
-    if (!todo.length) return failures;
-    const co = createRevCheckout(root, commit, { links });
-    try {
-      for (const job of todo) {
-        const r = await runObligation(job.ob, co.dir);
-        if (r.passed) memo.record(subj, job.ob, r);
-        into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, duration_ms: r.duration_ms });
-        if (!r.passed) for (const id of job.packets) failures.push({ packet: id, problem: `rerun of "${job.ob.run}" failed (exit ${r.exit}${r.timed_out ? ', timed out' : ''})` });
+    // Each check gets its own fresh copy of the commit (no .git), so one check's code can't
+    // change the files another check runs.
+    for (const job of todo) {
+      const co = createRevCheckout(root, commit, { links });
+      let r;
+      try {
+        r = await runObligation(job.ob, co.dir);
+      } finally {
+        co.cleanup();
       }
-    } finally {
-      co.cleanup();
+      if (r.passed) memo.record(subj, job.ob, r);
+      into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, duration_ms: r.duration_ms });
+      if (!r.passed) for (const id of job.packets) failures.push({ packet: id, problem: `rerun of "${job.ob.run}" failed (exit ${r.exit}${r.timed_out ? ', timed out' : ''})` });
     }
     return failures;
+  }
+
+  /**
+   * With --rerun, verify runs each verify.require_ci command that no packet check already
+   * re-ran, so the default CI recipe (verify --rerun, no results file) satisfies require_ci.
+   */
+  async function rerunRequiredCi(commit, cfg, { mode, ciResults, subject, into, memo }) {
+    const cmds = cfg.verify?.require_ci || [];
+    if (!cmds.length) return;
+    const packet = { id: 'verify.require_ci', obligations: cmds.map((run, i) => ({ id: `require_ci-${i + 1}`, kind: 'test', run })) };
+    await rerunAt(commit, [packet], { mode, ciResults, subject, links: cfg.snapshot.link, into, memo });
   }
 
   /** CI definition files a change touched (ci.files globs). */
@@ -1527,6 +1541,10 @@ export function createPocp(opts = {}) {
       const rerunHit = reruns.find((r) => r.run === cmd && r.subject === subject && r.status === 'passed');
       if (rerunHit) {
         notes.push(`required CI check "${cmd}" passed when re-run by this verify`);
+        continue;
+      }
+      if (reruns.some((r) => r.run === cmd && r.subject === subject && r.status === 'failed')) {
+        finding('ci_failed', `required CI check "${cmd}" failed when re-run by this verify`);
         continue;
       }
       const records = (ciResults || []).filter((r) => r.run === cmd && r.subject === subject);
@@ -1628,6 +1646,7 @@ export function createPocp(opts = {}) {
     }
     if (commits.length) {
       const headResult = results[results.length - 1];
+      if (rerun) await rerunRequiredCi(commits[commits.length - 1], headResult.effectiveConfig, { mode: rerun, ciResults: options.ciResults || [], subject: headResult.subject, into: result.reruns, memo });
       checkRequiredCi(headResult.effectiveConfig, options.ciResults, headResult.subject, headResult.addFinding, result.reruns, headResult.notes);
       result.ok = result.ok && headResult.ok;
     }
@@ -1799,6 +1818,12 @@ export function createPocp(opts = {}) {
     };
   }
 
+  function isolatedVerify(fn) {
+    return g.withGitIsolation(root, fn).catch((err) => {
+      throw err instanceof g.GitTamperError ? new PocpError(err.message, { code: 'git_tampered' }) : err;
+    });
+  }
+
   return {
     root,
     store,
@@ -1823,8 +1848,10 @@ export function createPocp(opts = {}) {
     trailers,
     addTrailersToFile,
     land,
-    verify,
-    verifyRange,
+    // Verify runs the code under review; its git calls are isolated from what that code can
+    // change, and a change to the repository's git config, hooks or refs fails the verify.
+    verify: (rev, o) => isolatedVerify(() => verify(rev, o)),
+    verifyRange: (range, o) => isolatedVerify(() => verifyRange(range, o)),
     ciRun,
     blame,
     recordMiss,

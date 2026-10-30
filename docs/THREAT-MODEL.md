@@ -46,7 +46,9 @@ a forged CI results file. *Covered:* `verify` recomputes digests from the commit
 `--rerun` / `--rerun-unsigned` re-runs anything not signed by a trusted key; signed proofs
 fail verification if edited; proof reuse never re-signs an unsigned record; a committed CI
 results file is refused, and inside a CI run only that run's records count. *Not covered:*
-plain `verify` without a re-run accepts unsigned proofs (labelled `local`).
+plain `verify` without a re-run accepts unsigned proofs (labelled `local`), and a results file
+written in the job (`--ci-results`, the faster mode) can be written by the pull request's own
+tests: see below.
 
 **A malicious pull request from a fork.** Obligations are shell commands from the repo, so
 `verify --rerun` runs the PR's code. *Your CI's isolation is the boundary:* run POCP where you
@@ -61,40 +63,87 @@ would already run that PR's tests, with no secrets and read-only permissions.
 | `attested:<who>` | A named person or agent says a manual check was done. A statement, not proof. |
 | `local` | Run by POCP on someone's machine, unsigned. Evidence; trust it as much as that machine. |
 | `signed:<principal>` | As `local`, plus a signature from a key in `allowed_signers`: who ran it, and the record wasn't edited since. |
-| `ci-result` | Run by `pocp ci-run` in this CI job against this exact commit and command. As trustworthy as the CI job. |
-| `rerun` | Run again by this `verify`, in a clean checkout of the commit. The independent result. |
+| `ci-result` | Recorded by `pocp ci-run` in this CI job for this exact commit and command. As trustworthy as everything that ran in the job before verify, which includes the pull request's tests. |
+| `rerun` | Run again by this `verify`, in a fresh copy of the commit. The most independent result POCP gives; see below for its limits. |
 
 The test guard's obligation uses the same ladder with a `mechanical:` prefix
 (`mechanical:local`, `mechanical:signed:<principal>`, `mechanical:rerun`): POCP ran the
 two-part check (§6.2) rather than someone vouching for the change. `attested:<who>` on it
 means the mechanical check did not pass and someone signed off instead.
 
-## Running pull-request code before verify
+## Pull-request code in the verifying job
 
-A CI job that runs the pull request's tests (`pocp ci-run -- npm test`) and then `pocp verify`
-in the same job gives the pull request's code a chance to act first: it runs as the same user
-and can write the CI results file, or modify the verifier on disk (an `npx` cache, a checkout
-of POCP). Ordinary CI has the same property for test results; POCP's extra checks (base-branch
-rules, the test guard) are only as independent as the verifier.
+`verify --rerun` runs the pull request's code: that is what a re-run is. It runs as the CI
+job's user, on the same machine, and on GitHub-hosted runners with passwordless sudo. Nothing
+else in that job can be fully independent of it.
 
-For an independent verdict, run verify in a job that executes no pull-request code before it:
-a fresh runner, a pinned verifier (the action at a pinned ref, or the base branch's copy), and
-`verify --rerun` without `--ci-results`. A passing re-run satisfies `verify.require_ci`. Make
-that job the required check. It costs one more run of the checks.
+What POCP does about it:
+
+- The verifier is loaded before any pull-request code runs: the action at a pinned commit, or
+  the base branch's copy checked out in its own folder (as POCP's own workflow does).
+- Each re-run gets its own fresh copy of the commit's files, with no `.git`, so one check can't
+  edit another check's files and nothing in the copy leads back to the repository.
+- Every git call verify makes turns off what lets config run commands (`core.fsmonitor`, hooks,
+  external diff and textconv drivers), ignores global and system config and replace refs, and
+  doesn't inherit `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE` or config-injecting variables.
+- Before each git call, verify compares the repository's config (and the files it includes),
+  hooks, `info/attributes` and alternates with what they were when it started, and compares
+  refs at the end. Any change fails the verify, even if the code put things back.
+- The example workflows check out with `persist-credentials: false`, so no token is left in
+  `.git/config`, and run with read-only permissions and no secrets.
+
+What it can't stop, because the code runs as the same user in the same job: with `ptrace` or
+sudo it can tamper with the verifier's process, the `node` binary or anything else on the
+machine; a process it starts in a new session can outlive its check and interfere with later
+re-runs; and new tests inside one check can sabotage the other tests of that same check (for
+example by rewriting their files before they run). So the re-run verdict is as trustworthy as
+running the pull request's tests in CI, which every project already relies on, plus the checks
+the pull request can't edit: base-branch rules, coverage, digests, signatures, the test guard.
+
+**Faster, trusting mode.** Running the tests first with `pocp ci-run` and passing
+`--ci-results` to verify skips the re-run of any check with a passing record. The tests run
+before verify, as the same user, and can write that file: a new test file (new tests are free)
+can append a passing record for any other required check, and the run id verify filters on is
+readable by the tests. POCP doesn't try to sign these records: a key held by `ci-run` would be
+readable by its child (same user; `/proc`, `ptrace`, sudo), and it would have to be handed to
+verify later in the same job, where the code that ran earlier can reach it too. Use this mode
+only where you accept that trust; it is not the default anywhere POCP documents.
+
+**The strongest practical setup.** A fresh, ephemeral runner; a verifier pinned and loaded
+before any pull-request code (the action at a pinned commit, or the base branch's copy);
+dependencies installed without lifecycle scripts; `verify --rerun` with no `--ci-results`; no
+secrets, a read-only token, `persist-credentials: false`; and that job required for merging.
+
+A job that runs no pull-request code at all can't be tampered with, and you might want verify
+to be that job, consuming results from a separate job that runs the checks. Today that
+doesn't give a stronger verdict: the test guard and `verify.require_ci` need re-runs, so a
+verify without them fails on those, and results handed over from a job that ran the pull
+request's code are only as trustworthy as that job (the forgery above). Running each required
+check in its own job, and accepting each check's result only from that check's job, would limit
+a forged result to the check that wrote it, which is no worse than that check's tests choosing
+to exit 0. POCP doesn't implement that split yet.
 
 ## Self-hosted verifier
 
-POCP's own repository verifies pull requests with the POCP code in the pull request, so a
-change to `src/` is judged by the changed code. That keeps the dogfooding honest about
-usability but is not an independent check of changes to POCP itself.
+POCP's own repository verifies pull requests with the POCP from the base commit, checked out
+in a separate folder: a change to `src/` is judged by the verifier it would replace, not by its
+own code. The re-runs still run the pull request's code, with the limits above.
 
 ## Approvals
 
 `--accept-policy-change` and `--accept-test-change` are flags; CI decides when to pass them,
 typically from a label. A label is not tied to a commit: it stays on through later pushes, so
-anything pushed after approval is approved too. One policy approval also accepts every
-loosening in the change at once, including new signing keys. Remove approval labels on new
-pushes, or derive approval from something bound to the head commit.
+anything pushed after approval would be approved too. One policy approval also accepts every
+loosening in the change at once, including new signing keys.
+
+Bind approvals to the reviewed code. `--accept-test-change=<sha>` and
+`--accept-policy-change=<sha>` approve only when the head being verified is that commit. The
+GitHub example honours the labels only on label events, passing the head at that moment, and
+`examples/github/pocp-labels.yml` removes both labels on every push, so a new approval is a
+decision about the new code. (A label added in the seconds between a push and that removal
+still applies to the new head; whoever adds it is looking at the pull request as it is then.)
+On GitLab, a maintainer runs a pipeline with `POCP_ACCEPT_*` set to the reviewed head's sha;
+a project-wide CI/CD variable would approve every merge request.
 
 ## Verification vs. merge enforcement
 

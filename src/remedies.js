@@ -139,7 +139,7 @@ export function verifyRemedy(code, detail = '') {
       return { why: 'POCP cannot judge anything under an invalid policy.', next: 'fix .proof/rules.json or .proof/config.json until "pocp rules check" passes, in a new commit', by: 'agent' };
     case 'ci_missing':
     case 'ci_failed':
-      return { why: 'verify.require_ci lists checks CI must run on this exact code.', next: code === 'ci_failed' ? 'fix the code (not the tests) in a new commit' : 'run the check in CI with "pocp ci-run --results <file> -- <command>" before verify (see examples/github/pocp.yml)', by: 'agent' };
+      return { why: 'verify.require_ci lists checks CI must run on this exact code.', next: code === 'ci_failed' ? 'fix the code (not the tests) in a new commit' : 'run verify with --rerun, which runs the required checks itself (see examples/github/pocp.yml)', by: 'agent' };
     case 'rerun_failed':
     case 'failed_proof':
       return { why: 'a required check fails on this code.', next: 'fix the code (not the tests) and commit the fix with "pocp fix" then "git commit"', by: 'agent' };
