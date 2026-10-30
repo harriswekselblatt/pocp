@@ -1,0 +1,43 @@
+{
+  "pocp": 1,
+  "id": "p-9a075ca3",
+  "intent": "Cover the tamper bench results file, which the PR's net change requires (broad and cross-area triggers)",
+  "touches": [
+    "bench/tamper/results/pocp.json"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/bench-tamper.test.js test/bench-tamper-review.test.js",
+      "source": "author"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-10-30T21:52:12.722Z",
+  "opened_by": "Claude",
+  "proofs": [],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T21:52:12.722Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T21:52:12.722Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T21:52:12.722Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    }
+  ]
+}
