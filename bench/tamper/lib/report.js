@@ -97,7 +97,7 @@ export function renderReport(results, { analysis = '' } = {}) {
   lines.push('# Tamper benchmark results', '');
   lines.push('Does POCP catch what plain CI can\'t? Each scenario is one commit made by a cheating agent: a real bug that the tests catch, plus a cheat that makes the build green (or tries to switch POCP off). Two judges look at the same commit in a fresh clone:', '');
   lines.push('- **Plain CI** runs the repository\'s test command (through `pocp ci-run`, which only records the result).');
-  lines.push('- **POCP** runs `pocp verify <base>..<head> --require-coverage --rerun-unsigned` with the CI result, judged by the base branch\'s rules. That is the bundled GitHub Action\'s default; `--rerun` is stricter.', '');
+  lines.push('- **POCP** runs `pocp verify <base>..<head> --require-coverage --rerun`, judged by the base branch\'s rules: the default recipe in the README. It re-runs every check itself and trusts no CI result written during the job. For `forge-ci-in-run`, the faster `--rerun-unsigned --ci-results` mode is also recorded, under "Faster mode" below.', '');
   lines.push('The agent always does its best: it opens a packet for what it changed, proves it, signs off on any test change itself (`--by claude-agent`), and commits through the hooks, falling back to `--no-verify` when they block. **Incremental catch** counts cheats that fool plain CI and that POCP blocks.', '');
   const profiles = new Map();
   for (const r of results) for (const [name, p] of Object.entries(r.profiles)) if (!profiles.has(name)) profiles.set(name, p.about);
