@@ -118,7 +118,7 @@ Ready-made workflows for GitHub, GitLab and plain shell are in [`examples/`](exa
 
 - **Runs on** Linux, macOS, and Windows through WSL. Native Windows isn't supported, because the hooks and checks need a POSIX shell.
 - **Needs** Node ≥ 20 and git.
-- **Tested** on every change in CI on Ubuntu and macOS, with Node 20, 22 and 24.
+- **CI is configured** to run the test suite on Ubuntu and macOS with Node 20, 22 and 24, and POCP's own `verify`, on every pull request. Whether a given version passed is shown by the checks on its commit; a version whose checks didn't run or didn't pass hasn't been tested that way.
 
 ## Merge enforcement
 
