@@ -157,6 +157,21 @@ still applies to the new head; whoever adds it is looking at the pull request as
 On GitLab, a maintainer runs a pipeline with `POCP_ACCEPT_*` set to the reviewed head's sha;
 a project-wide CI/CD variable would approve every merge request.
 
+**Accepting missing proof.** A commit that landed without a packet (hooks not installed,
+`--no-verify`) is `uncovered`, and no proof can be added to it without rewriting history.
+`.proof/exceptions.json` lets a maintainer list such gaps one by one: a full commit SHA, the
+exact files (no globs), a reason and a reviewer. An entry counts only when verify is given
+`--accept-uncovered=<sha>` for the head being verified (in this repository, the
+`pocp-approve-coverage` label), and only for those files in that commit; in the net change, only
+if that commit is in the range and changed the file. Accepted gaps stay in the output as
+`uncovered_accepted` warnings that start with "UNPROVEN". An exception accepts that proof is
+missing; it never counts as proof. It clears nothing else: a failing re-run, a test change, a
+policy or CI change, a trailer mismatch or a forged proof still blocks. Any change to the list
+is a policy loosening, so it also needs `--accept-policy-change`: adding an exception takes
+two maintainer decisions. A verifier that predates `--accept-uncovered` rejects the flag (from
+this version on, any unknown `--accept-*` flag is an error), and this repository's workflow
+fails with a message rather than pass the approval to a verifier that can't apply it.
+
 ## Verification vs. merge enforcement
 
 POCP decides whether a change is proven; the hosting platform decides whether a failed check
