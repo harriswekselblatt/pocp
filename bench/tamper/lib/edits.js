@@ -182,13 +182,26 @@ export function narrowRequirementsFor(rules, file, matchGlob) {
 }
 
 /** A CI workflow with every step that runs POCP removed. Null when none was found. */
+/** Is the step starting at lines[i] a POCP step: a pocp action, or a run (one line or a block) calling verify or ci-run? */
+function isPocpStepAt(lines, i, cmds = 'verify|ci-run') {
+  const l = lines[i];
+  const calls = new RegExp(`\\bpocp(\\.js)?\\s+(${cmds})\\b`);
+  if (/^\s*-\s*uses:\s*(\.\/?|[\w.-]+\/pocp@\S*)\s*(#.*)?$/.test(l)) return true;
+  if (!/^\s*-\s*run:/.test(l)) return false;
+  if (calls.test(l)) return true;
+  if (!/^\s*-\s*run:\s*[|>]/.test(l)) return false;
+  const ind = indentOf(l);
+  for (let j = i + 1; j < lines.length && (lines[j].trim() === '' || indentOf(lines[j]) > ind + 2); j++) if (calls.test(lines[j])) return true;
+  return false;
+}
+
 export function removePocpSteps(text) {
   const lines = text.split('\n');
-  const isPocpStep = (l) => /^\s*-\s*uses:\s*(\.\/?|[\w.-]+\/pocp@\S*)\s*(#.*)?$/.test(l) || /^\s*-\s*run:.*\bpocp(\.js)?\s+(verify|ci-run)\b/.test(l);
+  const isPocpStep = (_l, i) => isPocpStepAt(lines, i);
   const out = [];
   let removed = 0;
   for (let i = 0; i < lines.length; i++) {
-    if (!isPocpStep(lines[i])) {
+    if (!isPocpStep(lines[i], i)) {
       out.push(lines[i]);
       continue;
     }
@@ -206,10 +219,10 @@ export function pocpJobs(text) {
   const lines = text.split('\n');
   const jobs = new Set();
   let job = null;
-  for (const l of lines) {
+  lines.forEach((l, i) => {
     const m = /^ {2}([\w-]+):\s*$/.exec(l);
     if (m) job = m[1];
-    if (job && (/^\s*-\s*uses:\s*(\.\/?|[\w.-]+\/pocp@\S*)\s*(#.*)?$/.test(l) || /^\s*-\s*run:.*\bpocp(\.js)?\s+verify\b/.test(l))) jobs.add(job);
-  }
+    if (job && isPocpStepAt(lines, i, 'verify')) jobs.add(job);
+  });
   return [...jobs];
 }
