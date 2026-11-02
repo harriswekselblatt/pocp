@@ -39,7 +39,7 @@ test('a helper-using test leaves its TMPDIR empty', () => {
       '',
     ].join('\n'));
     const { NODE_TEST_CONTEXT, ...env } = process.env;
-    const r = spawnSync(process.execPath, ['--test', file], { cwd: box, encoding: 'utf8', env: { ...env, TMPDIR: tmp } });
+    const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', file], { cwd: box, encoding: 'utf8', env: { ...env, TMPDIR: tmp } });
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /# pass 1/);
     assert.deepEqual(fs.readdirSync(tmp), [], 'TMPDIR is empty after the test file finished');
