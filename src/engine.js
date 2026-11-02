@@ -1247,7 +1247,7 @@ export function createPocp(opts = {}) {
    * obligation again in a clean checkout of that commit. With `requireCoverage`,
    * also require that files the commit changed are covered when the rules say so.
    */
-  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
+  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, testGuardOnNet = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
     if (rerun === true) rerun = 'all';
     // The test guard's check compares a commit with its parent, so in a range it re-runs per
     // commit (verifyRange passes guardRerun) rather than once at the head.
@@ -1425,7 +1425,10 @@ export function createPocp(opts = {}) {
         }
       }
     }
-    await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed });
+    if (testGuardOnNet && commitGuard.files.length) {
+      commitGuard.mechanical = [];
+      out.notes.push(`test change (${commitGuard.files.join(', ')}) is judged once, on the pull request's net change`);
+    } else await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed });
 
     // Required CI results (verify.require_ci). Fails closed: with no results supplied at all,
     // every required command counts as missing. A passing re-run by this verify also counts.
@@ -1713,7 +1716,10 @@ export function createPocp(opts = {}) {
     // Required CI results are checked once, at the tip (where CI ran), after the range's re-runs.
     const memo = createRunMemo();
     for (const c of commits) {
-      results.push(await verify(c, { ...options, policyFrom, rerun: false, guardRerun: options.rerun || false, checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
+      // With a net change, a test change is judged once, on the whole pull request (old tests
+      // from the merge base, new code from the tip): that check alone decides, so running it
+      // again on each commit only multiplied the cost (the slowest part of verify).
+      results.push(await verify(c, { ...options, policyFrom, rerun: false, guardRerun: synth ? false : (options.rerun || false), testGuardOnNet: Boolean(synth), checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
     }
     const result = { range, ok: results.every((r) => r.ok), commits: results, reruns: [], findings: [] };
     if (!any) return result;

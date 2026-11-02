@@ -39,13 +39,15 @@ fs.writeFileSync(path.join(work, 'parent.mjs'), [
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pgidOf = (pid) => Number(execFileSync('ps', ['-o', 'pgid=', '-p', String(pid)], { encoding: 'utf8' }).trim());
 const ppidOf = (pid) => Number(execFileSync('ps', ['-o', 'ppid=', '-p', String(pid)], { encoding: 'utf8' }).trim());
+// A zombie (finished, not yet reaped by PID 1) is not running, so it doesn't count.
 function groupAlive(pgid) {
   try {
     process.kill(-pgid, 0);
-    return true;
   } catch (err) {
     return err.code === 'EPERM';
   }
+  const rows = execFileSync('ps', ['-A', '-o', 'pgid=,stat='], { encoding: 'utf8' }).trim().split('\n');
+  return rows.some((row) => { const [g, stat] = row.trim().split(/\s+/); return Number(g) === pgid && !stat.startsWith('Z'); });
 }
 async function waitFor(fn, ms, what) {
   const end = Date.now() + ms;

@@ -27,15 +27,48 @@ function killGroup(child, signal) {
   }
 }
 
-/** Is any process still in the check's group? */
-function groupAlive(child) {
-  if (!child.pid) return false;
+/**
+ * Linux: how many processes in group `pgid` haven't finished (zombies don't count).
+ * null where /proc can't be read, so the caller falls back to kill(0).
+ */
+export function liveInGroup(pgid, procDir = '/proc') {
+  let names;
   try {
-    process.kill(-child.pid, 0);
-    return true;
+    names = fs.readdirSync(procDir);
+  } catch {
+    return null;
+  }
+  let live = 0;
+  for (const name of names) {
+    if (!/^\d+$/.test(name)) continue;
+    let stat;
+    try {
+      stat = fs.readFileSync(`${procDir}/${name}/stat`, 'utf8');
+    } catch {
+      continue; // exited while we looked
+    }
+    // "pid (comm) state ppid pgrp ...": comm may hold spaces and parentheses.
+    const f = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+    if (Number(f[2]) === pgid && f[0] !== 'Z' && f[0] !== 'X') live++;
+  }
+  return live;
+}
+
+/**
+ * Is any process in group `pgid` still running? kill(0) also succeeds for a zombie, and a
+ * check's leftover watchdog is an orphan whose zombie only PID 1 can reap: late in some
+ * sandboxes (about 2 s), never in a container without an init. On Linux, zombies don't count.
+ */
+export function groupAlive(pgid) {
+  if (!pgid) return false;
+  try {
+    process.kill(-pgid, 0);
   } catch (err) {
     return err.code === 'EPERM';
   }
+  if (process.platform !== 'linux') return true;
+  const live = liveInGroup(pgid);
+  return live === null ? true : live > 0;
 }
 
 // The command runs under a small watchdog that shares its process group. The watchdog reads
@@ -121,7 +154,7 @@ export function createProcessRunner() {
           let killed = false;
           const started = Date.now();
           const tick = () => {
-            if (!groupAlive(child)) return done();
+            if (!groupAlive(child.pid)) return done();
             if (!killed && Date.now() >= deadline) {
               killed = true;
               killGroup(child, 'SIGKILL');
