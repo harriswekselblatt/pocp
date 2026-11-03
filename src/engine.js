@@ -21,7 +21,9 @@ import { gateRemedies, pendingApprovals } from './remedies.js';
 export const VERSION = '0.1.0';
 export const STAGES = Object.freeze(['gate', 'commit', 'ci', 'review', 'production']);
 export const SEVERITIES = Object.freeze(['low', 'medium', 'high', 'critical']);
-export const POLICY_FILES = Object.freeze(['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers']);
+export const POLICY_FILES = Object.freeze(['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers', '.proof/exceptions.json']);
+/** Maintainer exceptions for commits that carry no proof record (verify --accept-uncovered). */
+export const EXCEPTIONS_FILE = '.proof/exceptions.json';
 const LOCKFILES = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb', 'Cargo.lock', 'poetry.lock', 'go.sum', 'Gemfile.lock'];
 
 /**
@@ -1207,6 +1209,10 @@ export function createPocp(opts = {}) {
       const baseKeys = new Set((baseSigners || '').split('\n').map((l) => l.trim()).filter(Boolean));
       if ((headSigners || '').split('\n').map((l) => l.trim()).filter(Boolean).some((l) => !baseKeys.has(l))) weakened.push('allowed_signers gained a key');
     }
+    // The exception list waives missing proof, so any change to it needs a maintainer.
+    if (baseRev && (g.showFile(root, commit, EXCEPTIONS_FILE) || '').trim() !== (g.showFile(root, baseRev, EXCEPTIONS_FILE) || '').trim()) {
+      weakened.push(`${EXCEPTIONS_FILE} changed (exceptions for commits with no proof record)`);
+    }
     const accepted = Boolean(baseRev && weakened.length && acceptPolicyChange);
     let rulesAt = headRules;
     let cfgAt = headPolicy.config;
@@ -1236,6 +1242,43 @@ export function createPocp(opts = {}) {
     };
   }
 
+  /**
+   * The exception list at `rev`: entries name one commit (full SHA) and exact files that
+   * commit left without a packet, with a reason and a reviewer. Used only with an approval
+   * for the head (acceptUncovered); an exception never turns missing proof into proof.
+   */
+  function readUncoveredExceptions(rev) {
+    const raw = readJsonAt(rev, EXCEPTIONS_FILE);
+    if (raw === null) return { entries: [], problems: [] };
+    if (raw.__invalid || typeof raw !== 'object' || Array.isArray(raw)) return { entries: [], problems: [`${EXCEPTIONS_FILE} is not a valid JSON object`] };
+    const list = raw.uncovered === undefined ? [] : raw.uncovered;
+    if (!Array.isArray(list)) return { entries: [], problems: [`${EXCEPTIONS_FILE}: "uncovered" must be a list`] };
+    const entries = [];
+    const problems = [];
+    list.forEach((e, i) => {
+      const ok = e && typeof e === 'object' && /^[0-9a-f]{40}$/.test(e.commit || '')
+        && Array.isArray(e.files) && e.files.length > 0 && e.files.every((f) => typeof f === 'string' && f.length > 0 && !/[*?[\]{}]/.test(f))
+        && typeof e.reason === 'string' && e.reason.trim() !== '' && typeof e.reviewer === 'string' && e.reviewer.trim() !== '';
+      if (ok) entries.push(e);
+      else problems.push(`${EXCEPTIONS_FILE}: uncovered[${i}] needs "commit" (a full 40-character SHA), "files" (exact paths, no globs), "reason" and "reviewer"`);
+    });
+    return { entries, problems };
+  }
+
+  /** Split uncovered files into those an exception names for this commit and the rest. */
+  function applyUncoveredExceptions(files, exceptions, matches) {
+    const accepted = [];
+    const rest = [];
+    for (const f of files) {
+      const e = exceptions ? exceptions.entries.find((x) => matches(x, f)) : null;
+      if (e) accepted.push({ file: f, commit: e.commit, reason: e.reason, reviewer: e.reviewer });
+      else rest.push(f);
+    }
+    return { accepted, rest };
+  }
+
+  const acceptedText = (a, head) => `UNPROVEN: ${a.file} has no packet in commit ${a.commit.slice(0, 12)}; accepted as a reviewed exception for head ${head.slice(0, 12)} by ${a.reviewer}: ${a.reason}`;
+
   function reportPolicy(finding, out, { baseRev, policyProblems, weakened, accepted }) {
     for (const p of policyProblems) finding('invalid_policy', `invalid policy: ${p}`);
     if (accepted) out.notes.push(`policy loosened and accepted: ${weakened.join('; ')}`);
@@ -1247,7 +1290,7 @@ export function createPocp(opts = {}) {
    * obligation again in a clean checkout of that commit. With `requireCoverage`,
    * also require that files the commit changed are covered when the rules say so.
    */
-  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, testGuardOnNet = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
+  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, acceptUncovered = false, uncoveredExceptions, testGuardOnNet = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
     if (rerun === true) rerun = 'all';
     // The test guard's check compares a commit with its parent, so in a range it re-runs per
     // commit (verifyRange passes guardRerun) rather than once at the head.
@@ -1408,7 +1451,13 @@ export function createPocp(opts = {}) {
       }
       const uncovered = trig.required_files.filter((f) => !packetsAt.some((p) => P.covers(p, f)));
       out.coverage = { required_files: trig.required_files, uncovered, reasons: trig.reasons };
-      if (uncovered.length) commitFinding('uncovered', `not covered by a packet: ${uncovered.join(', ')}`);
+      // With an approval for the head, a listed exception keeps the gap visible but not blocking.
+      const exceptions = acceptUncovered ? (uncoveredExceptions || { head: commit, ...readUncoveredExceptions(commit) }) : null;
+      if (exceptions && !uncoveredExceptions) for (const p of exceptions.problems) commitFinding('invalid_policy', `invalid policy: ${p}`);
+      const { accepted, rest } = applyUncoveredExceptions(uncovered, exceptions, (e, f) => e.commit === commit && e.files.includes(f));
+      if (rest.length) commitFinding('uncovered', `not covered by a packet: ${rest.join(', ')}`);
+      for (const a of accepted) commitFinding('uncovered_accepted', acceptedText(a, exceptions.head));
+      if (accepted.length) out.coverage.accepted = accepted;
     }
 
     if (rerun && packetsAt.length) {
@@ -1715,13 +1764,19 @@ export function createPocp(opts = {}) {
 
     // Required CI results are checked once, at the tip (where CI ran), after the range's re-runs.
     const memo = createRunMemo();
+    // Exceptions come from the code being merged, and count only with an approval for it.
+    const uncoveredExceptions = options.acceptUncovered && tip ? { head: tip, ...readUncoveredExceptions(tip) } : null;
     for (const c of commits) {
       // With a net change, a test change is judged once, on the whole pull request (old tests
       // from the merge base, new code from the tip): that check alone decides, so running it
       // again on each commit only multiplied the cost (the slowest part of verify).
-      results.push(await verify(c, { ...options, policyFrom, rerun: false, guardRerun: synth ? false : (options.rerun || false), testGuardOnNet: Boolean(synth), checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
+      results.push(await verify(c, { ...options, uncoveredExceptions, policyFrom, rerun: false, guardRerun: synth ? false : (options.rerun || false), testGuardOnNet: Boolean(synth), checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
     }
     const result = { range, ok: results.every((r) => r.ok), commits: results, reruns: [], findings: [] };
+    for (const p of uncoveredExceptions?.problems || []) {
+      result.findings.push({ code: 'invalid_policy', detail: `invalid policy: ${p}`, blocking: true });
+      result.ok = false;
+    }
     if (!any) return result;
 
     let net = null;
@@ -1751,7 +1806,7 @@ export function createPocp(opts = {}) {
       if (headResult) applyRerunEvidence(headResult.packets, headResult.packetData || [], result.reruns);
     }
     if (net) {
-      result.net = await judgeNetChange(net, { results, merges, lastCommit, policyBase, options, memo, seed });
+      result.net = await judgeNetChange(net, { results, merges, lastCommit, policyBase, options: { ...options, uncoveredExceptions }, memo, seed });
       result.ok = result.ok && result.net.ok;
     }
     // Required CI results belong to the tip's code: the last commit's result, or the net change's when the tip is a merge.
@@ -1865,12 +1920,36 @@ export function createPocp(opts = {}) {
         trig.required_files = [...new Set([...trig.required_files, ...guard.files])].sort();
         trig.reasons.push({ code: 'test_change', detail: 'existing tests or test setup changed', files: guard.files });
       }
+      // One rule for rules-based coverage, per commit and net alike: a file's requirements,
+      // protected paths and trigger globs are judged where it changed, by the policy at that
+      // commit. So a file some commit's own check already judged is required again here only
+      // by what concerns the whole change (broad, cross-area, test setup), or by the base's
+      // policy (a range can't loosen that). A rule added inside the range applies from its own
+      // commit on, not back to files changed before it. Files no per-commit check saw (merge
+      // content) are judged by the policy in force at the tip, as before.
+      const basePol = policyAt(netBase);
+      const baseTrig = evaluateTriggers(paths, { rules: basePol.rules, config: basePol.config, hostName });
+      const baseCi = new Set(changedCiFiles(changes, basePol.config));
+      const ruleCodes = new Set(['requirement', 'glob']);
+      const wholeChange = new Set(trig.reasons.filter((r) => !ruleCodes.has(r.code) && r.code !== 'ci_config').flatMap((r) => r.files || []));
+      const byBase = new Set([...baseTrig.required_files, ...baseCi]);
+      const notRetroactive = trig.required_files.filter((f) => touchedByCommits.has(f) && !wholeChange.has(f) && !byBase.has(f));
+      if (notRetroactive.length) {
+        trig.required_files = trig.required_files.filter((f) => !notRetroactive.includes(f));
+        out.notes.push(`required only by policy added inside the range, and judged by its own commit's policy: ${notRetroactive.join(', ')}`);
+      }
       // Any packet in the range may cover a file; files a commit already reported are not repeated.
       const packets = results.flatMap((x) => x.packetData || []);
       const reported = new Set(results.flatMap((x) => x.coverage?.uncovered || []));
       const uncovered = trig.required_files.filter((f) => !packets.some((p) => P.covers(p, f)) && !reported.has(f));
       out.coverage = { required_files: trig.required_files, uncovered, reasons: trig.reasons };
-      if (uncovered.length) finding('uncovered', `not covered by a packet in the range (changed in the net change ${span}): ${uncovered.join(', ')}`);
+      // An exception covers a net-change file only if it names a commit in the range that changed it.
+      const changedBy = new Map(results.map((x) => [x.commit, new Set((x.changes || []).flatMap((c) => [c.path, c.oldPath].filter(Boolean)))]));
+      const exceptions = options.uncoveredExceptions || null;
+      const { accepted, rest } = applyUncoveredExceptions(uncovered, exceptions, (e, f) => e.files.includes(f) && Boolean(changedBy.get(e.commit)?.has(f)));
+      if (rest.length) finding('uncovered', `not covered by a packet in the range (changed in the net change ${span}): ${rest.join(', ')}`);
+      for (const a of accepted) finding('uncovered_accepted', acceptedText(a, exceptions.head));
+      if (accepted.length) out.coverage.accepted = accepted;
     }
     Object.defineProperty(out, 'addFinding', { value: finding, enumerable: false });
     if (out.findings.some((f) => f.blocking)) out.ok = false;

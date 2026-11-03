@@ -1,6 +1,8 @@
 # POCP evaluation plan: numbers a stranger can trust
 
-Status: draft v3, 2026-10-28, revised after two Codex reviews (the second on PR #11: cheat and honesty definitions, escalation kept apart from detection, E1b before and after, guard cost). Step 0 is done. Nothing else has been run.
+Status: draft v3, 2026-10-28, revised after two Codex reviews (the second on PR #11: cheat and honesty definitions, escalation kept apart from detection, E1b before and after, guard cost). Step 0 is done.
+
+**What has run, as of 2026-11-02: pilots only.** E1a, E1b and E2 pilots with Codex and a partial Claude pilot (most Claude runs hit a usage limit), an E3 pilot (16 StrykerJS mutants) and E5's descriptive reading, all marked `phase: "pilot"` in `eval/results/`. **No counted run exists, and the pre-registration is not complete:** `eval/PREREG.md` says `Registered: no` and still has items marked TBD. No pilot result is compared with a bar. E4, E6 and E7 have not run.
 
 ## Why this plan exists
 

@@ -1,0 +1,75 @@
+{
+  "pocp": 1,
+  "id": "p-cbd194a5",
+  "intent": "EVAL-PLAN: say plainly that only pilots have run and the pre-registration is not complete",
+  "touches": [
+    "docs/EVAL-PLAN.md"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "author"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-11-02T20:57:02.616Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:6813c85bd8aee93109da8fa4ff3e8d45d1422c58bebf65acb60e6dc9d02c8acc",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T20:57:02.749Z",
+      "duration_ms": 182261,
+      "stdout_sha256": "c28182a79994f4224f871edc1831db5aa8f05c58f027c6efcb2506c6c4b9e199",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-7987dc95",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-02T20:57:02.616Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-02T20:57:02.616Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-02T20:57:02.616Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-11-02T21:00:05.047Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:6813c85bd8aee93109da8fa4ff3e8d45d1422c58bebf65acb60e6dc9d02c8acc"
+    }
+  ]
+}

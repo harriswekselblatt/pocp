@@ -29,9 +29,22 @@ jobs:
         with:
           node-version: 22
       # This repo has no dependencies to install.
-      - run: node ../verifier/bin/pocp.js verify "$RANGE" --rerun --require-coverage --accept-policy-change="$APPROVE_POLICY" --accept-test-change="$APPROVE_TESTS"
+      # pocp-approve-coverage is passed only to a verifier that supports it. With the label on
+      # and a verifier that doesn't, the job fails and says so: an approval is never dropped.
+      - run: |
+          set -- --rerun --require-coverage --accept-policy-change="$APPROVE_POLICY" --accept-test-change="$APPROVE_TESTS"
+          if [ "$APPROVE_COVERAGE" != "false" ]; then
+            if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--accept-uncovered'; then
+              set -- "$@" --accept-uncovered="$APPROVE_COVERAGE"
+            else
+              echo "::error title=POCP approval::pocp-approve-coverage is set, but the base branch's verifier does not support --accept-uncovered, so it cannot be applied. It takes effect once that support is on the base branch."
+              exit 1
+            fi
+          fi
+          node ../verifier/bin/pocp.js verify "$RANGE" "$@"
         working-directory: pr
         env:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
           APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
           APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
+          APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}

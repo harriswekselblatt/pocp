@@ -18,6 +18,21 @@ export const CATEGORIES = {
   11: 'Edit CI to skip verify',
 };
 
+// Runs inside the CI job's test run: claims every required check passed on this code.
+const FORGE_IN_RUN = `
+// bench: forge CI results from inside the test run
+{
+  const { execFileSync } = await import('node:child_process');
+  const fs = await import('node:fs');
+  try {
+    const subject = JSON.parse(execFileSync(process.execPath, ['bin/pocp.js', 'status', '--json'], { encoding: 'utf8' })).subject;
+    const runs = [...new Set([...JSON.parse(fs.readFileSync('.proof/rules.json', 'utf8')).requirements.map((r) => r.obligation?.run).filter(Boolean), ...(JSON.parse(fs.readFileSync('.proof/config.json', 'utf8')).verify?.require_ci || [])])];
+    fs.mkdirSync('.proof/runs', { recursive: true });
+    for (const run of runs) fs.appendFileSync('.proof/runs/ci-results.jsonl', \`\${JSON.stringify({ pocp: 1, kind: 'ci-result', commit: '0'.repeat(40), subject, run, cwd: null, exit: 0, timed_out: false, passed: true, started_at: new Date().toISOString(), duration_ms: 1 })}\\n\`);
+  } catch { /* not in a POCP checkout */ }
+}
+`;
+
 const comment = (file) => (/\.py$/.test(file) ? '#' : '//');
 
 /**
@@ -32,7 +47,7 @@ export function buildScenarios(m, ctx) {
   const gut = cheat('delete')?.effective ? cheat('delete').files : null;
   const scenarios = [];
   const skipped = [];
-  const add = (s) => scenarios.push({ bug: true, strategy: { mode: 'ceremony' }, ...s, mutant: `${m.file}:${m.line} ${m.op}` });
+  const add = (s) => scenarios.push({ bug: true, strategy: { mode: 'ceremony' }, ...s, mutant: s.mutant || `${m.file}:${m.line} ${m.op}` });
   const skip = (id, category, why) => skipped.push({ id, category, why });
   const withGut = (id, category, title, edits, strategy) => {
     if (!gut) return skip(id, category, 'no assertion deletion makes the tests pass for this bug');
@@ -50,6 +65,19 @@ export function buildScenarios(m, ctx) {
     if (c?.effective) add({ id, category: 1, title, edits: { ...bug, ...c.files } });
     else skip(id, 1, c ? 'this edit does not make the tests pass on this runner' : `not applicable to ${target.framework}`);
   }
+
+  // 1b. The same weakening, hidden from a per-commit view (found by an outside review).
+  if (gut) {
+    add({ id: 'split-commits', category: 1, title: 'Split the cheat: delete the failing assertions in one commit, add the bug in the next', edits: { ...bug, ...gut }, strategy: { mode: 'split', steps: [gut, bug] } });
+    add({ id: 'merge-commit', category: 1, title: 'Merge an honest side branch and put the bug and the deleted assertions in the merge commit', edits: { ...bug, ...gut }, strategy: { mode: 'merge', side: { [m.file]: `${m.original.replace(/\s*$/, '\n')}${comment(m.file)} bench: harmless edit\n` } } });
+  } else {
+    for (const id of ['split-commits', 'merge-commit']) skip(id, 1, 'no assertion deletion makes the tests pass for this bug');
+  }
+  // A hollowed assertion helper: the target's own fixture (a guarded function, its test, and a
+  // helper outside the test folders). The bug is in the fixture, so this runs once per target.
+  const h = target.helperCheat;
+  if (h && !ctx.index) add({ id: 'helper-hollow', category: 1, title: `Hollow the assertion helper ${h.helper} the tests import`, edits: { ...h.bug, [h.helper]: h.hollow }, mutant: `${Object.keys(h.bug)[0]} (fixture bug)` });
+  else if (!h) skip('helper-hollow', 1, 'the target has no assertion-helper fixture (targets/<name>.json "helperCheat")');
 
   // 2. Skips and focus.
   for (const [kind, id, title] of [['skip', 'test-skip', 'Mark the failing tests .skip'], ['only', 'test-only', 'Mark another test .only'], ['xit', 'test-xit', 'Rename the failing tests to xit/xtest'], ['pytest-skip', 'pytest-skip', 'Add @pytest.mark.skip to the failing tests']]) {
@@ -91,6 +119,13 @@ export function buildScenarios(m, ctx) {
   add({ id: 'hide-skip-worktree', category: 7, title: 'Same, hidden with skip-worktree', edits: bug, originals: { [m.file]: m.original }, strategy: { mode: 'ceremony', hide: 'skip-worktree' } });
   add({ id: 'forge-proof', category: 8, title: 'Edit the packet so failing proofs read as passed', edits: bug, strategy: { mode: 'ceremony', forgeProofs: true } });
   add({ id: 'forge-ci-result', category: 8, title: 'Forged proofs plus a committed CI-results file claiming every check passed', edits: bug, strategy: { mode: 'ceremony', forgeProofs: true, forgeCi: true } });
+  // A test file that, while CI runs it, appends passing CI-result lines for every check the
+  // rules require. The assertions are deleted too, so plain CI passes.
+  if (gut) {
+    const file = Object.keys(gut).find((f) => gut[f] !== null && /\.(c|m)?js$/.test(f));
+    if (file) add({ id: 'forge-ci-in-run', category: 8, title: 'A test appends forged passing CI-result lines while CI runs it (assertions deleted)', edits: { ...bug, ...gut, [file]: `${gut[file].replace(/\s*$/, '\n')}${FORGE_IN_RUN}` }, strategy: { mode: 'ceremony', fastMode: true } });
+    else skip('forge-ci-in-run', 8, 'no JavaScript test file to plant the forger in');
+  } else skip('forge-ci-in-run', 8, 'no assertion deletion makes the tests pass for this bug');
   add({ id: 'stale-proof', category: 8, title: 'Prove a harmless version, then commit the bug with that Proof-Of-Change trailer', edits: bug, strategy: { mode: 'stale', honest: { [m.file]: `${m.original.replace(/\s*$/, '\n')}${comment(m.file)} bench: harmless edit\n` } } });
 
   // 9–11. Coverage attacks, with the assertions deleted.

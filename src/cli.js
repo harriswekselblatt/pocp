@@ -20,8 +20,8 @@ import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatA
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
-const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host']);
-const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change']);
+const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-uncovered', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host']);
+const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change', 'accept-uncovered']);
 const OBLIGATION_FLAGS = new Set(['test', 'command', 'probe', 'manual']);
 const OBLIGATION_MODIFIERS = new Set(['expect', 'timeout', 'input', 'target', 'cwd']);
 
@@ -51,6 +51,11 @@ export function parseArgs(argv) {
     if (eq !== -1) {
       val = key.slice(eq + 1);
       key = key.slice(0, eq);
+    }
+    // An approval this version doesn't know must not be dropped silently: the caller would
+    // believe something was approved (or waived) when nothing was.
+    if (key.startsWith('accept-') && !BOOLEAN_FLAGS.has(key)) {
+      throw new UsageError(`unknown approval --${key}: this pocp supports ${[...APPROVAL_FLAGS].map((f) => `--${f}`).join(', ')}`);
     }
     if (BOOLEAN_FLAGS.has(key)) {
       // An approval may name the commit it was given for: --accept-test-change=<sha>.
@@ -136,6 +141,8 @@ Checking
                                      rules and signers come from the base (--policy-from <rev>); loosening fails
                                      unless --accept-policy-change; --allowed-signers <file> pins the trust root
                                      --accept-policy-change=<sha> / --accept-test-change=<sha>: only for that head
+                                     --accept-uncovered=<sha>: commits .proof/exceptions.json lists (commit + exact
+                                     files) may lack a packet; shown as UNPROVEN warnings; only for that head
   blame <file>                       packets that changed a file
 
 Misses
@@ -638,6 +645,7 @@ export async function main(argv = process.argv.slice(2)) {
           policyFrom: flags['policy-from'],
           acceptPolicyChange: approval('accept-policy-change'),
           acceptTestChange: approval('accept-test-change'),
+          acceptUncovered: approval('accept-uncovered'),
           allowedSignersFile: flags['allowed-signers'],
         };
         const rerunLines = (reruns) => reruns.map((x) => `  rerun ${x.status.padEnd(8)} ${x.run}${x.duration_ms !== undefined ? ` (${x.duration_ms}ms)` : ''}${x.kind === 'guard' && x.summary ? `: ${x.summary}` : ''}`);

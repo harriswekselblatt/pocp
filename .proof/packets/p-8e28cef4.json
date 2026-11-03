@@ -1,0 +1,278 @@
+{
+  "pocp": 1,
+  "id": "p-8e28cef4",
+  "intent": "Tamper bench: four cheats from an outside review, judged with the default recipe (verify --rerun)",
+  "touches": [
+    "bench/tamper/fixtures/pocp/lib/check.js",
+    "bench/tamper/fixtures/pocp/src/clamp.js",
+    "bench/tamper/lib/execute.js",
+    "bench/tamper/lib/report.js",
+    "bench/tamper/lib/scenarios.js",
+    "bench/tamper/run.js",
+    "bench/tamper/targets/pocp.json",
+    "test/bench-tamper-review.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "bench/tamper/lib/execute.js",
+        "bench/tamper/lib/report.js",
+        "bench/tamper/lib/scenarios.js"
+      ],
+      "mutants": 10,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (bench/tamper/lib/execute.js, bench/tamper/lib/report.js, bench/tamper/lib/scenarios.js): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-10-30T17:37:40.376Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:325f814d794e1f30d6c71cc998e4ad74aec51a20b0ca789e1f363e5e9584f3cf",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T17:37:40.501Z",
+      "duration_ms": 1395,
+      "stdout_sha256": "fe1717e3a3977d3f3020b1d818fe9e9cba87dc3f93ebe003198ad14701f45b6c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-8a12244b",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:325f814d794e1f30d6c71cc998e4ad74aec51a20b0ca789e1f363e5e9584f3cf",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T17:37:41.924Z",
+      "duration_ms": 20876,
+      "stdout_sha256": "26dafc3c248ae0e8ca2a2b0df42eee867684d289f832687074b26f4f896039e3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-5c80b0d7",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:325f814d794e1f30d6c71cc998e4ad74aec51a20b0ca789e1f363e5e9584f3cf",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T17:38:02.831Z",
+      "duration_ms": 229203,
+      "stdout_sha256": "639a46f0a7205dd02e83c0500297a15080ab99c731bffda78853db89df2b8be3",
+      "stderr_sha256": "89a71afe0c1e92c6a3f1f170ad559175b99cec73df02f01bb45a1e2538f273b3",
+      "run_id": "r-958d79e4",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:334832a8bc972bb6305a8e993fbd44ae4b6156208ac2f16cca8372a9e4f4a3b6",
+      "subject": "sha256:325f814d794e1f30d6c71cc998e4ad74aec51a20b0ca789e1f363e5e9584f3cf",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-10-30T17:41:52.081Z",
+      "duration_ms": 497605,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1): behavior changed, so a person must approve it",
+        "base": "956f08b93e2452cee82f356fb71f534b6fd98264",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "bench/tamper/lib/execute.js",
+            "bench/tamper/lib/report.js",
+            "bench/tamper/lib/scenarios.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 1836
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 21259
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 286311
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 182474
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 10,
+          "seed": 1
+        },
+        "duration_ms": 497605,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T17:37:40.376Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T17:37:40.376Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-10-30T17:50:10.073Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:325f814d794e1f30d6c71cc998e4ad74aec51a20b0ca789e1f363e5e9584f3cf"
+    },
+    {
+      "at": "2026-10-30T17:50:10.187Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "Claude",
+      "subject": "sha256:325f814d794e1f30d6c71cc998e4ad74aec51a20b0ca789e1f363e5e9584f3cf"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:334832a8bc972bb6305a8e993fbd44ae4b6156208ac2f16cca8372a9e4f4a3b6",
+      "subject": "sha256:325f814d794e1f30d6c71cc998e4ad74aec51a20b0ca789e1f363e5e9584f3cf",
+      "by": "Claude",
+      "at": "2026-10-30T17:50:10.187Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1): behavior changed, so a person must approve it"
+    }
+  ]
+}

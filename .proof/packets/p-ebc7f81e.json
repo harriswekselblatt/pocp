@@ -1,0 +1,262 @@
+{
+  "pocp": 1,
+  "id": "p-ebc7f81e",
+  "intent": "Take E4 out of this PR; it is kept on its own branch for later review",
+  "touches": [
+    "eval/e4/FRAME.md",
+    "eval/e4/e4.py",
+    "eval/e4/test_e4.py"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "guard",
+      "files": [
+        "eval/e4/e4.py",
+        "eval/e4/test_e4.py"
+      ],
+      "mutants": 10,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/e4/e4.py, eval/e4/test_e4.py): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-02T16:56:12.588Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:032199f082c56269ac4aa5eb0d9517831dbc0fb31772985319c40eed5c066d0f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T16:56:12.897Z",
+      "duration_ms": 29951,
+      "stdout_sha256": "deba43c5b044f5ad808474735037b94047dbe299b93a582d325caf3f6a24b049",
+      "stderr_sha256": "43e77688d5804ff48f850eeda6c3ee2795de55a388987d5255c78d9f32a27058",
+      "run_id": "r-b25f533b",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:b1ab69724b0b041720061a7002d12163fac63793b53812cd56f7a23edd431425",
+      "subject": "sha256:032199f082c56269ac4aa5eb0d9517831dbc0fb31772985319c40eed5c066d0f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": true,
+      "started_at": "2026-11-02T16:56:42.905Z",
+      "duration_ms": 339994,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "passed",
+        "passed": true,
+        "summary": "the old tests pass on the new code, and the new tests catch all 5 of the 10 sampled mutants the old tests caught (seed 1)",
+        "base": "74f1ad762987ff74a35eca75cdcd46d34ce3e2bd",
+        "checks": [
+          {
+            "id": "eval-tests",
+            "run": "./eval/run-tests.sh"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "eval/e4/e4.py",
+            "eval/e4/test_e4.py"
+          ],
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 59345
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "kept",
+          "budget": 10,
+          "seed": 1,
+          "sites": 2366,
+          "focus_sites": 0,
+          "files": 54,
+          "sampled": 10,
+          "old_caught": 5,
+          "new_caught": 5,
+          "lost": [],
+          "mutants": [
+            {
+              "file": "eval/e5/friction.js",
+              "line": 614,
+              "operator": "false",
+              "before": "export function run({ repos = DEFAULT_REPOS, write = false, resultsDir = RESULTS_DIR, resultsMd = path.join(POCP_ROOT, 'eval', 'e5', 'RESULTS.md'), now = new Da",
+              "after": "export function run({ repos = DEFAULT_REPOS, write = true, resultsDir = RESULTS_DIR, resultsMd = path.join(POCP_ROOT, 'eval', 'e5', 'RESULTS.md'), now = new Dat",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            },
+            {
+              "file": "eval/reference/canaries.py",
+              "line": 135,
+              "operator": "neq",
+              "before": "if result.get(\"label\") != exp[\"label\"] or result.get(\"kind\") != exp.get(\"kind\"):",
+              "after": "if result.get(\"label\") != exp[\"label\"] or result.get(\"kind\") == exp.get(\"kind\"):",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "eval/reference/canaries/impossible-setup-pyc/files/solution.py",
+              "line": 45,
+              "operator": "zero-one",
+              "before": "return go(0, 0, 0, True, False)",
+              "after": "return go(1, 0, 0, True, False)",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            },
+            {
+              "file": "eval/e5/profile-guard.js",
+              "line": 235,
+              "operator": "strict-eq",
+              "before": "const k = m.new.ran.find((x) => x.check === m.old.killer);",
+              "after": "const k = m.new.ran.find((x) => x.check !== m.old.killer);",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "eval/e3/lib.js",
+              "line": 15,
+              "operator": "minus",
+              "before": "for (let i = sorted.length - 1; i > 0; i--) {",
+              "after": "for (let i = sorted.length + 1; i > 0; i--) {",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "eval/reference/canaries/original-honest/files/solution.py",
+              "line": 25,
+              "operator": "lte",
+              "before": "if n <= 0:",
+              "after": "if n > 0:",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "eval/e5/friction.js",
+              "line": 325,
+              "operator": "strict-neq",
+              "before": "const ps = proofs.filter((p) => p.kind === kind && p.duration_ms !== null);",
+              "after": "const ps = proofs.filter((p) => p.kind === kind && p.duration_ms === null);",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            },
+            {
+              "file": "eval/e3/lib.js",
+              "line": 131,
+              "operator": "zero-one",
+              "before": "by[r.category] = (by[r.category] || 0) + 1;",
+              "after": "by[r.category] = (by[r.category] || 1) + 1;",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "eval/tools/redact-results.js",
+              "line": 23,
+              "operator": "and",
+              "before": "else if (e.isFile() && TEXT.test(e.name) && e.name !== 'REDACTIONS.md') out.push(p);",
+              "after": "else if (e.isFile() && TEXT.test(e.name) || e.name !== 'REDACTIONS.md') out.push(p);",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            },
+            {
+              "file": "eval/e5/profile-report.js",
+              "line": 84,
+              "operator": "and",
+              "before": "const pick = (f) => runs.flatMap(({ raw }) => raw.runs.filter((r) => r.check === c && f(r)).map((r) => r.end_ms - r.start_ms));",
+              "after": "const pick = (f) => runs.flatMap(({ raw }) => raw.runs.filter((r) => r.check === c || f(r)).map((r) => r.end_ms - r.start_ms));",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            }
+          ]
+        },
+        "duration_ms": 339994,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-02T16:56:12.588Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-02T16:56:12.588Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-02T17:02:23.283Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:032199f082c56269ac4aa5eb0d9517831dbc0fb31772985319c40eed5c066d0f"
+    }
+  ]
+}
