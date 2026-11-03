@@ -2,7 +2,7 @@
 
 A guide for an engineer reviewing POCP: what to try, which code matters most, and the questions we most want answered. It takes about one to two hours. You don't need to read everything: about 7,400 lines of code, zero dependencies.
 
-**How it was built:** with AI coding agents (Claude Code and Codex). Codex reviewed it several times. A human review is the independent check it hasn't had yet, which is why yours matters.
+**How it was built:** with AI coding agents (Claude Code and Codex). Codex reviewed it several times.
 
 ## 1. What it is, in one minute
 
