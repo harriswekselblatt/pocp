@@ -1,6 +1,6 @@
 # Security
 
-POCP makes a security claim: a coding agent can't fake green CI by weakening the tests. A way around that claim is a security bug, and we want to hear about it privately first.
+POCP makes a scoped security claim: within the threat model in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md), and with POCP's CI check required on the Git host, a coding agent can't fake green CI by weakening the tests. The README lists what it doesn't cover. A way around that claim, inside that scope, is a security bug, and we want to hear about it privately first.
 
 ## Reporting a bypass
 
