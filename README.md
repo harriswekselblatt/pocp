@@ -76,7 +76,7 @@ npx pocp init --hooks
 
 `init` creates `.proof/`, reports where it found your tests, and installs the git hooks. Hooks you already have keep running. Add a rule as above, change a file it covers, and commit. If the commit is blocked, run `pocp fix --intent "<what the change does>"` and commit again.
 
-In CI, keep your existing test step and add:
+In CI: keep your existing test step, and add:
 
 ```bash
 pocp verify origin/main..HEAD --require-coverage --rerun
