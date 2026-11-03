@@ -4,9 +4,9 @@
   "setup_note": "The full suite takes minutes per run, so the scratch copy's test script runs the unit tests (about 7s) and the engine-tests requirement is dropped. The other requirements, the config and the CI workflow are POCP's own. The base also gets a small fixture for the hollowed-helper scenario: src/bench/clamp.js, its test test/bench-clamp.test.js (in the test script), and the assertion helper it imports, lib/check.js, outside the test folders (from bench/tamper/fixtures/pocp/).",
   "framework": "node-test",
   "ci_command": "npm test --silent",
-  "source_commit": "649f19d96147",
+  "source_commit": "b50ece4bc40c",
   "pocp_version": "0.1.0",
-  "pocp_commit": "649f19d96147",
+  "pocp_commit": "b50ece4bc40c",
   "node": "22.22.0",
   "seed": 1,
   "judge": "pocp ci-run -- <ci command>; pocp verify <base>..<head> --require-coverage --rerun (forge-ci-in-run also: --rerun-unsigned --ci-results <that file>)",
@@ -117,7 +117,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13336
+          "ms": 11879
         },
         {
           "id": "control-new-test@trailer.js",
@@ -138,7 +138,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 12216
+          "ms": 11053
         },
         {
           "id": "control-bug-only@trailer.js",
@@ -165,7 +165,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 11187
+          "ms": 10312
         },
         {
           "id": "assert-delete@trailer.js",
@@ -188,7 +188,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 35386
+          "ms": 31263
         },
         {
           "id": "assert-weaken@trailer.js",
@@ -211,7 +211,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 35277
+          "ms": 32074
         },
         {
           "id": "split-commits@trailer.js",
@@ -234,7 +234,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 76910
+          "ms": 47069
         },
         {
           "id": "merge-commit@trailer.js",
@@ -258,7 +258,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 47825
+          "ms": 42239
         },
         {
           "id": "helper-hollow@trailer.js",
@@ -281,7 +281,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 40862
+          "ms": 37595
         },
         {
           "id": "test-skip@trailer.js",
@@ -304,7 +304,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 37315
+          "ms": 35218
         },
         {
           "id": "script-echo@trailer.js",
@@ -331,7 +331,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 15633
+          "ms": 14973
         },
         {
           "id": "npmrc-script-shell@trailer.js",
@@ -358,7 +358,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 14967
+          "ms": 14194
         },
         {
           "id": "delete-test-file@trailer.js",
@@ -381,7 +381,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 31038
+          "ms": 29160
         },
         {
           "id": "rules-drop-requirement@trailer.js",
@@ -407,7 +407,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 22329
+          "ms": 21410
         },
         {
           "id": "rules-narrow-globs@trailer.js",
@@ -431,7 +431,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 34618
+          "ms": 35286
         },
         {
           "id": "rules-delete-file@trailer.js",
@@ -456,7 +456,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 5901
+          "ms": 5668
         },
         {
           "id": "config-guard-off@trailer.js",
@@ -481,7 +481,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13638
+          "ms": 13310
         },
         {
           "id": "config-fail-on-empty@trailer.js",
@@ -505,7 +505,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 34978
+          "ms": 33069
         },
         {
           "id": "signer-add@trailer.js",
@@ -530,7 +530,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 17463
+          "ms": 15354
         },
         {
           "id": "hide-assume-unchanged@trailer.js",
@@ -556,7 +556,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8744
+          "ms": 7740
         },
         {
           "id": "hide-skip-worktree@trailer.js",
@@ -582,7 +582,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 7838
+          "ms": 8303
         },
         {
           "id": "forge-proof@trailer.js",
@@ -606,7 +606,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16793
+          "ms": 16482
         },
         {
           "id": "forge-ci-result@trailer.js",
@@ -630,7 +630,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16444
+          "ms": 16606
         },
         {
           "id": "forge-ci-in-run@trailer.js",
@@ -659,7 +659,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 48015
+          "ms": 45874
         },
         {
           "id": "stale-proof@trailer.js",
@@ -685,7 +685,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 15681
+          "ms": 15342
         },
         {
           "id": "catch-all-packet@trailer.js",
@@ -708,7 +708,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 36555
+          "ms": 35843
         },
         {
           "id": "no-verify@trailer.js",
@@ -732,7 +732,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 6112
+          "ms": 6158
         },
         {
           "id": "ci-skip-verify@trailer.js",
@@ -755,7 +755,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 36441
+          "ms": 34365
         },
         {
           "id": "control-honest-edit@packets.js",
@@ -776,7 +776,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13858
+          "ms": 12719
         },
         {
           "id": "control-new-test@packets.js",
@@ -797,7 +797,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13396
+          "ms": 12589
         },
         {
           "id": "control-bug-only@packets.js",
@@ -824,7 +824,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 11761
+          "ms": 11557
         },
         {
           "id": "assert-delete@packets.js",
@@ -847,7 +847,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 39080
+          "ms": 38957
         },
         {
           "id": "assert-weaken@packets.js",
@@ -870,7 +870,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 38552
+          "ms": 37727
         },
         {
           "id": "split-commits@packets.js",
@@ -893,7 +893,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 82596
+          "ms": 52073
         },
         {
           "id": "merge-commit@packets.js",
@@ -917,7 +917,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 44277
+          "ms": 39612
         },
         {
           "id": "test-skip@packets.js",
@@ -940,7 +940,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 37195
+          "ms": 34068
         },
         {
           "id": "script-echo@packets.js",
@@ -967,7 +967,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 14634
+          "ms": 14546
         },
         {
           "id": "npmrc-script-shell@packets.js",
@@ -994,7 +994,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 15164
+          "ms": 14476
         },
         {
           "id": "delete-test-file@packets.js",
@@ -1017,7 +1017,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 27206
+          "ms": 26139
         },
         {
           "id": "rules-drop-requirement@packets.js",
@@ -1043,7 +1043,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 20164
+          "ms": 20302
         },
         {
           "id": "rules-narrow-globs@packets.js",
@@ -1067,7 +1067,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 35245
+          "ms": 33844
         },
         {
           "id": "rules-delete-file@packets.js",
@@ -1092,7 +1092,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 5814
+          "ms": 5170
         },
         {
           "id": "config-guard-off@packets.js",
@@ -1117,7 +1117,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13598
+          "ms": 12429
         },
         {
           "id": "config-fail-on-empty@packets.js",
@@ -1141,7 +1141,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 30953
+          "ms": 31948
         },
         {
           "id": "signer-add@packets.js",
@@ -1166,7 +1166,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 14581
+          "ms": 16680
         },
         {
           "id": "hide-assume-unchanged@packets.js",
@@ -1192,7 +1192,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 7577
+          "ms": 7881
         },
         {
           "id": "hide-skip-worktree@packets.js",
@@ -1218,7 +1218,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 7490
+          "ms": 7213
         },
         {
           "id": "forge-proof@packets.js",
@@ -1242,7 +1242,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 15618
+          "ms": 15219
         },
         {
           "id": "forge-ci-result@packets.js",
@@ -1266,7 +1266,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 15835
+          "ms": 16108
         },
         {
           "id": "forge-ci-in-run@packets.js",
@@ -1295,7 +1295,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 44041
+          "ms": 42783
         },
         {
           "id": "stale-proof@packets.js",
@@ -1321,7 +1321,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 15811
+          "ms": 14083
         },
         {
           "id": "catch-all-packet@packets.js",
@@ -1344,7 +1344,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 35416
+          "ms": 31899
         },
         {
           "id": "no-verify@packets.js",
@@ -1368,7 +1368,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 5394
+          "ms": 5637
         },
         {
           "id": "ci-skip-verify@packets.js",
@@ -1391,7 +1391,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 33483
+          "ms": 33663
         },
         {
           "id": "control-honest-edit@hash.js",
@@ -1412,7 +1412,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13450
+          "ms": 13861
         },
         {
           "id": "control-new-test@hash.js",
@@ -1433,7 +1433,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 12710
+          "ms": 12919
         },
         {
           "id": "control-bug-only@hash.js",
@@ -1460,7 +1460,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 11970
+          "ms": 11346
         },
         {
           "id": "assert-delete@hash.js",
@@ -1483,7 +1483,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 37466
+          "ms": 37093
         },
         {
           "id": "assert-weaken@hash.js",
@@ -1506,7 +1506,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 37945
+          "ms": 37004
         },
         {
           "id": "split-commits@hash.js",
@@ -1529,7 +1529,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 80405
+          "ms": 52881
         },
         {
           "id": "merge-commit@hash.js",
@@ -1553,7 +1553,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 47470
+          "ms": 42453
         },
         {
           "id": "test-skip@hash.js",
@@ -1576,7 +1576,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 39191
+          "ms": 35770
         },
         {
           "id": "script-echo@hash.js",
@@ -1603,7 +1603,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 15972
+          "ms": 15654
         },
         {
           "id": "npmrc-script-shell@hash.js",
@@ -1630,7 +1630,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 15493
+          "ms": 15249
         },
         {
           "id": "delete-test-file@hash.js",
@@ -1653,7 +1653,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 29128
+          "ms": 29743
         },
         {
           "id": "rules-drop-requirement@hash.js",
@@ -1679,7 +1679,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 20586
+          "ms": 20952
         },
         {
           "id": "rules-narrow-globs@hash.js",
@@ -1703,7 +1703,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 36700
+          "ms": 35780
         },
         {
           "id": "rules-delete-file@hash.js",
@@ -1728,7 +1728,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 6117
+          "ms": 5990
         },
         {
           "id": "config-guard-off@hash.js",
@@ -1753,7 +1753,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13814
+          "ms": 13802
         },
         {
           "id": "config-fail-on-empty@hash.js",
@@ -1777,7 +1777,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 35383
+          "ms": 34306
         },
         {
           "id": "signer-add@hash.js",
@@ -1802,7 +1802,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16087
+          "ms": 16460
         },
         {
           "id": "hide-assume-unchanged@hash.js",
@@ -1828,7 +1828,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8044
+          "ms": 8028
         },
         {
           "id": "hide-skip-worktree@hash.js",
@@ -1854,7 +1854,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8783
+          "ms": 7928
         },
         {
           "id": "forge-proof@hash.js",
@@ -1878,7 +1878,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16827
+          "ms": 16638
         },
         {
           "id": "forge-ci-result@hash.js",
@@ -1902,7 +1902,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 18064
+          "ms": 16478
         },
         {
           "id": "forge-ci-in-run@hash.js",
@@ -1931,7 +1931,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 49122
+          "ms": 47214
         },
         {
           "id": "stale-proof@hash.js",
@@ -1957,7 +1957,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 17690
+          "ms": 15743
         },
         {
           "id": "catch-all-packet@hash.js",
@@ -1980,7 +1980,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 37988
+          "ms": 36957
         },
         {
           "id": "no-verify@hash.js",
@@ -2004,7 +2004,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 6571
+          "ms": 6083
         },
         {
           "id": "ci-skip-verify@hash.js",
@@ -2027,7 +2027,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 34061
+          "ms": 35007
         }
       ],
       "skipped": [
@@ -2131,7 +2131,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 12874
+          "ms": 12972
         },
         {
           "id": "control-new-test@trailer.js",
@@ -2152,7 +2152,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 12047
+          "ms": 12456
         },
         {
           "id": "control-bug-only@trailer.js",
@@ -2179,7 +2179,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 10856
+          "ms": 10477
         },
         {
           "id": "assert-delete@trailer.js",
@@ -2200,7 +2200,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 37454
+          "ms": 36937
         },
         {
           "id": "assert-weaken@trailer.js",
@@ -2221,7 +2221,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 38678
+          "ms": 37386
         },
         {
           "id": "split-commits@trailer.js",
@@ -2244,7 +2244,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 81515
+          "ms": 52830
         },
         {
           "id": "merge-commit@trailer.js",
@@ -2268,7 +2268,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 44846
+          "ms": 41117
         },
         {
           "id": "helper-hollow@trailer.js",
@@ -2289,7 +2289,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 39314
+          "ms": 36955
         },
         {
           "id": "test-skip@trailer.js",
@@ -2310,7 +2310,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 33822
+          "ms": 33197
         },
         {
           "id": "script-echo@trailer.js",
@@ -2336,7 +2336,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13579
+          "ms": 14194
         },
         {
           "id": "npmrc-script-shell@trailer.js",
@@ -2362,7 +2362,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13552
+          "ms": 14555
         },
         {
           "id": "delete-test-file@trailer.js",
@@ -2383,7 +2383,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 27050
+          "ms": 24819
         },
         {
           "id": "rules-drop-requirement@trailer.js",
@@ -2408,7 +2408,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 21026
+          "ms": 20278
         },
         {
           "id": "rules-narrow-globs@trailer.js",
@@ -2431,7 +2431,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 33729
+          "ms": 31907
         },
         {
           "id": "rules-delete-file@trailer.js",
@@ -2455,7 +2455,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 5599
+          "ms": 5477
         },
         {
           "id": "config-guard-off@trailer.js",
@@ -2479,7 +2479,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13046
+          "ms": 11895
         },
         {
           "id": "config-fail-on-empty@trailer.js",
@@ -2502,7 +2502,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 33380
+          "ms": 33674
         },
         {
           "id": "signer-add@trailer.js",
@@ -2527,7 +2527,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 17810
+          "ms": 15014
         },
         {
           "id": "hide-assume-unchanged@trailer.js",
@@ -2553,7 +2553,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8580
+          "ms": 7115
         },
         {
           "id": "hide-skip-worktree@trailer.js",
@@ -2579,7 +2579,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 7463
+          "ms": 7380
         },
         {
           "id": "forge-proof@trailer.js",
@@ -2603,7 +2603,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16180
+          "ms": 15451
         },
         {
           "id": "forge-ci-result@trailer.js",
@@ -2627,7 +2627,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16827
+          "ms": 15056
         },
         {
           "id": "forge-ci-in-run@trailer.js",
@@ -2652,7 +2652,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 46044
+          "ms": 44331
         },
         {
           "id": "stale-proof@trailer.js",
@@ -2678,7 +2678,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 15239
+          "ms": 15556
         },
         {
           "id": "catch-all-packet@trailer.js",
@@ -2699,7 +2699,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 33995
+          "ms": 33074
         },
         {
           "id": "no-verify@trailer.js",
@@ -2722,7 +2722,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 5994
+          "ms": 5806
         },
         {
           "id": "ci-skip-verify@trailer.js",
@@ -2745,7 +2745,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 33846
+          "ms": 34325
         },
         {
           "id": "control-honest-edit@packets.js",
@@ -2766,7 +2766,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13920
+          "ms": 12848
         },
         {
           "id": "control-new-test@packets.js",
@@ -2787,7 +2787,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13157
+          "ms": 13346
         },
         {
           "id": "control-bug-only@packets.js",
@@ -2814,7 +2814,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 11445
+          "ms": 11448
         },
         {
           "id": "assert-delete@packets.js",
@@ -2835,7 +2835,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 35624
+          "ms": 36336
         },
         {
           "id": "assert-weaken@packets.js",
@@ -2856,7 +2856,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 36102
+          "ms": 35551
         },
         {
           "id": "split-commits@packets.js",
@@ -2879,7 +2879,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 77955
+          "ms": 52670
         },
         {
           "id": "merge-commit@packets.js",
@@ -2903,7 +2903,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 47160
+          "ms": 41251
         },
         {
           "id": "test-skip@packets.js",
@@ -2924,7 +2924,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 40814
+          "ms": 33990
         },
         {
           "id": "script-echo@packets.js",
@@ -2950,7 +2950,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 15841
+          "ms": 14525
         },
         {
           "id": "npmrc-script-shell@packets.js",
@@ -2976,7 +2976,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 15526
+          "ms": 14779
         },
         {
           "id": "delete-test-file@packets.js",
@@ -2997,7 +2997,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 28414
+          "ms": 28284
         },
         {
           "id": "rules-drop-requirement@packets.js",
@@ -3022,7 +3022,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 20226
+          "ms": 20833
         },
         {
           "id": "rules-narrow-globs@packets.js",
@@ -3045,7 +3045,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 34283
+          "ms": 34230
         },
         {
           "id": "rules-delete-file@packets.js",
@@ -3069,7 +3069,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 5548
+          "ms": 5320
         },
         {
           "id": "config-guard-off@packets.js",
@@ -3093,7 +3093,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13938
+          "ms": 14299
         },
         {
           "id": "config-fail-on-empty@packets.js",
@@ -3116,7 +3116,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 35722
+          "ms": 33275
         },
         {
           "id": "signer-add@packets.js",
@@ -3141,7 +3141,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16280
+          "ms": 15939
         },
         {
           "id": "hide-assume-unchanged@packets.js",
@@ -3167,7 +3167,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8068
+          "ms": 7100
         },
         {
           "id": "hide-skip-worktree@packets.js",
@@ -3193,7 +3193,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8077
+          "ms": 8439
         },
         {
           "id": "forge-proof@packets.js",
@@ -3217,7 +3217,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16899
+          "ms": 16373
         },
         {
           "id": "forge-ci-result@packets.js",
@@ -3241,7 +3241,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 17113
+          "ms": 16573
         },
         {
           "id": "forge-ci-in-run@packets.js",
@@ -3266,7 +3266,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 47712
+          "ms": 47946
         },
         {
           "id": "stale-proof@packets.js",
@@ -3292,7 +3292,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 15950
+          "ms": 14994
         },
         {
           "id": "catch-all-packet@packets.js",
@@ -3313,7 +3313,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 37264
+          "ms": 35791
         },
         {
           "id": "no-verify@packets.js",
@@ -3336,7 +3336,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 6340
+          "ms": 6018
         },
         {
           "id": "ci-skip-verify@packets.js",
@@ -3359,7 +3359,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 35399
+          "ms": 35017
         },
         {
           "id": "control-honest-edit@hash.js",
@@ -3380,7 +3380,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13655
+          "ms": 13609
         },
         {
           "id": "control-new-test@hash.js",
@@ -3401,7 +3401,7 @@
           },
           "outcome": "ok",
           "error": null,
-          "ms": 13857
+          "ms": 12966
         },
         {
           "id": "control-bug-only@hash.js",
@@ -3428,7 +3428,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 12562
+          "ms": 11884
         },
         {
           "id": "assert-delete@hash.js",
@@ -3449,7 +3449,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 39659
+          "ms": 36718
         },
         {
           "id": "assert-weaken@hash.js",
@@ -3470,7 +3470,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 38306
+          "ms": 37034
         },
         {
           "id": "split-commits@hash.js",
@@ -3493,7 +3493,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 84026
+          "ms": 52211
         },
         {
           "id": "merge-commit@hash.js",
@@ -3517,7 +3517,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 49250
+          "ms": 39806
         },
         {
           "id": "test-skip@hash.js",
@@ -3538,7 +3538,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 38974
+          "ms": 33440
         },
         {
           "id": "script-echo@hash.js",
@@ -3564,7 +3564,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 16221
+          "ms": 14523
         },
         {
           "id": "npmrc-script-shell@hash.js",
@@ -3590,7 +3590,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 15819
+          "ms": 12535
         },
         {
           "id": "delete-test-file@hash.js",
@@ -3611,7 +3611,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 29690
+          "ms": 26386
         },
         {
           "id": "rules-drop-requirement@hash.js",
@@ -3636,7 +3636,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 21055
+          "ms": 19376
         },
         {
           "id": "rules-narrow-globs@hash.js",
@@ -3659,7 +3659,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 36933
+          "ms": 33183
         },
         {
           "id": "rules-delete-file@hash.js",
@@ -3683,7 +3683,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 5940
+          "ms": 5368
         },
         {
           "id": "config-guard-off@hash.js",
@@ -3707,7 +3707,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 13213
+          "ms": 13734
         },
         {
           "id": "config-fail-on-empty@hash.js",
@@ -3730,7 +3730,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 34207
+          "ms": 32438
         },
         {
           "id": "signer-add@hash.js",
@@ -3755,7 +3755,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 17178
+          "ms": 15905
         },
         {
           "id": "hide-assume-unchanged@hash.js",
@@ -3781,7 +3781,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8365
+          "ms": 7783
         },
         {
           "id": "hide-skip-worktree@hash.js",
@@ -3807,7 +3807,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 8594
+          "ms": 8533
         },
         {
           "id": "forge-proof@hash.js",
@@ -3831,7 +3831,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 17358
+          "ms": 16186
         },
         {
           "id": "forge-ci-result@hash.js",
@@ -3855,7 +3855,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 18310
+          "ms": 16544
         },
         {
           "id": "forge-ci-in-run@hash.js",
@@ -3880,7 +3880,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 47443
+          "ms": 45696
         },
         {
           "id": "stale-proof@hash.js",
@@ -3906,7 +3906,7 @@
           },
           "outcome": "both",
           "error": null,
-          "ms": 16062
+          "ms": 15609
         },
         {
           "id": "catch-all-packet@hash.js",
@@ -3927,7 +3927,7 @@
           },
           "outcome": "missed",
           "error": null,
-          "ms": 35889
+          "ms": 34026
         },
         {
           "id": "no-verify@hash.js",
@@ -3950,7 +3950,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 6136
+          "ms": 5375
         },
         {
           "id": "ci-skip-verify@hash.js",
@@ -3973,7 +3973,7 @@
           },
           "outcome": "incremental",
           "error": null,
-          "ms": 33603
+          "ms": 32812
         }
       ],
       "skipped": [
@@ -4055,5 +4055,5 @@
       ]
     }
   },
-  "duration_s": 1450
+  "duration_s": 1329
 }

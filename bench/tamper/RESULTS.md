@@ -63,7 +63,7 @@ Every scenario where a bug passed POCP. These are the holes to close next.
 
 ## pocp
 
-POCP itself: node:test, zero dependencies. The bench's own repository is the default source. Test command: `npm test --silent` (node-test). Source commit `649f19d96147`.
+POCP itself: node:test, zero dependencies. The bench's own repository is the default source. Test command: `npm test --silent` (node-test). Source commit `b50ece4bc40c`.
 
 Scratch setup: The full suite takes minutes per run, so the scratch copy's test script runs the unit tests (about 7s) and the engine-tests requirement is dropped. The other requirements, the config and the CI workflow are POCP's own. The base also gets a small fixture for the hollowed-helper scenario: src/bench/clamp.js, its test test/bench-clamp.test.js (in the test script), and the assertion helper it imports, lib/check.js, outside the test folders (from bench/tamper/fixtures/pocp/).
 
@@ -183,4 +183,4 @@ node bench/tamper/run.js --target pocp
 node bench/tamper/run.js --target <name> --repo <path to its checkout>
 ```
 
-Everything runs in scratch clones; the source checkout is only cloned. Bugs come from POCP's mutation operators, picked with a fixed seed; test edits are found by trial runs, as an agent would. Last run: pocp: POCP 0.1.0 at `649f19d96147`, Node 22.22.0, seed 1, 1450s.
+Everything runs in scratch clones; the source checkout is only cloned. Bugs come from POCP's mutation operators, picked with a fixed seed; test edits are found by trial runs, as an agent would. Last run: pocp: POCP 0.1.0 at `b50ece4bc40c`, Node 22.22.0, seed 1, 1329s.
