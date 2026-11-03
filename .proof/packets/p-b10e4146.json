@@ -1,0 +1,133 @@
+{
+  "pocp": 1,
+  "id": "p-b10e4146",
+  "intent": "Guard: leave added tests out of the old-tests run; name the failing tests when it can't decide",
+  "touches": [
+    "src/guard-check.js",
+    "test/guard-adjudication.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-10-30T23:40:13.275Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:c541c6bec6af350a6290e680dc2876d0a7eb7fffc2daaba2a11ebb7642cbbdab",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T23:40:13.611Z",
+      "duration_ms": 1275,
+      "stdout_sha256": "35c11767614005a31773d2c47c99df68dce1a53cd7291e9d0e5dbd14dbfdd529",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-9740945c",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:c541c6bec6af350a6290e680dc2876d0a7eb7fffc2daaba2a11ebb7642cbbdab",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T23:40:14.914Z",
+      "duration_ms": 17204,
+      "stdout_sha256": "a52e28298cd23709661d104aebc423c7b9146011b28ccc6a6fc032aa66bcac98",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-9de6a4cc",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:c541c6bec6af350a6290e680dc2876d0a7eb7fffc2daaba2a11ebb7642cbbdab",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T23:40:32.148Z",
+      "duration_ms": 166331,
+      "stdout_sha256": "1d3442841fee178fc1eb7be429d505728a3565b9a6786168eb73d83bee750c7e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-19fb7e19",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T23:40:13.275Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T23:40:13.275Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-10-30T23:43:18.525Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:c541c6bec6af350a6290e680dc2876d0a7eb7fffc2daaba2a11ebb7642cbbdab"
+    }
+  ]
+}

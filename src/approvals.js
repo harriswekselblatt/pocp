@@ -8,7 +8,7 @@ import { APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL, verifyRemedy } from './remed
 // person at a terminal, shows what is being approved, and adds the label only after the person
 // types the pull request's number. There is no flag that skips the question.
 
-const POLICY_FILES = ['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers'];
+const POLICY_FILES = ['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers', '.proof/exceptions.json'];
 
 /** The annotation verify leaves on GitHub when approvals are all it is waiting for. */
 export const APPROVAL_TITLE = 'POCP approval needed';
@@ -55,6 +55,7 @@ const INFER = [
   { re: /^existing tests or test setup changed \(/, code: 'test_change' },
   { re: /^policy loosened without approval: /, code: 'policy_loosened' },
   { re: /^CI configuration changed \(/, code: 'ci_config_changed' },
+  { re: /^protected files changed \(/, code: 'ci_config_changed' },
 ];
 
 /**

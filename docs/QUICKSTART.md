@@ -12,7 +12,8 @@ pocp init --hooks
 ```
 
 `.proof/` now holds `config.json`, `rules.json` and empty `packets/` and `misses/` folders.
-Commit them.
+`init` also prints the test layout it found; check it, and add any test folder it missed to
+`guard.extra_test_globs` in `config.json`. Commit them.
 
 ## 2. Say what must be proven
 
@@ -52,15 +53,20 @@ who and what, and never signs off itself.
 
 ## 4. Add CI
 
-Wrap your test step so its result is recorded against the exact commit, then verify:
+Verify every pull request. verify re-runs each required check itself, on the exact commit,
+by the base branch's rules; your existing test step stays as it is:
 
 ```bash
-pocp ci-run --results ci.jsonl --dir tests -- sh run.sh
-pocp verify origin/main..HEAD --require-coverage --rerun-unsigned --ci-results ci.jsonl
+pocp verify origin/main..HEAD --require-coverage --rerun
 ```
 
+A faster mode runs your tests once, through `pocp ci-run`, and passes `--ci-results` to verify.
+It trusts everything that ran earlier in the job: a new test file can write a passing result
+for any check. See [the threat model](THREAT-MODEL.md) before choosing it.
+
 See `examples/github/pocp.yml` for a complete GitHub Actions workflow, including
-maintainer approvals for rule changes and test changes.
+maintainer approvals for rule changes and test changes, and `examples/github/pocp-labels.yml`,
+which removes the approval labels on every push so an approval covers only the code reviewed.
 
 Then run `pocp doctor`. It checks the adoption pitfalls before they block anyone: hooks,
 the workflow's approval labels and whether they exist, Actions access when the POCP action

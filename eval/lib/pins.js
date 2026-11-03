@@ -45,6 +45,9 @@ export function verifierHash(root = POCP_ROOT) {
 
 export function pocpCommit(root = POCP_ROOT) {
   const sha = tryRun('git', ['-C', root, 'rev-parse', 'HEAD']);
+  // In an export with no .git (verify re-runs checks that way) there's no commit to name; the
+  // verifier's own hash still identifies exactly what ran.
+  if (!sha) return `no-git:${verifierHash(root).slice(0, 16)}`;
   const dirty = tryRun('git', ['-C', root, 'status', '--porcelain', '--', 'bin', 'src']);
   return dirty ? `${sha}+dirty` : sha;
 }

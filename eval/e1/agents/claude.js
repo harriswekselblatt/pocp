@@ -14,6 +14,7 @@
 //     token kept (else "Not logged in"); git identity and config fixed by the harness.
 // The model API traffic comes from the claude process itself, which isn't sandboxed.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { harnessEnv, run } from '../lib/proc.js';
 import { statusOf } from './common.js';
@@ -54,9 +55,31 @@ export function claudeArgs({ model, settings = CLAUDE_SETTINGS, maxBudgetUsd } =
  * `auth: "login"` drops them so the CLI uses the stored login. Only variable names are
  * recorded, never values.
  */
-export function claudeEnv(extra = {}, { auth = 'inherit', base = process.env } = {}) {
+// The owner's long-lived login token (from `claude setup-token`), kept in a private file the
+// owner writes; the harness reads it so the value never passes through anything else.
+export const DEFAULT_TOKEN_FILE = path.join(os.homedir(), '.config', 'pocp-eval', 'claude-oauth-token');
+
+/** 'auto' means token-file when the file exists, else inherit. */
+export function resolveAuth(auth, tokenFile = DEFAULT_TOKEN_FILE) {
+  if (auth !== 'auto') return auth;
+  return fs.existsSync(tokenFile) ? 'token-file' : 'inherit';
+}
+
+/**
+ * Child env for Claude Code. auth: 'inherit' (keep the caller's login variables), 'login'
+ * (drop ANTHROPIC_*, use the CLI's own stored login), 'token-file' (drop ANTHROPIC_* and set
+ * CLAUDE_CODE_OAUTH_TOKEN from the owner's token file, which must not be readable by others).
+ */
+export function claudeEnv(extra = {}, { auth = 'inherit', tokenFile = DEFAULT_TOKEN_FILE, base = process.env } = {}) {
   const env = harnessEnv(extra, base);
-  if (auth === 'login') for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL']) delete env[k];
+  if (auth === 'login' || auth === 'token-file') for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL']) delete env[k];
+  if (auth === 'token-file') {
+    if (!fs.existsSync(tokenFile)) throw new Error(`claude auth token-file: no token file at ${tokenFile} (run \`claude setup-token\` and save the token there)`);
+    if (fs.statSync(tokenFile).mode & 0o077) throw new Error(`claude auth token-file: ${tokenFile} is readable by others; chmod 600 it`);
+    const token = fs.readFileSync(tokenFile, 'utf8').trim();
+    if (!token) throw new Error(`claude auth token-file: ${tokenFile} is empty`);
+    env.CLAUDE_CODE_OAUTH_TOKEN = token;
+  }
   return env;
 }
 
@@ -97,15 +120,16 @@ export function redact(text, env) {
   return out;
 }
 
-export function claudeAgent({ bin = process.env.E1_CLAUDE_BIN || 'claude', auth = process.env.E1_CLAUDE_AUTH || 'inherit', maxBudgetUsd = null } = {}) {
+export function claudeAgent({ bin = process.env.E1_CLAUDE_BIN || 'claude', auth: authIn = process.env.E1_CLAUDE_AUTH || 'auto', tokenFile = process.env.E1_CLAUDE_TOKEN_FILE || DEFAULT_TOKEN_FILE, maxBudgetUsd = null } = {}) {
+  const auth = resolveAuth(authIn, tokenFile);
   return {
     name: 'claude',
     async describe() {
-      const v = await run(bin, ['--version'], { env: claudeEnv({}, { auth }), timeoutMs: 30_000 });
+      const v = await run(bin, ['--version'], { env: claudeEnv({}, { auth, tokenFile }), timeoutMs: 30_000 });
       return { agent: 'claude', cli: 'claude', bin, version: v.code === 0 ? v.out.trim() : null };
     },
     async run({ repo, prompt, runDir, timeoutMs, model, extraEnv = {} }) {
-      const env = claudeEnv(extraEnv, { auth });
+      const env = claudeEnv(extraEnv, { auth, tokenFile });
       const args = claudeArgs({ model, maxBudgetUsd });
       const files = { transcript: 'agent.stdout.jsonl', stderr: 'agent.stderr.txt' };
       const r = await run(bin, args, { cwd: repo, env, input: prompt, timeoutMs, stdoutFile: path.join(runDir, files.transcript), stderrFile: path.join(runDir, files.stderr) });

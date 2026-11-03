@@ -1,0 +1,177 @@
+{
+  "pocp": 1,
+  "id": "p-e7bfc72d",
+  "intent": "Eval tests pass in verify's no-.git re-run",
+  "touches": [
+    "eval/lib/pins.js",
+    "eval/lib/test/lib.test.js",
+    "eval/lib/test/redact.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "guard",
+      "files": [
+        "eval/lib/test/lib.test.js",
+        "eval/lib/test/redact.test.js"
+      ],
+      "mutants": 10,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/lib/test/lib.test.js, eval/lib/test/redact.test.js): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-10-30T16:37:24.381Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:46ee06fcfbf0e10603c0a0e5e1cd3287c5f3e771b2385ff59d81838840c16d42",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T16:37:24.797Z",
+      "duration_ms": 40853,
+      "stdout_sha256": "d6e95faea7bef763a4a40ad3e583c24ef4fadc24c305c387306fc8c00114bac6",
+      "stderr_sha256": "b6f3c03d12633f55f2cecbde01c51ff5f49ed7edc033c2bb17c4bfe6011ad75e",
+      "run_id": "r-cb9640cd",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e03fc4c399129b91b1c5ebb6c4508d56363f02da99c8829e5851888ddfc7a903",
+      "subject": "sha256:46ee06fcfbf0e10603c0a0e5e1cd3287c5f3e771b2385ff59d81838840c16d42",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-10-30T16:38:05.809Z",
+      "duration_ms": 152961,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "baseline-red",
+        "passed": false,
+        "summary": "the old tests already fail at the base (\"./eval/run-tests.sh\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it",
+        "base": "8f803578602710a63159aa4264e485b26bbc504f",
+        "checks": [
+          {
+            "id": "eval-tests",
+            "run": "./eval/run-tests.sh"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "eval/lib/test/lib.test.js",
+            "eval/lib/test/redact.test.js"
+          ],
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 101773
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "fail",
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 48304
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 10,
+          "seed": 1
+        },
+        "duration_ms": 152961,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T16:37:24.381Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-10-30T16:37:24.381Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-10-30T16:40:39.107Z",
+      "event": "proof_failed",
+      "obligation": "o2",
+      "subject": "sha256:46ee06fcfbf0e10603c0a0e5e1cd3287c5f3e771b2385ff59d81838840c16d42"
+    },
+    {
+      "at": "2026-10-30T16:40:39.432Z",
+      "event": "deferred",
+      "obligation": "o2",
+      "by": "harriswekselblatt",
+      "subject": "sha256:46ee06fcfbf0e10603c0a0e5e1cd3287c5f3e771b2385ff59d81838840c16d42"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e03fc4c399129b91b1c5ebb6c4508d56363f02da99c8829e5851888ddfc7a903",
+      "subject": "sha256:46ee06fcfbf0e10603c0a0e5e1cd3287c5f3e771b2385ff59d81838840c16d42",
+      "by": "harriswekselblatt",
+      "at": "2026-10-30T16:40:39.432Z",
+      "to": "ci-approval",
+      "reason": "the old tests already fail at the base (\"./eval/run-tests.sh\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it"
+    }
+  ]
+}

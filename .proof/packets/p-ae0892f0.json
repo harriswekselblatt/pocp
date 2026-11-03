@@ -1,0 +1,76 @@
+{
+  "pocp": 1,
+  "id": "p-ae0892f0",
+  "intent": "Tamper benchmark re-run on b50ece4 (same settings: --mutants 3 --seed 1 --concurrency 3); the check confirms RESULTS.md is exactly what the raw results generate",
+  "touches": [
+    "bench/tamper/RESULTS.md",
+    "bench/tamper/results/pocp.json"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "f=$(mktemp) && cp bench/tamper/RESULTS.md \"$f\" && node bench/tamper/run.js --report-only && cmp \"$f\" bench/tamper/RESULTS.md",
+      "source": "author"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-11-02T22:59:10.947Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3ac53cdbc2dc543f60d97f2cc535c7789fda9db94d04bcf0a10a021cd148a062",
+      "subject": "sha256:91dea1200f384c922c9a0bcdf39221203d743bd715b847180499d1a882c1942b",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "f=$(mktemp) && cp bench/tamper/RESULTS.md \"$f\" && node bench/tamper/run.js --report-only && cmp \"$f\" bench/tamper/RESULTS.md",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T22:59:16.655Z",
+      "duration_ms": 111,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "29e4c322bdbc22c38eb1aa64e66615a5b12bae2ce24cea09d985d93430401d3d",
+      "run_id": "r-f81d4d35",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-02T22:59:10.947Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-02T22:59:10.947Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-02T22:59:10.947Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-11-02T22:59:16.804Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:91dea1200f384c922c9a0bcdf39221203d743bd715b847180499d1a882c1942b"
+    }
+  ]
+}

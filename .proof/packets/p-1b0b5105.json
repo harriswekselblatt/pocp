@@ -1,0 +1,72 @@
+{
+  "pocp": 1,
+  "id": "p-1b0b5105",
+  "intent": "Guard POCP's own eval: eval tests required for eval/; the judging files need maintainer approval",
+  "touches": [
+    ".proof/config.json",
+    ".proof/rules.json",
+    "eval/README.md"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-10-30T15:53:46.568Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:63f82f74f6b825785feeed207704b6fa8eafed2d7ca288ad8a8ff6ef7cbe8988",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T15:53:47.033Z",
+      "duration_ms": 38439,
+      "stdout_sha256": "8fa6e46a76a6ffb04700515d8b250d7bd4a8c54226dc55a34d61dfd270a2c9e7",
+      "stderr_sha256": "4ae8d9fdc858a3b3828b0fa5ff6716faed74196858e5c66fa3ec9f0bb509956e",
+      "run_id": "r-8eeff375",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T15:53:46.568Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-10-30T15:53:46.568Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-10-30T15:54:25.640Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:63f82f74f6b825785feeed207704b6fa8eafed2d7ca288ad8a8ff6ef7cbe8988"
+    }
+  ]
+}

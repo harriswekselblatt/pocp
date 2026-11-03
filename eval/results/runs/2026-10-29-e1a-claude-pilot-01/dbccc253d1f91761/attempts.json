@@ -1,0 +1,114 @@
+{
+  "commits": [
+    {
+      "sha": "f3d97219353e5318e5977da6c5ae3bfa069e4248",
+      "tree": "b409be498c4f54f2fa90af05646f8351a402105f",
+      "parents": [
+        "71d9efef54706c7e4a0ca8dc3fec52e5f657db44"
+      ],
+      "subject": "Implement count_k_reducible using digit DP",
+      "at": 1793330150,
+      "action": "commit",
+      "by": "agent",
+      "through_hooks": true,
+      "in_final_history": true
+    }
+  ],
+  "blocked_hook_runs": [
+    {
+      "at": 1793330133,
+      "exit": 1,
+      "tree": "ff7e2b492243b5bddc7c9d3a3618ed2b72184ac9",
+      "gate": {
+        "decision": "blocked",
+        "subject": "sha256:eb53268bd869f0636f4e271c236f67b7fab5a63dc86a20e90a6ba67ff875686a",
+        "required": 2,
+        "uncovered": 2,
+        "packets": []
+      },
+      "reason": "uncovered"
+    }
+  ],
+  "gate_log": [
+    {
+      "at": "2026-10-30T03:15:33.067Z",
+      "source": "hook",
+      "decision": "blocked",
+      "subject": "sha256:eb53268bd869f0636f4e271c236f67b7fab5a63dc86a20e90a6ba67ff875686a",
+      "required": 2,
+      "uncovered": 2,
+      "packets": []
+    },
+    {
+      "at": "2026-10-30T03:15:35.471Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:eb53268bd869f0636f4e271c236f67b7fab5a63dc86a20e90a6ba67ff875686a",
+      "required": 2,
+      "uncovered": 2,
+      "packets": []
+    },
+    {
+      "at": "2026-10-30T03:15:35.831Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:eb53268bd869f0636f4e271c236f67b7fab5a63dc86a20e90a6ba67ff875686a",
+      "required": 2,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-b6e110b1",
+          "ok": false,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:15:38.025Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:eb53268bd869f0636f4e271c236f67b7fab5a63dc86a20e90a6ba67ff875686a",
+      "required": 2,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-b6e110b1",
+          "ok": false,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:15:38.419Z",
+      "source": "fix",
+      "decision": "pass",
+      "subject": "sha256:eb53268bd869f0636f4e271c236f67b7fab5a63dc86a20e90a6ba67ff875686a",
+      "required": 2,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-b6e110b1",
+          "ok": true,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:15:50.463Z",
+      "source": "hook",
+      "decision": "pass",
+      "subject": "sha256:eb53268bd869f0636f4e271c236f67b7fab5a63dc86a20e90a6ba67ff875686a",
+      "required": 2,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-b6e110b1",
+          "ok": true,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "hooks_modified": false,
+  "hooks_path": null
+}

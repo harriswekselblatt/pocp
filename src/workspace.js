@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { onCleanup } from './exit.js';
-import { blobBuffer, checkoutIndexTo, checkoutRevTo, indexEntries, isProofPath, worktreeAdd, worktreeRemove } from './git.js';
+import { blobBuffer, checkoutIndexTo, checkoutRevTo, indexEntries, isProofPath } from './git.js';
 
 function linkDeps(root, dir, links = []) {
   for (const rel of links) {
@@ -124,29 +124,14 @@ function fillIndexSnapshot(root, dir, { links, readOnly, cleanup }) {
   return { dir, files, hash, cleanup };
 }
 
-/** Check out a commit into a temporary worktree (used by verify --rerun, replay and eval). */
+/**
+ * A commit's files in a temporary folder, for running its checks (verify --rerun, replay,
+ * eval). The folder has no `.git` and no link back to the repository: the commit's code runs
+ * there, and must not be able to reach the verifier's git config, hooks or refs through it.
+ * Every call makes a fresh folder, so one check can't change another check's files.
+ */
 export function createRevCheckout(root, rev, { links = [] } = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pocp-rev-'));
-  fs.rmSync(dir, { recursive: true, force: true });
-  const cleanup = () => {
-    makeWritable(dir);
-    try {
-      worktreeRemove(root, dir);
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-      live.get(dir)?.();
-      live.delete(dir);
-    }
-  };
-  track(dir, cleanup);
-  try {
-    worktreeAdd(root, dir, rev);
-    linkDeps(root, dir, links);
-  } catch (err) {
-    try { cleanup(); } catch { /* the folder is gone either way */ }
-    throw err;
-  }
-  return { dir, cleanup };
+  return createTreeSnapshot(root, rev, { links });
 }
 
 /**

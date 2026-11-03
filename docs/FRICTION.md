@@ -101,8 +101,8 @@ check alone decides: an independent re-run pass or the label. Without a deferral
 is as before. Deferrals are ignored outside block mode.
 
 Merges: while a merge is in progress the gate judges only files that differ from both sides
-(conflict resolutions). Files taken unchanged from the merged branch carry its proofs, and
-verify skips merge commits, so this is still stricter than CI. To update a branch, merge
+(conflict resolutions). Files taken unchanged from the merged branch carry its proofs; in CI,
+what a merge adds is judged as part of the pull request's net change. To update a branch, merge
 rather than rebase: rebasing invalidates proofs.
 
 ## 6. `pocp doctor`

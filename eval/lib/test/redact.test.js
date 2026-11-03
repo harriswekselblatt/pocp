@@ -34,7 +34,15 @@ test('text without paths is left alone', () => {
 });
 
 test('no committed eval result holds a personal path', () => {
-  const files = execFileSync('git', ['-C', POCP_ROOT, 'ls-files', '-z', 'eval/results'], { encoding: 'utf8' }).split('\0').filter(Boolean);
+  // Committed files when this is a git checkout; every file when it's an export with no .git
+  // (verify re-runs checks that way), which is a superset.
+  let files;
+  try {
+    files = execFileSync('git', ['-C', POCP_ROOT, 'ls-files', '-z', 'eval/results'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\0').filter(Boolean);
+  } catch {
+    const walk = (d) => fs.readdirSync(path.join(POCP_ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+    files = walk('eval/results');
+  }
   const bad = [];
   for (const f of files) {
     const full = path.join(POCP_ROOT, f);

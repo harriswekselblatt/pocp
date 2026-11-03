@@ -1,0 +1,174 @@
+{
+  "commits": [
+    {
+      "sha": "4aa34dcab4e06b542be5ec7289b2916fec5ce531",
+      "tree": "7516529da30b81c1549db4e5c13a83a1ae9f0615",
+      "parents": [
+        "20c68eac04a7e99ef863ba01f621403b77ae3862"
+      ],
+      "subject": "Implement min_operations_to_rearrange using BFS on stone arrangement state space",
+      "at": 1793329714,
+      "action": "commit",
+      "by": "agent",
+      "through_hooks": true,
+      "in_final_history": true
+    }
+  ],
+  "blocked_hook_runs": [
+    {
+      "at": 1793329542,
+      "exit": 1,
+      "tree": "25c413b16934b4ba4d83d07960b847c35f728a15",
+      "gate": {
+        "decision": "blocked",
+        "subject": "sha256:047457f5ce945df5066b8dbd36c954687e4c28bfc43ee3a1b972bc5bef9068a1",
+        "required": 1,
+        "uncovered": 1,
+        "packets": []
+      },
+      "reason": "uncovered"
+    }
+  ],
+  "gate_log": [
+    {
+      "at": "2026-10-30T03:05:42.500Z",
+      "source": "hook",
+      "decision": "blocked",
+      "subject": "sha256:047457f5ce945df5066b8dbd36c954687e4c28bfc43ee3a1b972bc5bef9068a1",
+      "required": 1,
+      "uncovered": 1,
+      "packets": []
+    },
+    {
+      "at": "2026-10-30T03:05:45.360Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:047457f5ce945df5066b8dbd36c954687e4c28bfc43ee3a1b972bc5bef9068a1",
+      "required": 1,
+      "uncovered": 1,
+      "packets": []
+    },
+    {
+      "at": "2026-10-30T03:05:45.686Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:047457f5ce945df5066b8dbd36c954687e4c28bfc43ee3a1b972bc5bef9068a1",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": false,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:05:46.605Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:047457f5ce945df5066b8dbd36c954687e4c28bfc43ee3a1b972bc5bef9068a1",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": false,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:05:46.813Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:047457f5ce945df5066b8dbd36c954687e4c28bfc43ee3a1b972bc5bef9068a1",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": false,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:05:47.020Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:047457f5ce945df5066b8dbd36c954687e4c28bfc43ee3a1b972bc5bef9068a1",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": false,
+          "failed": 1
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:08:30.171Z",
+      "source": "fix",
+      "decision": "blocked",
+      "subject": "sha256:48f1c06a87a7dbdfdee308566ed03d77f9dc85bc96fb26f49bf6ea20127d454a",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": false,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:08:31.558Z",
+      "source": "fix",
+      "decision": "pass",
+      "subject": "sha256:48f1c06a87a7dbdfdee308566ed03d77f9dc85bc96fb26f49bf6ea20127d454a",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": true,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:08:31.757Z",
+      "source": "fix",
+      "decision": "pass",
+      "subject": "sha256:48f1c06a87a7dbdfdee308566ed03d77f9dc85bc96fb26f49bf6ea20127d454a",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": true,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "at": "2026-10-30T03:08:34.784Z",
+      "source": "hook",
+      "decision": "pass",
+      "subject": "sha256:48f1c06a87a7dbdfdee308566ed03d77f9dc85bc96fb26f49bf6ea20127d454a",
+      "required": 1,
+      "uncovered": 0,
+      "packets": [
+        {
+          "id": "p-c6b48560",
+          "ok": true,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "hooks_modified": false,
+  "hooks_path": null
+}

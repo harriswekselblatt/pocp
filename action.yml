@@ -9,31 +9,27 @@ inputs:
     required: false
     default: ''
   rerun:
-    description: "Re-run mode: all, unsigned (skip proofs signed by a trusted key), or none."
+    description: "Re-run mode: all (verify runs every required check itself; the default), unsigned (skip proofs signed by a key in .proof/allowed_signers), or none."
     required: false
-    default: 'unsigned'
+    default: 'all'
   ci-results:
-    description: Path to a results file written by `pocp ci-run` earlier in the job; checks with a passing result for the same code and command aren't re-run.
+    description: "Faster, trusting mode. Path to a results file written by `pocp ci-run` earlier in the job; checks with a passing result for the same code and command aren't re-run. This trusts everything that ran in the job before verify: a new test in the pull request can append a passing result for any check. Leave empty (the default) to re-run every check."
     required: false
     default: ''
   accept-policy-change:
-    description: Set to 'true' only when a maintainer approved loosening .proof/ rules or signers (for example with a label).
+    description: "'true' only when a maintainer approved loosening .proof/ rules or signers (for example with a label), or the head commit's sha that approval was given for: a sha approves only that head, never a later push."
     required: false
     default: 'false'
   accept-test-change:
-    description: Set to 'true' only when a maintainer approved changes to existing tests or test setup (separate from policy approval).
+    description: "'true' only when a maintainer approved changes to existing tests or test setup (separate from policy approval), or the head commit's sha that approval was given for: a sha approves only that head, never a later push."
     required: false
     default: 'false'
   require-coverage:
     description: Fail commits whose changed files needed a packet but had none.
     required: false
     default: 'true'
-  pocp-version:
-    description: "npm version of pocp to run instead of the copy bundled with this action. Leave empty to use the bundled copy, which is pinned by the ref you use the action at (uses: harriswekselblatt/pocp@<commit>)."
-    required: false
-    default: ''
   pocp-command:
-    description: Command to run pocp with, instead of npx (for example "node bin/pocp.js" when testing pocp itself).
+    description: "Command to run pocp with, instead of the copy bundled with this action (for example: node verifier/bin/pocp.js). The bundled copy is pinned by the ref you use the action at (uses: harriswekselblatt/pocp@<commit>)."
     required: false
     default: ''
 runs:
@@ -48,16 +44,14 @@ runs:
         ACCEPT_POLICY: ${{ inputs.accept-policy-change }}
         ACCEPT_TESTS: ${{ inputs.accept-test-change }}
         COVERAGE: ${{ inputs.require-coverage }}
-        VERSION: ${{ inputs.pocp-version }}
         POCP_CMD: ${{ inputs.pocp-command }}
       run: |
         args=(verify "$RANGE")
         [ "$RERUN" = "all" ] && args+=(--rerun)
         [ "$RERUN" = "unsigned" ] && args+=(--rerun-unsigned)
         [ -n "$CI_RESULTS" ] && args+=(--ci-results "$CI_RESULTS")
-        [ "$ACCEPT_POLICY" = "true" ] && args+=(--accept-policy-change)
-        [ "$ACCEPT_TESTS" = "true" ] && args+=(--accept-test-change)
+        [ -n "$ACCEPT_POLICY" ] && [ "$ACCEPT_POLICY" != "false" ] && args+=("--accept-policy-change=$ACCEPT_POLICY")
+        [ -n "$ACCEPT_TESTS" ] && [ "$ACCEPT_TESTS" != "false" ] && args+=("--accept-test-change=$ACCEPT_TESTS")
         [ "$COVERAGE" = "true" ] && args+=(--require-coverage)
         if [ -n "$POCP_CMD" ]; then $POCP_CMD "${args[@]}"
-        elif [ -n "$VERSION" ]; then npx --yes "pocp@$VERSION" "${args[@]}"
         else node "$GITHUB_ACTION_PATH/bin/pocp.js" "${args[@]}"; fi

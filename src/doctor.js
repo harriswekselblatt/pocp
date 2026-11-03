@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as g from './git.js';
 import { matchGlob } from './glob.js';
-import { hooksHealth } from './init.js';
+import { hooksHealth, INSTALL_HINT } from './init.js';
 import { requiredChecksPlan } from './ci-github.js';
 import { validateRules } from './rules.js';
 import { validateConfig } from './store.js';
@@ -98,13 +98,27 @@ export async function runDoctor(engine, { base, offline = false } = {}) {
 
   // 2. Hooks installed and able to find pocp.
   const h = hooksHealth(root);
+  const broken = Object.entries(h.hooks).filter(([, st]) => st === 'broken' || st === 'never runs');
   if (!h.installed) add({ id: 'hooks', status: 'problem', what: 'git hooks are not installed', why: 'without them nothing checks a commit until CI, where fixing it means rewriting pushed commits', fix: 'pocp hooks install' });
-  else if (h.problems.length) add({ id: 'hooks', status: 'problem', what: h.problems.join('; '), why: 'git skips a hook that is missing or not executable', fix: 'pocp hooks install' });
+  else if (broken.length) {
+    // Hooks an older pocp appended to: a node/python hook (syntax error), or one that ends in exec.
+    add({
+      id: 'hooks',
+      status: 'problem',
+      what: h.problems.join('; '),
+      why: broken.some(([, st]) => st === 'broken')
+        ? "pocp's block is shell, and the hook runs with another interpreter"
+        : 'the existing hook hands over to another program (or exits) before reaching pocp, so the gate is silently off',
+      fix: `pocp hooks install (it moves the original hook to <hook>.pre-pocp and chains it: the original runs first, then pocp)`,
+    });
+  } else if (h.problems.length) add({ id: 'hooks', status: 'problem', what: h.problems.join('; '), why: 'git skips a hook that is missing or not executable', fix: 'pocp hooks install' });
   else {
-    const found = process.env.POCP_BIN || spawnSync('sh', ['-c', 'command -v pocp'], { cwd: root, encoding: 'utf8' }).stdout.trim() || (fs.existsSync(path.join(root, 'node_modules', '.bin', 'pocp')) ? 'node_modules/.bin/pocp' : '');
+    // The order the hooks use: POCP_BIN, the project's own copy, then PATH.
+    const local = fs.existsSync(path.join(root, 'node_modules', '.bin', 'pocp')) ? 'node_modules/.bin/pocp' : '';
+    const found = process.env.POCP_BIN || local || spawnSync('sh', ['-c', 'command -v pocp'], { cwd: root, encoding: 'utf8' }).stdout.trim();
     add(found
       ? { id: 'hooks', status: 'ok', what: `hooks installed in ${path.relative(root, h.dir) || h.dir}; they run ${found.startsWith('/') ? 'pocp from PATH' : found}` }
-      : { id: 'hooks', status: 'problem', what: 'hooks are installed but cannot find pocp', why: 'each commit would fail with "pocp: not found"', fix: 'npm i -D pocp, put pocp on PATH, or set POCP_BIN' });
+      : { id: 'hooks', status: 'problem', what: 'hooks are installed but cannot find pocp', why: 'each commit would fail with "pocp: not found"', fix: `${INSTALL_HINT}, put pocp on PATH, or set POCP_BIN` });
     if (g.git(root, ['rev-parse', '--git-common-dir']) !== g.git(root, ['rev-parse', '--git-dir'])) {
       add({ id: 'hooks-shared', status: 'warning', what: 'this is a linked worktree: git hooks are shared by every checkout of the repository', why: 'checkouts without .proof/rules.json are left alone, so this is safe, but every checkout that has adopted POCP is gated' });
     }

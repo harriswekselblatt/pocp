@@ -317,7 +317,36 @@ A check can be hollowed out without touching its command: gut the assertions in 
 existing test, add `.skip`, or change `"test": "…"` in `package.json` to `echo ok`. POCP
 treats these changes as guarded:
 
-- existing test files modified, deleted or renamed (added test files are fine);
+- existing test files modified, deleted or renamed (added test files are fine). The default
+  test patterns cover the common layouts of JavaScript/TypeScript (`test/`, `spec/`,
+  `__tests__/`, `*.test.*`, `*.spec.*`, `*_spec.*`, snapshots, `__mocks__/`), Python
+  (`tests/`, `test_*.py`, `*_test.py`), Ruby (`spec/`, `*_spec.rb`, `*_test.rb`), Go
+  (`*_test.go`, `testdata/`), Rust (`tests/`), Java/Kotlin/Scala (`src/test/`,
+  `src/androidTest/` and the other `src/*Test/` source sets, `*Test.java`, `*IT.java`), C#
+  (`*Tests.cs`, `*.Tests/`) and PHP (`*Test.php`), at the root or inside a package. `pocp init`
+  writes test folders it finds declared elsewhere (pytest `testpaths`, jest `roots`, rspec
+  `--default-path`, phpunit test suites, Maven `testSourceDirectory`, Cargo `[[test]]`) to
+  `guard.extra_test_globs`;
+- the `#[cfg(test)]` items at the top level of a Rust file (usually `mod tests { … }`): only
+  that part of the file is compared and, in the mechanical check, restored, so the code beside
+  it stays new. A file declared as `#[cfg(test)] mod name;` is test code as a whole. Not seen:
+  a `#[cfg(test)]` item nested inside another module, and `#[test]` functions outside one;
+- test helpers: files the tests import, followed transitively (up to 6 imports deep and 5,000
+  files read per revision), when they aren't the code the required checks guard. A helper
+  whose assertion can't fail hollows every test that calls it, so changing one is a test
+  change and the mechanical check runs the old helper with the old tests on the new code.
+  Imports are read without running anything: relative JavaScript/TypeScript imports, Python
+  imports, Ruby `require`/`require_relative`, Go imports within the module, Java/Kotlin/Scala
+  imports, PHP `require`/`include` and shell `source`. A file a required check guards (by
+  the rules in force or the base's rules) counts as code (not a helper) unless it looks like test support (a `testing/`, `test-utils/`,
+  `testkit`, `mocks/` path, or a test-framework or assertion-library import such as `node:assert`,
+  `chai`, `should`, `power-assert`, `uvu/assert`, `pytest`, `unittest`) or is used as it: at the
+  base, a test imports it directly next to other guarded code, no test file is named after it,
+  and it imports no guarded code. A file used as test support is restored like a helper but
+  stays where mutants are planted, since that reading of the imports can mistake a module under
+  test for one. A file the code under check imports at the base counts as code in every case.
+  With no required check, only files that look like test support are helpers.
+  Not followed: build-tool aliases (tsconfig `paths`), C# namespaces, Rust `use`;
 - test-runner configuration (`jest.config.*`, `vitest.config.*`, `vite.config.*`, `.mocharc*`,
   `pytest.ini`, `conftest.py`, `.npmrc`, …);
 - the test settings inside files that also hold other things: the `scripts`, `jest`, `mocha`,
@@ -329,10 +358,12 @@ treats these changes as guarded:
   `require`, `testEnvironment`, `reporters`, …), and tracked files a required check's command
   names (`node --import ./setup.mjs`, `bash scripts/check.sh`), following the package scripts
   it runs (`npm test` → `scripts.test`, with `pretest`/`posttest`). A file the requirement
-  itself guards is what the check checks (`node --check src/a.js`), not setup. A runner
-  config's imports are not followed.
+  itself guards is what the check checks (`node --check src/a.js`), not setup, unless the
+  command executes it (the program of a command, the first file after an interpreter such as
+  `node` or `python`, every file after a test runner such as `pytest`, `rspec` or
+  `node --test`) or it matches a test pattern. A runner config's imports are not followed.
 
-Defaults cover common JavaScript, Python, Rust and PHP harness files. `guard.test_globs` and
+Defaults cover common JavaScript, Python, Ruby, Rust, PHP, JVM and .NET harness files. `guard.test_globs` and
 `guard.runner_globs` replace the defaults; `guard.extra_test_globs` and
 `guard.extra_runner_globs` add to them, for harnesses POCP can't know about (a Makefile
 target, a Gradle task, a custom script). Added, modified, deleted and renamed runner files
@@ -367,7 +398,8 @@ runnable obligations. Every run below is in its own fresh copy of the code.
    guarded by those checks' requirements, never in tests or runner config. Sites on lines
    the change touched, and in files the changed tests import, come first; other guarded sites
    fill the rest of the budget (`guard.mutants`, default 10). The sample is drawn with
-   `guard.seed` (default 1), so the same code always gets the same sample. Each mutant runs
+   `guard.seed` (default 1), so the same code always gets the same sample (in CI, a seed derived
+   from it and the range; see *The seed in CI*). Each mutant runs
    with the old tests (checks fastest first, stopping at the first that catches it); each
    mutant the old tests catch then runs with the new tests. Every mutant the old tests catch,
    the new tests must catch too (which implies they catch at least as many). Otherwise the
@@ -450,12 +482,29 @@ keyed by the subject, base, guarded changes, checks, source globs, budget and se
 another packet over the same change reuses it; `--force` runs it again. `verify` never reads
 that cache: in CI, the baseline reuses a passing re-run by the same `verify` or a `ci-run`
 result for the same commit, subject and command (never one with `expect`), and the range's
-head re-run reuses the baseline the guard ran on the head commit.
+head re-run reuses the baseline the guard ran on the head commit. The net change's check (§7.2) reuses
+the head re-run as its new-code baseline.
 
 **In CI.** `verify --rerun` (and `--rerun-unsigned`, for unsigned guard proofs) runs the
 check again from the commit and its parent alone, with the policy in force (§7.2), so its
 budget and seed can't be loosened by the change. For a range, it runs per commit with a test
-change. A re-run that fails where the packet claimed a pass is `rerun_failed`.
+change, and once on the range's net change (§7.2): old tests and test setup from the merge
+base, new code and tests from the head, merges included. Judging each commit alone would let
+a change split "drop an assertion" (code unchanged, so the guard passes) from "add the bug the
+assertion caught" (no test changed, so no guard), or hide either in a merge commit. A re-run
+that fails where the packet claimed a pass is `rerun_failed`.
+
+**The seed in CI.** For checks that judge a pull request (the net change, or the single
+commit of a one-commit range), verify doesn't use `guard.seed` as is: it derives the seed
+from `guard.seed`, the merge base and the head (the first 8 hex digits of
+`sha256("pocp-guard-seed\0<seed>\0<base>\0<head>")`, masked to 31 bits). A sample fixed in advance (`guard.seed` alone) lets an agent looping locally
+learn exactly which mutants it must keep catching; the derived seed is not the one `prove`
+used, and it changes with every new head. It is still a pure function of the range, so a
+verify re-run on the same range draws the same sample, and the seed is recorded (`net.seed`,
+`detection.seed`, and in the re-run's name). It is not secret: an author who knows the base
+can compute it for a candidate head, and could try heads until the sample misses what the
+change weakened, paying a full guard run per try. Part 1 (old tests on the new code) doesn't
+depend on the seed at all.
 
 Packets made before this check carry a free-text `manual` sign-off instead. `verify` still
 accepts it for those commits, as an attestation, and says so.
@@ -507,8 +556,17 @@ Lines written before `source` existed have none; readers treat them as unknown. 
 installed by an older pocp don't set the variable, so their lines say `gate` until
 `pocp hooks install` is run again.
 
-**Hooks without pocp.** If a hook can't find pocp (`POCP_BIN`, `pocp` on `PATH`, or
-`node_modules/.bin/pocp`), pre-commit fails closed: it is the gate. prepare-commit-msg and
+**Existing hooks.** `pocp hooks install` keeps hooks that are already there. A plain sh hook
+gets pocp's block appended. A hook pocp can't safely append to (one with a non-shell
+shebang such as node or python, where the block would be a syntax error, or one that uses
+`exec` or `exit`, where the block might never run) is chained: it moves to
+`<hook>.pre-pocp` and pocp installs a hook that runs it first (so formatters see the commit
+first; a failure still stops it), then pocp's step. Reinstalling changes nothing, and
+`pocp hooks uninstall` moves the original back. Hooks an older pocp appended to such a hook
+are reported by `pocp hooks status` and `pocp doctor`, and repaired by `pocp hooks install`.
+
+**Hooks without pocp.** The hooks look for pocp in `POCP_BIN`, then the project's own
+`node_modules/.bin/pocp`, then `PATH`. If none is found, pre-commit fails closed: it is the gate. prepare-commit-msg and
 post-commit also run under `git commit --no-verify`; they print a warning and exit 0, since
 they only add trailers and record landings. A commit made that way carries no proof
 trailers, and `verify --require-coverage` in CI flags it if it needed coverage.
@@ -516,7 +574,8 @@ trailers, and `verify --require-coverage` in CI flags it if it needed coverage.
 **Merges.** While a merge is in progress (`MERGE_HEAD`), a staged file that matches a
 commit being merged in came from that branch and carries its proofs; the gate judges only
 files that differ from `HEAD` and from every merged commit (conflict resolutions and edits
-made while merging). Verify skips merge commits, so this is still stricter than CI.
+made while merging). Verify doesn't check merge commits one by one; it judges what a merge
+adds as part of the range's net change (§7.2).
 
 **Every block explains itself.** The result carries `remedies`, in order, each
 `{ code, what, why, next, by }`: `by` is `pocp fix` (a mechanical step), `agent` (the author
@@ -568,7 +627,44 @@ The trailer is a pointer, not proof. Anyone can type one.
 4. Every proof's obligation digest matches the obligation in the packet, and every
    runnable obligation has a passing proof for this commit's subject hash.
 
-`pocp verify <base>..<head>` checks every non-merge commit in a range.
+`pocp verify <base>..<head>` checks every non-merge commit in a range, and then the range
+as a whole (below).
+
+**The net change of a range.** A pull request is also judged as one change: its *net
+change*, from the merge base of `<base>` and `<head>` to `<head>`, merges included. The test
+guard (§6.2) and, with `--require-coverage`, coverage run on it, so splitting a test change
+and a code change across commits, or making either inside a merge commit, gives the same
+verdict as making them in one commit. The old tests and test setup come from the merge base,
+the new code and tests from the head. Starting at the merge base (not `<base>` itself) means
+changes the branch took from main by merging it are not the branch's; anything a merge commit
+adds beyond its parents (a conflict resolution, an edit made while merging) is. The result is
+reported as `net` (shaped like a commit's result, with `kind: "net"`, `base`, `merges`,
+`seed`, `test_guard`, `coverage` and `findings`); its findings use the same codes and
+`verify.fail_on` as a commit's, and it fails the range like a failing commit. Findings of the
+range itself (a re-run at the head that fails, `rerun_failed`; required CI results that can't
+be checked, `ci_missing`) are in the range's own `findings`, with `code`, `detail` and
+`blocking` like a commit's; `rerun_failures` lists the failed re-runs the same way.
+
+- *Test guard.* Computed by verify itself, like a re-run; nothing in it comes from the
+  author, so no proof or signature can stand in for it. In block mode, a net test change
+  passes only on this verify's own mechanical re-run (`--rerun` or `--rerun-unsigned`),
+  using checks a rule requires for the net change; without a re-run, or when no rule requires
+  a check covering the changed tests, it is `test_change` (fails closed).
+  `--accept-test-change` accepts it, as for a commit. In attest mode, a re-run that doesn't
+  pass needs a current sign-off on a guard obligation naming each changed file, from some
+  packet in the range; without `--rerun` it is a warning (attest mode accepts local results).
+  In warn mode it is only reported.
+- *Coverage.* Files the net change makes required must be covered by some packet in the
+  range. Files a commit already reported are not repeated.
+- *Merge at the head.* When `<head>` is a merge commit, no per-commit result saw the final
+  policy, so the net change is also checked for policy loosening (base against head) and for
+  CI definition files that only a merge changed (`ci_config_changed`).
+- *One plain commit on the merge base* is its own net change: it is checked once, as a commit,
+  and `net` is absent.
+
+verify writes one commit object (the head's tree with the merge base as its only parent) to
+the object store to compute this; no ref points to it, and its identity and date are fixed,
+so the same range always gives the same object. If that fails, verify fails.
 
 **Policy comes from the base.** A commit is judged by its base's rules (by default its
 parent; for a range, the range's base; or `--policy-from <rev>`), combined with the
@@ -579,18 +675,26 @@ sides have them). If the commit loosens the policy (removes or changes a require
 drops a glob from a requirement, raises a threshold, removes a protected path, adds an
 exemption, or adds a key to `allowed_signers`), verify fails and names each loosening, unless run with
 `--accept-policy-change`, which CI should pass only when a maintainer has approved
-(for example, a PR label). Trusted signers also come from the base, or from
+(for example, a PR label). `--accept-policy-change=<commit>` (and likewise
+`--accept-test-change=<commit>`) approves only when the head being verified is that commit. Trusted signers also come from the base, or from
 `--allowed-signers <file>`, never from the commit being judged.
 
-**Re-running.** With `--rerun`, every runnable obligation runs again in a clean checkout.
+**Re-running.** With `--rerun`, every runnable obligation runs again, each in its own fresh
+copy of the commit's files with no `.git`, and so does each `verify.require_ci` command that
+no obligation covered.
 With `--rerun-unsigned`, obligations whose current proof is validly signed by a trusted
 signer (§5.5) are not re-run. With `--ci-results <file>`, a check is also skipped when the
 file holds a passing `ci-result` record (written by `pocp ci-run`, §7.3) whose subject hash
 equals the commit being re-run and whose command equals the obligation's `run`; checks
-with `expect` are always re-run. POCP thereby adds to CI without running anything twice. For a range, digests, coverage and signatures are checked
-per commit (nothing runs), and re-runs happen **once**, at the head of the range, for the
-union of checks across the range. Only a re-run, or a proof signed by someone you trust,
-counts as an independent result.
+with `expect` are always re-run. Such a record is only as trustworthy as everything that ran
+in the job before verify, including the change's own tests, which can write the file. For a
+range, digests, coverage and signatures are checked per commit (nothing runs), and re-runs
+happen **once**, at the head of the range (the range's right side, even when it is a merge
+commit), for the union of checks across the range plus the checks the rules require for the
+net change. When the head is a merge commit, no signature covers its code, so
+`--rerun-unsigned` re-runs everything there. The test guard re-runs per commit with a test
+change, and once more on the net change. Only a re-run, or a proof signed by someone you
+trust, counts as an independent result.
 
 **Fails closed.** If `rules.json` or `config.json` at the commit or at its base doesn't
 parse, or doesn't validate (§6, `validateConfig`), verify fails and names each problem.
@@ -611,8 +715,8 @@ base, strictly combined with the commit), so narrowing it is itself a loosening.
 **Required CI results.** `verify.require_ci` lists commands that need a passing result for
 the exact subject being verified: the latest `ci-result` (§7.3) for that command, or a passing
 re-run of the same command by this verify. It fails closed: with neither, every required
-command is `ci_missing`. For a range it is checked at the head only, where CI ran, after the
-range's re-runs. A latest result that failed is `ci_failed`.
+command is `ci_missing`. For a range it is checked at the head only (for the head's subject, also
+when the head is a merge commit), where CI ran, after the range's re-runs. A latest result that failed is `ci_failed`.
 
 **CI definitions.** Files matching `ci.files` (default: GitHub workflows and actions, GitLab,
 CircleCI, Jenkins, Azure, Bitbucket, Buildkite, Drone, Woodpecker) can switch POCP off in CI.
@@ -892,10 +996,11 @@ All are thin wrappers around `pocp gate --json` and friends.
 - **Coding agents:** any harness with pre-edit or pre-commit hooks calls `pocp gate --json`
   and shows the reasons to the agent. A pre-edit hook can require a packet before files
   matching `triggers.globs` are edited. Examples are provided for common harnesses.
-- **CI:** wrap the test step in `pocp ci-run --results ci.jsonl -- <command>`, then
-  `pocp verify base..head --require-coverage --rerun-unsigned --ci-results ci.jsonl` checks
-  every commit in a pull request against the base policy and re-runs only what neither a CI
-  result nor a trusted signer already covered.
+- **CI:** `pocp verify base..head --require-coverage --rerun` checks every commit in a pull
+  request against the base policy and re-runs every check at the head. A faster, trusting
+  mode wraps the test step in `pocp ci-run --results ci.jsonl -- <command>` and adds
+  `--ci-results ci.jsonl`; it trusts everything that ran earlier in the job, which includes
+  the pull request's tests.
 
 ## 13. Trust and security
 

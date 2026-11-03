@@ -1,0 +1,276 @@
+{
+  "pocp": 1,
+  "id": "p-b195018b",
+  "intent": "Workflow: pass the coverage approval only to a verifier that supports it; strip the label on every push",
+  "touches": [
+    ".github/workflows/pocp-labels.yml",
+    ".github/workflows/pocp.yml",
+    "bench/tamper/lib/edits.js",
+    "test/workflow-approvals.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "bench/tamper/lib/edits.js"
+      ],
+      "mutants": 10,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (bench/tamper/lib/edits.js): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-02T17:06:11.108Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:0c2cc6b99e18f8b605adfa87397c0138711acbe5f20c9c5409ce700f8c359ce7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T17:06:11.392Z",
+      "duration_ms": 1361,
+      "stdout_sha256": "763fe6c8c0577e8868fa4ecb96f50532719d6b5be6ac6fcbe16b8d61f2bb6bd5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-1a8af5d1",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:0c2cc6b99e18f8b605adfa87397c0138711acbe5f20c9c5409ce700f8c359ce7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T17:06:12.791Z",
+      "duration_ms": 19269,
+      "stdout_sha256": "69b75ec059f39e69033e63450c5c31e5327d2a88d9b1931723432992c464fe71",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-a7ed732b",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:0c2cc6b99e18f8b605adfa87397c0138711acbe5f20c9c5409ce700f8c359ce7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T17:06:32.098Z",
+      "duration_ms": 187008,
+      "stdout_sha256": "11cdbe7333f0139534836cd3ea6fe431f65ff0049d4a7ab4c5184866100f36c1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-fd5a2f92",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:fef5b22b4c74b211c19cef61d690687f8326aca595ae83cbb0d89147701cc8a2",
+      "subject": "sha256:0c2cc6b99e18f8b605adfa87397c0138711acbe5f20c9c5409ce700f8c359ce7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-02T17:09:39.160Z",
+      "duration_ms": 721754,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: bench edits: POCP steps are removed from both shipped workflows: behavior changed, so a person must approve it",
+        "base": "ac4764fd871c251223cf79269d8d64935d374c65",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "bench/tamper/lib/edits.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 1443
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 19277
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 284791,
+              "failed_tests": [
+                "bench edits: POCP steps are removed from both shipped workflows"
+              ]
+            }
+          ],
+          "left_out": [
+            "test/workflow-approvals.test.js"
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 189621
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 10,
+          "seed": 1
+        },
+        "duration_ms": 721754,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-02T17:06:11.108Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-02T17:06:11.108Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-02T17:21:41.257Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:0c2cc6b99e18f8b605adfa87397c0138711acbe5f20c9c5409ce700f8c359ce7"
+    },
+    {
+      "at": "2026-11-02T17:21:41.525Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "Claude",
+      "subject": "sha256:0c2cc6b99e18f8b605adfa87397c0138711acbe5f20c9c5409ce700f8c359ce7"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:fef5b22b4c74b211c19cef61d690687f8326aca595ae83cbb0d89147701cc8a2",
+      "subject": "sha256:0c2cc6b99e18f8b605adfa87397c0138711acbe5f20c9c5409ce700f8c359ce7",
+      "by": "Claude",
+      "at": "2026-11-02T17:21:41.525Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: bench edits: POCP steps are removed from both shipped workflows: behavior changed, so a person must approve it"
+    }
+  ]
+}

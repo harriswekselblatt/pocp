@@ -85,8 +85,9 @@ async function benchTarget(target, args) {
     const base = bases[p];
     const all = [];
     const skipped = [];
-    for (const m of found.mutants) {
+    for (const [index, m] of found.mutants.entries()) {
       const built = buildScenarios(m, {
+        index,
         rules: base.rules, config: base.config, target, files: found.files, runner: found.runner,
         excludeConfig: found.excludeConfig, skipSetup: found.skipSetup, workflows,
         packageJson: pkgText ? { text: pkgText, scripts: JSON.parse(pkgText).scripts } : null,
@@ -118,7 +119,7 @@ async function benchTarget(target, args) {
     pocp_commit: (await git(POCP_ROOT, ['rev-parse', 'HEAD'])).slice(0, 12),
     node: process.versions.node,
     seed: args.seed,
-    judge: 'pocp ci-run -- <ci command>; pocp verify <base>..<head> --require-coverage --rerun-unsigned --ci-results <that file>',
+    judge: 'pocp ci-run -- <ci command>; pocp verify <base>..<head> --require-coverage --rerun (forge-ci-in-run also: --rerun-unsigned --ci-results <that file>)',
     mutants: found.mutants.map((m) => ({ file: m.file, line: m.line, op: m.op, killing: m.killing, cheats: Object.fromEntries(Object.entries(m.cheats).map(([k, c]) => [k, { effective: c.effective, rounds: c.rounds }])) })),
     mutant_tries: found.tries,
     profiles,

@@ -1,5 +1,10 @@
 # POCP on GitLab CI. Make the "pocp" job required for merging with
 # Settings → Merge requests → "Pipelines must succeed".
+#
+# verify judges the merge request by the target branch's rules and re-runs every required
+# check itself (--rerun), each in a fresh copy of the commit with no .git. Nothing from the
+# merge request runs before it starts. The re-runs are the merge request's code, running in
+# this job as the same user: see docs/THREAT-MODEL.md for what that does and doesn't allow.
 pocp:
   image: node:22
   rules:
@@ -8,14 +13,19 @@ pocp:
     GIT_DEPTH: 0                      # verify reads the whole range of commits
     POCP_REF: "<commit-sha>"          # pin the POCP commit you run
   script:
-    # ▶ Install your toolchain, then wrap your test command:
-    - npx --yes "github:harriswekselblatt/pocp#${POCP_REF}" ci-run --results ci-results.jsonl -- make test
+    # ▶ Install your toolchain and dependencies (without running install scripts where you can).
     - >
-      npx --yes "github:harriswekselblatt/pocp#${POCP_REF}" verify "$CI_MERGE_REQUEST_DIFF_BASE_SHA..$CI_COMMIT_SHA"
-      --require-coverage --rerun-unsigned --ci-results ci-results.jsonl
-      ${POCP_ACCEPT_POLICY:+--accept-policy-change} ${POCP_ACCEPT_TESTS:+--accept-test-change}
-# ci-run runs the merge request's code before verify, in the same job. For an independent
-# check, add a job that runs only `verify ... --require-coverage --rerun` (no ci-run, no
-# --ci-results) and make that one required; see docs/THREAT-MODEL.md.
-# Approvals: a maintainer sets POCP_ACCEPT_POLICY / POCP_ACCEPT_TESTS (protected CI
-# variables, or a manual job) after reviewing a change that loosens rules or edits tests.
+      npx --yes "github:harriswekselblatt/pocp#${POCP_REF}" verify --rerun --require-coverage
+      "$CI_MERGE_REQUEST_DIFF_BASE_SHA..$CI_COMMIT_SHA"
+      --accept-policy-change="${POCP_ACCEPT_POLICY:-false}" --accept-test-change="${POCP_ACCEPT_TESTS:-false}"
+# Approvals: after reviewing a change that loosens rules or edits existing tests, a maintainer
+# runs a new pipeline for the merge request (Build → Pipelines → Run pipeline, on the source
+# branch) with POCP_ACCEPT_POLICY or POCP_ACCEPT_TESTS set to the head commit's sha they
+# reviewed. A sha approves only that head: a later push needs a new approval. Restrict who can
+# set pipeline variables to maintainers (Settings → CI/CD → Variables → "Minimum role to use
+# pipeline variables"). Don't use a project-level CI/CD variable: it would apply to every
+# merge request.
+#
+# Faster, but trusting: wrap your test step in `pocp ci-run --results ci-results.jsonl -- <cmd>`
+# before verify and add `--ci-results ci-results.jsonl`. Anything that runs earlier in the job,
+# such as a new test file, can then write a passing result for any check.

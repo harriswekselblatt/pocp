@@ -199,6 +199,14 @@ export function summarize(r) {
 }
 
 /** Run a batch. Throws Refusal when the batch may not run. */
+// The agent's account ran out of usage. Every later run would fail the same way, so the batch stops.
+const USAGE_LIMIT = /(hit|reached|exceeded) (your |the )?(weekly |daily |monthly |5-hour |usage )?(limit|quota)|usage limit|rate[ -]?limit|quota exceeded|\b429\b/i;
+export function usageLimitHit(rec) {
+  if (rec?.status !== 'agent-error') return false;
+  const a = rec.outcome?.agent || {};
+  return USAGE_LIMIT.test(`${a.error || ''} ${a.result_text || ''} ${a.final_text || ''}`);
+}
+
 export async function runBatch(input) {
   const opts = { ...DEFAULTS, ...input };
   const evalName = opts.eval;
@@ -299,13 +307,19 @@ export async function runBatch(input) {
   const todo = units.filter((u) => !done.has(runId({ batch: opts.batch, eval: evalName, split, task: u.task.task_id, agent: agentName(u.agent), arm: u.arm, seed: opts.seed })));
   const shellEnv = agentShellEnv(path.join(work, 'agent-shell'));
   const ctx = { opts, batch: opts.batch, phase, evalName, split, frozen, prompt, canary, agentsInfo, copy, work, basePins: { ...ctxPins, agent_shell: { SHELL: process.env.SHELL || null, ZDOTDIR: 'empty (per batch)' } }, invalidReason, shellEnv };
-  const records = await pool(todo, opts.concurrency, async (u) => {
+  let stopped = null;
+  const records = (await pool(todo, opts.concurrency, async (u) => {
+    if (stopped) return null; // not started, not recorded: a resumed batch picks it up
     const r = await runOne(u, ctx);
     if (opts.log) opts.log(`${r.unit.task} ${r.unit.agent} ${r.unit.arm}: ${JSON.stringify(summarize(r))}`);
+    if (!stopped && usageLimitHit(r)) {
+      stopped = `stopped: the agent hit a usage limit (${r.unit.agent}, ${r.unit.task} ${r.unit.arm}); later runs were not started. Resume this batch after the limit resets.`;
+      if (opts.log) opts.log(stopped);
+    }
     return r;
-  });
+  })).filter(Boolean);
   if (!opts.work && !opts.keep) removeTree(work);
-  return { phase, invalidReason, canary, records, skipped: units.length - todo.length, file: recFile, work };
+  return { phase, invalidReason, canary, records, stopped, skipped: units.length - todo.length, file: recFile, work };
 }
 
 function parseArgs(argv) {
@@ -354,7 +368,7 @@ async function main() {
   try {
     opts = parseArgs(process.argv.slice(2));
     const res = await runBatch({ ...opts, log: (s) => process.stderr.write(`${s}\n`) });
-    process.stdout.write(`${JSON.stringify({ phase: res.phase, invalid_reason: res.invalidReason, canaries: res.canary.ok, ran: res.records.length, skipped: res.skipped, records: path.relative(process.cwd(), res.file) })}\n`);
+    process.stdout.write(`${JSON.stringify({ phase: res.phase, invalid_reason: res.invalidReason, canaries: res.canary.ok, ran: res.records.length, skipped: res.skipped, stopped: res.stopped, records: path.relative(process.cwd(), res.file) })}\n`);
   } catch (e) {
     process.stderr.write(`e1: ${e.message}\n`);
     process.exit(e instanceof Refusal ? 2 : 3);

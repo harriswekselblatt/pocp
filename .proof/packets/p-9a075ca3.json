@@ -1,0 +1,75 @@
+{
+  "pocp": 1,
+  "id": "p-9a075ca3",
+  "intent": "Cover the tamper bench results file, which the PR's net change requires (broad and cross-area triggers)",
+  "touches": [
+    "bench/tamper/results/pocp.json"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/bench-tamper.test.js test/bench-tamper-review.test.js",
+      "source": "author"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-10-30T21:52:12.722Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5eb4579779569faab15da4d9cfa6d2810c44aa370580b0373f585f03eb973303",
+      "subject": "sha256:0096299534ac36c1a882587092d50baf741c768b61174111790346710c1b3bb1",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "node --test test/bench-tamper.test.js test/bench-tamper-review.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T21:52:44.721Z",
+      "duration_ms": 4964,
+      "stdout_sha256": "d1b7e66a8a4f16729cecf93cebc12a364c40091e3a274a3495dffe86f1ae8884",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-dd6ba8b1",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T21:52:12.722Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T21:52:12.722Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T21:52:12.722Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-10-30T21:52:49.724Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:0096299534ac36c1a882587092d50baf741c768b61174111790346710c1b3bb1"
+    }
+  ]
+}

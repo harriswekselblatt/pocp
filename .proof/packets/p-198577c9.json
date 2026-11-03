@@ -1,0 +1,269 @@
+{
+  "pocp": 1,
+  "id": "p-198577c9",
+  "intent": "Runner: a zombie left in the check's process group no longer counts as running (Linux)",
+  "touches": [
+    "src/runner.js",
+    "test/runner-orphans.test.js",
+    "test/runner-zombies.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/runner-orphans.test.js"
+      ],
+      "mutants": 10,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/runner-orphans.test.js): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-10-30T17:12:30.184Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:68ffe820ef9bc5717f8708e2648fec97c02bba8d4d8997bca4843c754893db13",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T17:12:30.311Z",
+      "duration_ms": 1434,
+      "stdout_sha256": "ab53d06c38549df6d203d2dee62b932427a05af810d025722e53d35269dec355",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-14f8fe94",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:68ffe820ef9bc5717f8708e2648fec97c02bba8d4d8997bca4843c754893db13",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T17:12:31.775Z",
+      "duration_ms": 20237,
+      "stdout_sha256": "91d252bbb64c851c9b525e8ee8182ccfe18ba2b806a61818203d27522da2c53e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-dd535016",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:68ffe820ef9bc5717f8708e2648fec97c02bba8d4d8997bca4843c754893db13",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-10-30T17:12:52.042Z",
+      "duration_ms": 176625,
+      "stdout_sha256": "042807411556f3dd4687a1946c216eaafcfd70f820ca628123cf946e510b09cb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-69df3bcb",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:895f8a50ea208a0098922398b75c0baf95e32d3c5e6fcbfd98af3d96ddc6c335",
+      "subject": "sha256:68ffe820ef9bc5717f8708e2648fec97c02bba8d4d8997bca4843c754893db13",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-10-30T17:15:48.717Z",
+      "duration_ms": 1135278,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "baseline-red",
+        "passed": false,
+        "summary": "the old tests already fail at the base (\"npm test --silent\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it",
+        "base": "03d90b8471eabd23db73179ecf2b11be1e38a329",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/runner-orphans.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 1442
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 19917
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 241527
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "fail",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 496551
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 10,
+          "seed": 1
+        },
+        "duration_ms": 1135278,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-10-30T17:12:30.184Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-10-30T17:12:30.184Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-10-30T17:34:44.342Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:68ffe820ef9bc5717f8708e2648fec97c02bba8d4d8997bca4843c754893db13"
+    },
+    {
+      "at": "2026-10-30T17:34:44.437Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "Claude",
+      "subject": "sha256:68ffe820ef9bc5717f8708e2648fec97c02bba8d4d8997bca4843c754893db13"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:895f8a50ea208a0098922398b75c0baf95e32d3c5e6fcbfd98af3d96ddc6c335",
+      "subject": "sha256:68ffe820ef9bc5717f8708e2648fec97c02bba8d4d8997bca4843c754893db13",
+      "by": "Claude",
+      "at": "2026-10-30T17:34:44.437Z",
+      "to": "ci-approval",
+      "reason": "the old tests already fail at the base (\"npm test --silent\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it"
+    }
+  ]
+}

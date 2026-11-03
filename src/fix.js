@@ -92,6 +92,7 @@ export async function runFix(engine, { intent, test, mode, actor } = {}) {
         packets: toProve,
         mode: usedMode || r.mode,
         ran: ran.length,
+        checks: r.packets.reduce((n, p) => n + p.runs.length, 0),
         ms: ran.reduce((a, x) => a + (x.duration_ms || 0), 0),
         failed: r.packets.flatMap((p) => p.runs.filter((x) => x.passed === false || x.failed_before).map((x) => ({ packet: p.id, obligation: x.obligation, log: x.run_id ? `.proof/runs/${x.run_id}.log` : null, before: Boolean(x.failed_before) }))),
       });
@@ -125,8 +126,19 @@ export async function runFix(engine, { intent, test, mode, actor } = {}) {
   if (gate.decision === 'blocked' && gate.unpacketed.length && !actions.some((a) => a.action === 'open' || a.action === 'widen')) {
     needsAgent.unshift({ code: 'no_check', what: `no rule names a check for ${gate.unpacketed.join(', ')}`, why: 'a packet needs at least one check that proves the change.', next: 'pocp fix --test "<command that proves it>"', by: 'agent' });
   }
+  // A failed test-change check handed to CI (now or by an earlier fix on this code) is the
+  // maintainer's to decide, not the author's to fix.
+  const handed = new Set();
+  for (const p of gate.packets || []) {
+    let packet = null;
+    try { packet = engine.loadPacket(p.id); } catch { continue; }
+    for (const ob of packet.obligations || []) if (P.currentDeferral(packet, ob, gate.subject)) handed.add(`${p.id}\0${ob.id}`);
+  }
+  for (const a of actions.filter((x) => x.action === 'defer')) for (const o of a.obligations) handed.add(`${a.packet}\0${o}`);
   for (const a of actions.filter((x) => x.action === 'prove')) {
+    a.handed = a.failed.filter((f) => handed.has(`${f.packet}\0${f.obligation}`)).map((f) => f.obligation);
     for (const f of a.failed) {
+      if (handed.has(`${f.packet}\0${f.obligation}`)) continue;
       needsAgent.unshift({
         code: 'failed_proof',
         what: `${f.obligation} fails on this exact code${f.before ? ' (it failed here before, so it was not run again)' : ''}${f.log ? ` · log ${f.log}` : ''}`,
@@ -162,15 +174,28 @@ function dedupe(list) {
 export function formatFix(r) {
   const lines = [];
   if (r.ok && r.nothing_staged) return 'pocp fix: nothing is staged; stage the change (git add) and run pocp fix again';
+  const onlyTests = r.needs_person.length && r.needs_person.every((x) => x.code === 'test_change');
   const head = r.ok
-    ? r.needs_person.length ? 'pocp fix: ready to commit; CI will need a person (see below)' : 'pocp fix: ready to commit (git commit)'
+    ? r.needs_person.length
+      ? onlyTests ? 'pocp fix: committable now; CI will need a person (a maintainer) to approve the test change' : 'pocp fix: committable now; CI will need a person (see below)'
+      : 'pocp fix: ready to commit (git commit)'
     : r.needs_person.length && !r.needs_agent.length ? 'pocp fix: needs a person' : 'pocp fix: needs you';
   lines.push(head);
   for (const a of r.actions) {
     if (a.action === 'open') lines.push(`  did: opened ${a.packet} for ${a.files.length} file(s) with checks ${a.checks.join(', ') || 'none'}${a.check_from ? ` (check "${a.check}" from ${a.check_from})` : ''}${a.intent ? `; intent "${a.intent}" (pass --intent to say what the change does)` : ''}`);
     else if (a.action === 'widen') lines.push(`  did: widened ${a.packet} to cover ${a.files.join(', ')}${a.checks_added.length ? `; required checks added: ${a.checks_added.join(', ')}` : ''}`);
     else if (a.action === 'sync') lines.push(`  did: added the checks the rules now require to ${a.packets.join(', ')}`);
-    else if (a.action === 'prove') lines.push(`  did: proved ${a.packets.join(', ')} (${a.ran} check(s) run${a.ran ? `, ${Math.round(a.ms / 1000)}s` : '; nothing new to run'}${a.mode === 'snapshot' ? ', snapshot of the staged code' : ''})`);
+    else if (a.action === 'prove') {
+      const extra = `${a.ran ? `, ${Math.round(a.ms / 1000)}s` : ''}${a.mode === 'snapshot' ? ', snapshot of the staged code' : ''}`;
+      if (!a.failed.length) lines.push(`  did: proved ${a.packets.join(', ')} (${a.ran} check(s) run${a.ran ? '' : '; nothing new to run'}${extra})`);
+      else {
+        // Say what passed and what didn't: a failed check is never counted as proved.
+        const handed = a.handed || [];
+        const failing = a.failed.map((f) => f.obligation).filter((o) => !handed.includes(o));
+        const total = Math.max(a.checks ?? a.ran, a.failed.length);
+        lines.push(`  did: proved ${total - a.failed.length} of ${total} check(s) for ${a.packets.join(', ')}${extra ? ` (${extra.slice(2)})` : ''}${handed.length ? `; ${handed.join(', ')} handed to CI` : ''}${failing.length ? `; ${failing.join(', ')} failed` : ''}`);
+      }
+    }
     else if (a.action === 'defer') lines.push(`  did: handed ${a.packet} ${a.obligations.join(', ')} to CI: a maintainer approves the test change there (no sign-off from you)`);
     else if (a.action === 'stage') lines.push(`  did: staged ${a.packets.map((id) => `.proof/packets/${id}.json`).join(', ')}`);
     else if (a.action === 'note') lines.push(`  note: ${a.detail}`);

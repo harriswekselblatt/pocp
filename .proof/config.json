@@ -28,6 +28,28 @@
       "test (macos-latest, 24)"
     ],
     "require_pull_request": true,
-    "enforce_admins": true
+    "enforce_admins": true,
+    "files": [
+      ".github/workflows/**",
+      ".github/actions/**",
+      "action.yml",
+      "action.yaml",
+      ".gitlab-ci.yml",
+      ".gitlab/ci/**",
+      ".circleci/**",
+      "Jenkinsfile",
+      "azure-pipelines.yml",
+      "bitbucket-pipelines.yml",
+      ".buildkite/**",
+      ".drone.yml",
+      ".woodpecker/**",
+      ".woodpecker.yml",
+      "eval/tasks/frozen/**",
+      "eval/reference/**",
+      "eval/lib/**",
+      "eval/PREREG.md",
+      "eval/**",
+      "docs/EVAL-PLAN.md"
+    ]
   }
 }

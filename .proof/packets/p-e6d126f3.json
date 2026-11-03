@@ -1,0 +1,352 @@
+{
+  "pocp": 1,
+  "id": "p-e6d126f3",
+  "intent": "Test: ask the nested node --test for TAP, so the check holds on Node 24",
+  "touches": [
+    "test/temp-cleanup.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/temp-cleanup.test.js"
+      ],
+      "mutants": 10,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/temp-cleanup.test.js): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-02T16:28:53.695Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:950ba276dd5781c7664618f979b0670da942cce99618ad99902b538936720694",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T16:28:53.956Z",
+      "duration_ms": 1664,
+      "stdout_sha256": "e4c46884ed27f3607fdc78599bf5460919bb5516213d2b8e9b41945b531e06f2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-37cd8759",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:950ba276dd5781c7664618f979b0670da942cce99618ad99902b538936720694",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T16:28:55.650Z",
+      "duration_ms": 27054,
+      "stdout_sha256": "8199e4900355a27d2b42e8d10fd89360d57f6e772cf36e6168feafb5b3e4f459",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-c58c7308",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:950ba276dd5781c7664618f979b0670da942cce99618ad99902b538936720694",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-02T16:29:22.733Z",
+      "duration_ms": 213590,
+      "stdout_sha256": "558b3852ff783e1acb2987b0457e148f199dac4fd1f64da823847824fd79a878",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-aa06d942",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:b5d99a292543f8ef2f52d276c50115653da8bb1a271b6f289a24ccb5fc0790f2",
+      "subject": "sha256:950ba276dd5781c7664618f979b0670da942cce99618ad99902b538936720694",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": true,
+      "started_at": "2026-11-02T16:32:56.400Z",
+      "duration_ms": 1108917,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "passed",
+        "passed": true,
+        "summary": "the old tests pass on the new code, and the new tests catch all 6 of the 10 sampled mutants the old tests caught (seed 1)",
+        "base": "03bcfe7dae7277550158809c3fd52cb8cde7ac9e",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "test/temp-cleanup.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 1744
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 25885
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 294748
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "kept",
+          "budget": 10,
+          "seed": 1,
+          "sites": 2810,
+          "focus_sites": 0,
+          "files": 31,
+          "sampled": 10,
+          "old_caught": 6,
+          "new_caught": 6,
+          "lost": [],
+          "mutants": [
+            {
+              "file": "src/test-setup.js",
+              "line": 337,
+              "operator": "strict-eq",
+              "before": "if (s[j] === ';') { end = j + 1; break; }",
+              "after": "if (s[j] !== ';') { end = j + 1; break; }",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "src/cli.js",
+              "line": 624,
+              "operator": "or",
+              "before": "const headRev = rest[0] && rest[0].includes('..') ? rest[0].split(/\\.\\.\\.?/)[1] || 'HEAD' : rest[0] || 'HEAD';",
+              "after": "const headRev = rest[0] && rest[0].includes('..') ? rest[0].split(/\\.\\.\\.?/)[1] || 'HEAD' : rest[0] && 'HEAD';",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            },
+            {
+              "file": "src/test-setup.js",
+              "line": 811,
+              "operator": "and",
+              "before": "const isGuarded = (p) => isCode(p) && CODE_EXT.test(p) && !isTest(p);",
+              "after": "const isGuarded = (p) => isCode(p) || CODE_EXT.test(p) && !isTest(p);",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            },
+            {
+              "file": "src/cli.js",
+              "line": 58,
+              "operator": "true",
+              "before": "else push(key, val === undefined ? true : val !== 'false');",
+              "after": "else push(key, val === undefined ? false : val !== 'false');",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "src/mutants.js",
+              "line": 44,
+              "operator": "lt",
+              "before": "['lt', / < /g, ' >= '],",
+              "after": "['lt', / >= /g, ' >= '],",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "src/approvals.js",
+              "line": 241,
+              "operator": "strict-eq",
+              "before": "if (st.state === 'blocked') throw new ApprovalsError(`${r}#${number}: verify fails for more than an approval (${st.check}); a label would not fix it. Open ${st.",
+              "after": "if (st.state !== 'blocked') throw new ApprovalsError(`${r}#${number}: verify fails for more than an approval (${st.check}); a label would not fix it. Open ${st.",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "src/git.js",
+              "line": 451,
+              "operator": "true",
+              "before": "const sha = git(cwd, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], { allowFail: true });",
+              "after": "const sha = git(cwd, ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], { allowFail: false });",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            },
+            {
+              "file": "src/mutants.js",
+              "line": 245,
+              "operator": "strict-eq",
+              "before": "if (plan.length === 0) return { ok: false, error: 'no mutation sites found in guarded files', baseline, mutants: [] };",
+              "after": "if (plan.length !== 0) return { ok: false, error: 'no mutation sites found in guarded files', baseline, mutants: [] };",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "src/init.js",
+              "line": 242,
+              "operator": "and",
+              "before": "return { root, created, layout, layout_written: configWritten && layout.extra.length > 0, config_created: configWritten };",
+              "after": "return { root, created, layout, layout_written: configWritten || layout.extra.length > 0, config_created: configWritten };",
+              "focus": false,
+              "old": "caught",
+              "new": "caught"
+            },
+            {
+              "file": "src/engine.js",
+              "line": 388,
+              "operator": "true",
+              "before": "if (P.isStale(p, { now: nowFn(), ttlDays: cfg.packet_ttl_days })) return { ...p, state: 'expired', expired: { derived: true, ttl_days: cfg.packet_ttl_days } };",
+              "after": "if (P.isStale(p, { now: nowFn(), ttlDays: cfg.packet_ttl_days })) return { ...p, state: 'expired', expired: { derived: false, ttl_days: cfg.packet_ttl_days } };",
+              "focus": false,
+              "old": "missed",
+              "new": "not-run"
+            }
+          ]
+        },
+        "duration_ms": 1108917,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-02T16:28:53.695Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-02T16:28:53.695Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-02T16:51:25.670Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:950ba276dd5781c7664618f979b0670da942cce99618ad99902b538936720694"
+    }
+  ]
+}

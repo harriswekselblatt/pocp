@@ -5,12 +5,12 @@ import { computeMetrics } from './metrics.js';
 import { runMutantEval } from './mutants.js';
 import { replayFixes, simulateGate } from './history.js';
 import { applyGithubProtection, checkGithubProtection, requiredChecksPlan } from './ci-github.js';
-import { hooksHealth, initProofDir, installHooks, uninstallHooks } from './init.js';
+import { formatLayout, hooksHealth, initProofDir, installHooks, uninstallHooks } from './init.js';
 import { loadHost } from './host.js';
 import { ValidationError, describeObligation } from './obligations.js';
 import { ruleWarnings, validateRules } from './rules.js';
 import { validateConfig } from './store.js';
-import { GitError } from './git.js';
+import { GitError, git, ignoreRepoEnv, resolveRev } from './git.js';
 import { shortDigest } from './hash.js';
 import { CiResultsError, readCiResults } from './ci-results.js';
 import { DONT_REWRITE, remedyLines, verifyRemedy } from './remedies.js';
@@ -20,7 +20,8 @@ import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatA
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
-const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host']);
+const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-uncovered', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host']);
+const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change', 'accept-uncovered']);
 const OBLIGATION_FLAGS = new Set(['test', 'command', 'probe', 'manual']);
 const OBLIGATION_MODIFIERS = new Set(['expect', 'timeout', 'input', 'target', 'cwd']);
 
@@ -51,8 +52,15 @@ export function parseArgs(argv) {
       val = key.slice(eq + 1);
       key = key.slice(0, eq);
     }
+    // An approval this version doesn't know must not be dropped silently: the caller would
+    // believe something was approved (or waived) when nothing was.
+    if (key.startsWith('accept-') && !BOOLEAN_FLAGS.has(key)) {
+      throw new UsageError(`unknown approval --${key}: this pocp supports ${[...APPROVAL_FLAGS].map((f) => `--${f}`).join(', ')}`);
+    }
     if (BOOLEAN_FLAGS.has(key)) {
-      push(key, val === undefined ? true : val !== 'false');
+      // An approval may name the commit it was given for: --accept-test-change=<sha>.
+      if (APPROVAL_FLAGS.has(key) && val !== undefined && val !== 'true' && val !== 'false') push(key, val);
+      else push(key, val === undefined ? true : val !== 'false');
       continue;
     }
     if (val === undefined) {
@@ -128,10 +136,13 @@ Checking
                                      exits with the command's exit code (default file .proof/runs/ci-results.jsonl)
   check-edit <file>...               for pre-edit hooks: does editing these files need a packet first?
   verify [<rev>|<base>..<head>] [--rerun | --rerun-unsigned] [--ci-results <file>]... [--require-coverage]
-                                     ranges re-run once at the head; checks with a passing ci-run result
-                                     for the same code and command are not run again
+                                     ranges re-run once at the head; --ci-results trusts the job that wrote it:
+                                     checks with a passing ci-run result for the same code are not run again
                                      rules and signers come from the base (--policy-from <rev>); loosening fails
                                      unless --accept-policy-change; --allowed-signers <file> pins the trust root
+                                     --accept-policy-change=<sha> / --accept-test-change=<sha>: only for that head
+                                     --accept-uncovered=<sha>: commits .proof/exceptions.json lists (commit + exact
+                                     files) may lack a packet; shown as UNPROVEN warnings; only for that head
   blame <file>                       packets that changed a file
 
 Misses
@@ -234,7 +245,7 @@ function writeGithubSummary(result, rows, commitProblems, ms, { annotations = tr
   // Annotations are printed to stdout, so never in --json mode: machine output stays pure JSON.
   if (annotations && process.env.GITHUB_ACTIONS === 'true') {
     for (const c of rows) {
-      if (!c.ok) process.stdout.write(`::error title=POCP::${c.commit.slice(0, 12)} ${commitProblems(c).join(' | ').replace(/\r?\n/g, ' ')}\n`);
+      if (!c.ok) process.stdout.write(`::error title=POCP::${c.kind === 'net' ? 'net change ' : ''}${c.commit.slice(0, 12)} ${commitProblems(c).join(' | ').replace(/\r?\n/g, ' ')}\n`);
     }
     for (const f of result.rerun_failures || []) process.stdout.write(`::error title=POCP rerun::${f.packet}: ${f.problem}\n`);
     // Machine-readable, for "pocp approvals": what a maintainer's label would clear.
@@ -250,10 +261,10 @@ function writeGithubSummary(result, rows, commitProblems, ms, { annotations = tr
     '',
     '| Commit | Packets | Result |',
     '|---|---|---|',
-    ...rows.map((c) => `| \`${c.commit.slice(0, 12)}\` | ${c.packets.map((p) => p.id).join(', ') || '—'} | ${c.ok ? 'ok' : esc(commitProblems(c).join('; '))} |`),
+    ...rows.map((c) => `| ${c.kind === 'net' ? 'net change ' : ''}\`${c.commit.slice(0, 12)}\` | ${c.packets.map((p) => p.id).join(', ') || '—'} | ${c.ok ? 'ok' : esc(commitProblems(c).join('; '))} |`),
   ];
   if (result.approval?.only) lines.push('', `Waiting only for a maintainer: ${result.approval.needs.map((n) => `\`${n.label}\``).join(' and ')} (see \`pocp approvals\`).`);
-  const reruns = result.reruns || [];
+  const reruns = [...(result.reruns || []), ...(result.net?.reruns || [])];
   if (reruns.length) {
     lines.push('', '| Check | Result |', '|---|---|', ...reruns.map((x) => `| \`${esc(x.run)}\` | ${esc(x.status)}${x.duration_ms !== undefined ? ` (${x.duration_ms}ms)` : ''} |`));
   }
@@ -323,15 +334,21 @@ export async function main(argv = process.argv.slice(2)) {
     return EXIT.ok;
   }
 
+  // verify judges the repository it runs in, never one GIT_DIR or GIT_WORK_TREE points to.
+  if (cmd === 'verify') ignoreRepoEnv();
+
   try {
     switch (cmd) {
       case 'init': {
         const r = initProofDir(process.cwd());
         let hooks = null;
         if (flags.hooks) hooks = installHooks(process.cwd(), { force: flags.force });
-        out(json, { created: r.created, hooks }, [
+        out(json, { created: r.created, hooks, test_layout: r.layout }, [
           r.created.length ? `created ${r.created.join(', ')}` : '.proof/ already set up',
+          // The layout on a first init, or when it needs something done; quiet otherwise.
+          ...(r.config_created || r.layout.extra.length || r.layout.uncovered.length ? formatLayout(r.layout, { written: r.layout_written }) : []),
           hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : 'hooks not installed (run "pocp hooks install")',
+          ...(hooks?.chained || []).map((n) => `${n}: chained (the existing hook is now ${n}.pre-pocp and runs first)`),
           ...(hooks?.warnings || []).map((w) => `warning: ${w}`),
         ].join('\n'));
         return hooks?.refused ? EXIT.usage : EXIT.ok;
@@ -340,7 +357,7 @@ export async function main(argv = process.argv.slice(2)) {
         const sub = rest[0];
         if (sub === 'install') {
           const r = installHooks(process.cwd(), { force: flags.force });
-          out(json, r, r.refused ? `hooks not installed: ${r.refused}` : [`hooks installed in ${r.dir}`, ...r.warnings.map((w) => `warning: ${w}`)].join('\n'));
+          out(json, r, r.refused ? `hooks not installed: ${r.refused}` : [`hooks installed in ${r.dir}`, ...(r.chained || []).map((n) => `${n}: chained (the existing hook is now ${n}.pre-pocp and runs first)`), ...r.warnings.map((w) => `warning: ${w}`)].join('\n'));
           return r.refused ? EXIT.usage : EXIT.ok;
         }
         if (sub === 'status') {
@@ -609,26 +626,41 @@ export async function main(argv = process.argv.slice(2)) {
           return r.records;
         });
         if (ignoredCi) process.stderr.write(`pocp: ignored ${ignoredCi} CI result(s) recorded by a different CI run\n`);
+        if (ciResults.length) process.stderr.write('pocp: trusting CI results from --ci-results: anything that ran earlier in this job could have written them (docs/THREAT-MODEL.md)\n');
+        // An approval that names a commit covers only that head: a later push needs a new one.
+        const headRev = rest[0] && rest[0].includes('..') ? rest[0].split(/\.\.\.?/)[1] || 'HEAD' : rest[0] || 'HEAD';
+        const approval = (name) => {
+          const v = [].concat(flags[name] ?? false).pop();
+          if (typeof v !== 'string') return Boolean(v);
+          const head = resolveRev(engine.root, headRev);
+          const given = /^[0-9a-f]{7,64}$/i.test(v) ? git(engine.root, ['rev-parse', '--verify', '--quiet', `${v}^{commit}`], { allowFail: true }) : null;
+          if (given === head) return true;
+          process.stderr.write(`pocp: approval for ${v} does not cover ${head.slice(0, 12)}, the head being verified: a push after the approval needs a new one (--${name})\n`);
+          return false;
+        };
         const vopts = {
           rerun: flags['rerun-unsigned'] ? 'unsigned' : Boolean(flags.rerun),
           requireCoverage: Boolean(flags['require-coverage']),
           ciResults,
           policyFrom: flags['policy-from'],
-          acceptPolicyChange: Boolean(flags['accept-policy-change']),
-          acceptTestChange: Boolean(flags['accept-test-change']),
+          acceptPolicyChange: approval('accept-policy-change'),
+          acceptTestChange: approval('accept-test-change'),
+          acceptUncovered: approval('accept-uncovered'),
           allowedSignersFile: flags['allowed-signers'],
         };
         const rerunLines = (reruns) => reruns.map((x) => `  rerun ${x.status.padEnd(8)} ${x.run}${x.duration_ms !== undefined ? ` (${x.duration_ms}ms)` : ''}${x.kind === 'guard' && x.summary ? `: ${x.summary}` : ''}`);
         const nextSteps = (rows2) => {
           const seen = new Map();
           for (const c of rows2) for (const f of (c.findings || []).filter((x) => x.blocking)) if (!seen.has(f.code)) seen.set(f.code, { code: f.code, ...verifyRemedy(f.code, f.detail) });
-          for (const f of result?.rerun_failures || []) if (!seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed') });
+          for (const f of (result?.rerun_failures || []).filter((x) => x.blocking !== false)) if (!seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed') });
           const list2 = [...seen.values()];
           if (!list2.length) return [];
           const out2 = ['  what to do:', ...list2.map((x) => `    ${x.code}: ${x.why ? `${x.why} ` : ''}next: ${x.next}${x.by === 'person' ? '   (needs a person)' : ''}`)];
           if (list2.some((x) => x.by === 'person')) out2.push(`    ${DONT_REWRITE}`);
           return out2;
         };
+        // A range's own findings, apart from re-run failures (rerun_failures lists those).
+        const rangeFindings = (r) => (r.findings && r.commits ? r.findings.filter((f) => f.code !== 'rerun_failed') : []);
         const commitProblems = (c) => [
           // Commit-level findings (policy, CI files, test guard, required CI); coverage is listed below.
           ...(c.findings || []).filter((f) => f.blocking && !f.packet && f.code !== 'uncovered').map((f) => f.detail),
@@ -640,12 +672,15 @@ export async function main(argv = process.argv.slice(2)) {
         let rows;
         if (rest[0] && rest[0].includes('..')) {
           result = await engine.verifyRange(rest[0], vopts);
-          rows = result.commits;
+          // The range's net change (all commits and merges as one change) is judged like a commit.
+          rows = [...result.commits, ...(result.net ? [result.net] : [])];
           human = [
             `${result.ok ? 'verified' : 'NOT verified'}: ${result.commits.length} commit(s) in ${result.range} · ${Date.now() - started}ms`,
             ...result.commits.map((c) => `  ${c.ok ? 'ok ' : 'BAD'} ${c.commit.slice(0, 12)}${c.ok ? '' : `: ${commitProblems(c).join(' | ')}`}`),
-            ...rerunLines(result.reruns),
-            ...(result.ok ? [] : nextSteps(result.commits)),
+            ...(result.net ? [`  ${result.net.ok ? 'ok ' : 'BAD'} net change ${result.net.base.slice(0, 12)}..${result.net.commit.slice(0, 12)}${result.net.ok ? '' : `: ${commitProblems(result.net).join(' | ')}`}`] : []),
+            ...(result.notes || []).map((n) => `  note: ${n}`),
+            ...rerunLines([...result.reruns, ...(result.net?.reruns || [])]),
+            ...(result.ok ? [] : nextSteps([...rows, { findings: rangeFindings(result) }])),
           ].join('\n');
         } else {
           result = await engine.verify(rest[0] || 'HEAD', vopts);
@@ -660,7 +695,7 @@ export async function main(argv = process.argv.slice(2)) {
             ...(result.ok ? [] : nextSteps([result])),
           ].join('\n');
         }
-        if (!result.ok) result.approval = approvalSummary(rows.flatMap((c) => c.findings || []), result.rerun_failures || []);
+        if (!result.ok) result.approval = approvalSummary([...rows.flatMap((c) => c.findings || []), ...rangeFindings(result)], (result.rerun_failures || []).filter((x) => x.blocking !== false));
         writeGithubSummary(result, rows, commitProblems, Date.now() - started, { annotations: !json });
         out(json, result, human);
         return result.ok ? EXIT.ok : EXIT.blocked;
