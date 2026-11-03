@@ -34,7 +34,7 @@ Locally, a git hook blocks a commit that touches `src/billing/**` until a packet
 Proof-Of-Change: p-2f007850 subject=sha256:2ad8c12023b7 policy=sha256:f21acbea749e proven=1/1 attested=0/0
 ```
 
-In CI, `pocp verify <base>..<head> --require-coverage --rerun`:
+In CI, `pocp verify origin/main..HEAD --require-coverage --rerun` (the base branch, then the pull request's head):
 
 - re-runs every required check itself, instead of trusting the packets, which are only pointers;
 - judges the pull request by the base branch's rules, so the pull request can't remove or loosen a rule or add its own signing key;
@@ -69,7 +69,8 @@ With the default settings, and within the limits in [docs/THREAT-MODEL.md](docs/
 POCP isn't published on npm. Install a pinned commit:
 
 ```bash
-npm install --save-dev github:harriswekselblatt/pocp#<commit>
+# Replace COMMIT_SHA with a full commit SHA from this repository's history.
+npm install --save-dev "github:harriswekselblatt/pocp#COMMIT_SHA"
 npx pocp init --hooks
 ```
 
@@ -89,9 +90,10 @@ This repository's CI runs the test suite on Ubuntu and macOS with Node 20, 22 an
 
 None of these is a completed evaluation. The pre-registration ([eval/PREREG.md](eval/PREREG.md)) is unfinished, and no counted run exists. The plan is in [docs/EVAL-PLAN.md](docs/EVAL-PLAN.md).
 
-Scripted test suite ([bench/tamper/RESULTS.md](bench/tamper/RESULTS.md)): 79 scripted scenarios on POCP's own repository, with default settings.
+Scripted test suite ([bench/tamper/RESULTS.md](bench/tamper/RESULTS.md)): 79 scripted scenarios on POCP's own repository, with default settings unless noted.
 - 73 of them plant a bug. Of those, 52 also cheat in a way that makes plain CI pass, and `verify --rerun` blocked all 52.
 - The other 6 are honest changes, and POCP blocked none of them.
+- In the optional `attest` mode, the author of a test change can approve it themselves, which is a weaker approval model than the default (a maintainer's approval). The same suite in `attest` mode blocked 33 of the 52 cheats.
 - The cheats are scripted and the bugs come from POCP's own mutation operators, so this tests known cases and is not independent evidence.
 - The latest run (2026-11-02, at commit `b50ece4`) was a same-seed re-run of the earlier one. It planted the same three bugs, and every scenario's outcome was unchanged. It is not a new sample and not independent validation. Its proof record checks only that `RESULTS.md` matches the raw results file, not that the benchmark itself is correct.
 
