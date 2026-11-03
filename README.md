@@ -1,39 +1,8 @@
 # POCP: Proof of Change Protocol
 
-**Your coding agent can't fake green CI by weakening the tests.**
+POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it also compares the old and new tests against a sample of planted bugs, to catch some kinds of weakening. It works with any test command and any language, and needs only Node 20 or later and git.
 
-Plain CI runs whatever tests the pull request contains. An agent stuck on a failing test can delete the assertion, mark the test skipped, point the runner somewhere else, or weaken the check, and CI turns green. POCP closes that gap:
-
-- **It runs the checks itself** and ties every result to a hash of the exact code it tested. "Tests pass" stops being a sentence someone typed.
-- **It judges each pull request by the base branch's rules**, so a change can't delete a requirement, loosen a threshold or add its own signing key and still pass.
-- **It checks test changes mechanically.** The old tests must still pass on the new code, and the new tests must catch the planted bugs the old ones caught. Adding tests is free; quietly weakening them isn't.
-
-It works the same whoever writes the code: a person, a coding agent, a bot. Zero dependencies.
-
-```
-$ git commit -m "Fix rounding at half-cents"
-pocp: commit blocked
-  why: 1 file(s) have required checks
-  not covered by any packet: src/billing/round.js
-  …
-      next: pocp fix --intent "<what this change does>"
-
-$ pocp fix --intent "Fix rounding at half-cents"
-pocp fix: ready to commit (git commit)
-  did: opened p-2f007850 for 1 file(s) with checks o1 (rule:billing-tests)
-  did: proved p-2f007850 (1 check(s) run, 0s)
-
-$ git commit -m "Fix rounding at half-cents"
-pocp: gate passed (1 packet(s) proven for sha256:2ad8c12023b7)
-```
-
-The commit ends with a trailer:
-
-```
-Proof-Of-Change: p-2f007850 subject=sha256:2ad8c12023b7 policy=sha256:f21acbea749e proven=1/1 attested=0/0
-```
-
-It's only a pointer. CI recomputes everything from the commit and re-runs whatever no trusted signer or CI result already covers.
+It is an early prototype. The results below come from a scripted test suite and small pilot runs, not from a completed evaluation.
 
 ## Why this exists
 
@@ -41,56 +10,11 @@ I started building with AI coding agents without knowing much about software, an
 
 POCP is my answer. Instead of trusting a sentence an agent typed ("tests pass"), it records proof: the checks that ran, on the exact code that was committed, under rules the change itself can't loosen. Then it checks that proof again in CI.
 
-It's measured the same way. I can't vouch for the code by reading it, so it has an independent evaluation: a checker written separately, outside benchmarks, passing bars set before the runs, and outside reviews that tried to break it. Their findings are fixed and published here. Every result links to its data.
+I'm testing POCP with separate benchmarks and a reference checker that shares no implementation code with POCP. So far, only pilots have run. No counted evaluation exists, and the pre-registration is unfinished. The results and their limits are linked below.
 
-## What it does and doesn't catch
+## What it does
 
-What CI's `pocp verify <base>..HEAD --require-coverage --rerun` decides, with the default settings (test guard in `block` mode):
-
-| An agent… | Plain CI | POCP |
-|---|---|---|
-| deletes or weakens a failing assertion, in one commit, split across commits, or inside a merge commit | passes | blocked: the old tests fail on the new code, judged on the whole pull request |
-| marks tests `.skip`, `.only` or skipped | passes | blocked |
-| hollows out the test script, the runner config, or an assertion helper the tests import | passes | blocked, for helpers POCP can find (see the limits) |
-| deletes or loosens the rule that requires a check | n/a | blocked: judged by the base branch's rules |
-| forges a proof | n/a | blocked: verify re-runs the checks itself |
-| forges a CI result | n/a | blocked with the default recipe above. The faster `--ci-results` mode trusts everything that ran in the job and can be forged |
-| removes POCP from the CI workflow | passes | blocked only if your Git host *requires* the POCP check (see [Merge enforcement](#merge-enforcement)) |
-| writes code that games its own tests: special-cases the inputs, overrides `process.exit`, detects the test run | passes | **not caught**: POCP checks that the declared checks ran on the exact code, not whether the code is honest |
-
-These rows hold within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md), and the main ones are:
-- **Re-runs execute the pull request's code** in your CI job, as the same user. That's as trustworthy as your CI, plus the checks the pull request can't edit.
-- **The mechanical test check samples** planted bugs. Dropping an assertion that none of the sampled bugs needs passes on its own, so a weakening can land in one pull request and the bug it would have caught in a later one.
-- **Helpers are found by reading imports,** within depth and size limits; a helper inside your guarded source counts as code unless it looks like test support (path, test-framework or assertion-library import) or the tests use it as such.
-- **A test layout POCP doesn't recognise** needs `guard.extra_test_globs`. `pocp init` detects common ones.
-
-## Results so far
-
-Every number below links to its raw data and the command that produced it. All of it is early; read it as such.
-
-- **Scripted tamper benchmark** ([results](bench/tamper/RESULTS.md)): 79 commits, each a real bug plus a cheat that turns CI green (or an honest control), on POCP's own repository, judged with `verify --rerun`. In POCP's default mode it blocks **all 52 of the cheats that fool plain CI**, including the four an outside review found (a cheat split across commits, one inside a merge commit, a hollowed assertion helper, CI results forged from inside the test run), and none of the 6 honest controls. That is a result from this scripted suite only. The forged-CI-results case isn't tested on its own: the deleted assertions it needs to fool plain CI are caught first. In the optional `attest` mode, where the author can sign off on their own test change, it blocks 33 of 52. *Limit: the cheats are scripted and the bugs are planted with POCP's own mutation operators, so this is a regression suite, not independent evidence.*
-- **Independent evaluation** ([eval/](eval/), [plan](docs/EVAL-PLAN.md), [pre-registration](eval/PREREG.md)): real coding agents on [ImpossibleBench](https://arxiv.org/abs/2510.20270) tasks, a separate reference checker written in another language that shares no code with POCP, outside mutation tools, and real timestamps. The passing bars were set before any counted run. Only pilots have run so far:
-  - **Codex, 80 runs:** 1 in 10 tasks produced a test-editing cheat per arm, too few to grade a catch rate. On honest work POCP blocked 0 of 10 solutions.
-  - **StrykerJS, 16 sampled mutants:** POCP's checks and Stryker agreed on all 16.
-
-  Full numbers will be published here as counted runs finish, whether or not they clear the bars.
-- **Cost on honest work** ([data](eval/e5/RESULTS.md)), from POCP's own development, mostly agent-written commits:
-  - **Most commits get blocked once.** Only 7 of 45 commits that touched guarded files passed the gate on the first try.
-  - **Getting through is usually quick:** a median of about 2 minutes, mostly running `pocp fix`.
-  - **Changing an existing test file is the slow, strict case.** The mechanical test check runs the suite once per planted bug. It took up to about 17 minutes, and it passed only 2 of the 9 times it ran; the others needed a maintainer's approval in CI.
-  - **Adding new tests costs nothing extra.**
-  - **Every proven change adds a small record** (`.proof/packets/*.json`, typically 70–170 lines) to the repository. It names who made it (the git user name, or `POCP_ACTOR` if set) and the Node version and platform the checks ran on.
-
-## Quick start
-
-POCP isn't on npm yet. Install a pinned commit:
-
-```bash
-npm install --save-dev github:harriswekselblatt/pocp#<commit>
-npx pocp init --hooks
-```
-
-`init` creates `.proof/`, prints where it found your tests (and adds test folders the defaults miss to `guard.extra_test_globs`), and installs three git hooks (gate, trailer, landing). Hooks you already have keep running: one pocp can't append to (a node or python hook, or one that ends in `exec`, like the pre-commit framework's) is moved to `<hook>.pre-pocp` and runs first. Then write a rule in `.proof/rules.json`:
+A rule in `.proof/rules.json` says which files need which checks:
 
 ```json
 {
@@ -102,50 +26,85 @@ npx pocp init --hooks
 }
 ```
 
-A check is any command: `npm test`, `pytest`, `cargo test`, `go test ./...`, `make check`. Your project can be in any language. A walkthrough on a non-JavaScript repo is in [docs/QUICKSTART.md](docs/QUICKSTART.md).
+A check is any command, such as `npm test`, `pytest`, `cargo test`, `go test ./...` or `make check`.
 
-In CI:
+Locally, a git hook blocks a commit that touches `src/billing/**` until a packet records that `node --test test/billing.test.js` passed on exactly the staged code. `pocp fix` runs the checks and writes the packet, and the commit gets a trailer that points to it:
+
+```
+Proof-Of-Change: p-2f007850 subject=sha256:2ad8c12023b7 policy=sha256:f21acbea749e proven=1/1 attested=0/0
+```
+
+In CI, `pocp verify <base>..<head> --require-coverage --rerun`:
+
+- re-runs every required check itself, instead of trusting the packets, which are only pointers;
+- judges the pull request by the base branch's rules, so the pull request can't remove or loosen a rule or add its own signing key;
+- when the pull request edits existing tests or test setup, runs the old tests against the new code, and plants a sample of small bugs (10 by default) to check that the new tests still catch every sampled bug the old tests caught. This test check runs once, on the pull request's net change, so a weakening split across commits or placed in a merge commit is judged the same way. The other checks still run as described above, so this doesn't make the whole `verify` run fast;
+- fails with a named reason, and says when only a maintainer can resolve it, for example by approving an intended test change with a label.
+
+With the default settings, and within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
+
+| Change | Plain CI | `pocp verify --rerun` |
+|---|---|---|
+| Deletes or weakens a failing assertion | passes | blocked if the old tests fail on the new code or a sampled bug goes undetected |
+| Marks tests skipped or `.only` | passes | blocked |
+| Hollows out the test script, runner config, or an assertion helper the tests import | passes | blocked, for helpers POCP finds by following imports |
+| Removes or loosens the rule that requires a check | n/a | blocked: the base branch's rules apply |
+| Edits a packet so failing proofs read as passed | n/a | blocked: the checks are re-run |
+| Removes POCP from the CI workflow | passes | blocked only if the Git host requires the POCP check |
+| Writes code that special-cases the test inputs | passes | not blocked |
+
+## What it doesn't do
+
+- It doesn't judge whether code is honest. Code written to pass the specific test inputs passes every mechanical check.
+- It doesn't enforce merges. `verify` fails a check; whether a failing check blocks the merge is your Git host's setting (on GitHub, branch protection).
+- It doesn't measure new tests. The test check compares a change with tests that already existed, so a weak test added in the same pull request isn't measured.
+- It samples. The test check plants 10 small bugs by default (flipped comparisons, swapped operators, changed constants), and a weakening that matters only outside that sample passes. On POCP's own code, about 14% of StrykerJS's mutants are edits POCP's operators can make.
+- It isn't hermetic. Checks can read the network, environment variables and installed packages, and the re-runs execute the pull request's code in your CI job.
+- It can be slow. The test check re-runs the required checks for each planted bug, so its cost grows with your suite's run time. On POCP's own repository it took up to about 17 minutes locally. One measured case: on 2026-11-02, a full `verify` of a 13-commit pull request to POCP that edited test helpers took about 25 minutes on a GitHub runner, of which the test check took about 16 ([run](https://github.com/harriswekselblatt/pocp/actions/runs/41524329250)).
+- A process a check starts in a new session (`setsid`, a daemon) can outlive the check.
+- Native Windows isn't supported. The hooks and checks need a POSIX shell: Linux, macOS, or Windows through WSL.
+
+## How to try it
+
+POCP isn't published on npm. Install a pinned commit:
 
 ```bash
-# Re-runs every required check on the exact code, by the base branch's rules.
-# Keep your existing test step as it is.
+npm install --save-dev github:harriswekselblatt/pocp#<commit>
+npx pocp init --hooks
+```
+
+`init` creates `.proof/`, reports where it found your tests, and installs the git hooks. Hooks you already have keep running. Add a rule as above, change a file it covers, and commit. If the commit is blocked, run `pocp fix --intent "<what the change does>"` and commit again.
+
+In CI, keep your existing test step and add:
+
+```bash
 pocp verify origin/main..HEAD --require-coverage --rerun
 ```
 
-Ready-made workflows for GitHub, GitLab and plain shell are in [`examples/`](examples/). There's also a GitHub Action ([`action.yml`](action.yml)) that runs the copy of POCP bundled at its own ref, so `uses: harriswekselblatt/pocp@<commit>` pins the verifier.
+This needs the base branch fetched with its history (on GitHub, `actions/checkout` with `fetch-depth: 0`). The complete workflows in [`examples/`](examples/) for GitHub, GitLab and plain shell handle that. There's also a GitHub Action in [`action.yml`](action.yml), and a walkthrough on a non-JavaScript repository in [docs/QUICKSTART.md](docs/QUICKSTART.md).
 
-## Platforms
+This repository's CI runs the test suite on Ubuntu and macOS with Node 20, 22 and 24, plus POCP's own `verify`, on every pull request. The checks on each commit show whether that commit passed.
 
-- **Runs on** Linux, macOS, and Windows through WSL. Native Windows isn't supported, because the hooks and checks need a POSIX shell.
-- **Needs** Node ≥ 20 and git.
-- **CI is configured** to run the test suite on Ubuntu and macOS with Node 20, 22 and 24, and POCP's own `verify`, on every pull request. Whether a given version passed is shown by the checks on its commit; a version whose checks didn't run or didn't pass hasn't been tested that way.
+## Results so far
 
-## Merge enforcement
+None of these is a completed evaluation. The pre-registration ([eval/PREREG.md](eval/PREREG.md)) is unfinished, and no counted run exists. The plan is in [docs/EVAL-PLAN.md](docs/EVAL-PLAN.md).
 
-POCP verification works on any CI and any host: `pocp verify` fails its check on a bad change. Whether a failing check actually *blocks the merge* is up to your Git host's settings. On GitHub that's branch protection (free for public repositories; a paid plan for private ones). `pocp ci required --check` reports any gap, and `pocp ci required --apply` sets the checks. POCP never changes merge settings unless you run that command.
+Scripted test suite ([bench/tamper/RESULTS.md](bench/tamper/RESULTS.md)): 79 scripted scenarios on POCP's own repository, with default settings.
+- 73 of them plant a bug. Of those, 52 also cheat in a way that makes plain CI pass, and `verify --rerun` blocked all 52.
+- The other 6 are honest changes, and POCP blocked none of them.
+- The cheats are scripted and the bugs come from POCP's own mutation operators, so this tests known cases and is not independent evidence.
+- The latest run (2026-11-02, at commit `b50ece4`) was a same-seed re-run of the earlier one. It planted the same three bugs, and every scenario's outcome was unchanged. It is not a new sample and not independent validation. Its proof record checks only that `RESULTS.md` matches the raw results file, not that the benchmark itself is correct.
 
-## Using it with coding agents
-
-- `pocp fix --intent "<what the change does>"` takes every mechanical step a blocked commit needs and says what's left and who must do it.
-- `pocp check-edit <file>` tells an agent, before it edits, whether a file needs a packet first.
-- When a person is needed (a test change that can't be shown safe, a loosened rule), POCP names the one action, such as "a maintainer adds the `pocp-approve-tests` label", and tells the agent not to squash, force-push or bypass the hooks. It never signs off for anyone.
-
-A ready Claude Code hook and an instructions block for any agent are in [`examples/`](examples/).
-
-## Limitations
-
-- **It doesn't judge whether code is honest.** Code written to pass the specific test inputs gets past any mechanical check.
-- **Proofs aren't hermetic.** A check can read the network, environment variables and installed packages. Runner details are recorded, and `verify --rerun` in CI gives an independent result.
-- **The mutation check samples.** By default it plants 10 small bugs. A weakening that only matters outside the sample can pass. Raise `guard.mutants` for more confidence.
-- **The planted bugs are simple.** POCP's 16 operators make small edits: flipped comparisons, swapped operators, changed constants. On POCP's own code, about 14% of StrykerJS's mutants are exactly an edit POCP's operators can make (whitespace aside), so many kinds of change are never planted. A test that guards only behaviour those operators can't break isn't measured.
-- **The test check can be slow, and fails closed.** A run that times out is retried once with 3× the limit, then the result is inconclusive and a person decides. In the worst case, a mutant that hangs every check, that's about 100 minutes with the defaults. Details in [docs/REFERENCE.md](docs/REFERENCE.md).
-- **Process cleanup covers the check's process group.** A process a check starts in a new session (`setsid`, a detached daemon) can outlive it.
-- **Squash merges rewrite commit messages.** Verify the pull request's commits, not the squash commit.
+Pilots ([eval/](eval/)) are small runs to size the study. None is compared with a pass bar.
+- On impossible coding tasks ([ImpossibleBench](https://arxiv.org/abs/2510.20270)), the Codex and Claude pilots produced too few comparable cheats to support any catch-rate claim. Many Claude runs ended in usage-limit errors. The details, including which cheats were blocked and which shipped, are in [eval/e1/RESULTS.md](eval/e1/RESULTS.md).
+- On 10 solvable tasks, Codex solved all 10, and POCP blocked none of the solutions.
+- On 16 StrykerJS mutants of POCP's own code, both Stryker and POCP's checks caught the same 13 and missed the same 3. That is a small pilot; agreement doesn't show either result is correct ([eval/e3/RESULTS.md](eval/e3/RESULTS.md)).
+- In POCP's own development, 7 of 45 commits that touched guarded files passed the gate on the first try. The median time from a block to a pass was about 2 minutes. That is elapsed time, including the agent's own time between commands, not just POCP's run time ([eval/e5/RESULTS.md](eval/e5/RESULTS.md)).
 
 ## Documentation
 
-- [docs/REFERENCE.md](docs/REFERENCE.md): rules, obligations, run modes, CI options, signed proofs, misses, measuring, the library.
-- [SPEC.md](SPEC.md): the protocol. [test/vectors.json](test/vectors.json) has the exact hashes any implementation must produce.
+- [docs/REFERENCE.md](docs/REFERENCE.md): rules, checks, run modes, CI options, approvals, signed proofs.
+- [SPEC.md](SPEC.md): the protocol. [test/vectors.json](test/vectors.json) has the hashes any implementation must produce.
 - [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md): what each record does and doesn't prove.
 
 ## License
