@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { configuredHooksPath, git, hooksDir, PROOF_DIR, repoRoot } from './git.js';
 import { matchGlob } from './glob.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
@@ -15,15 +16,30 @@ export const ORIGINAL_SUFFIX = '.pre-pocp';
 // How to install pocp: from the repository at a pinned commit (the npm name isn't pocp's).
 export const INSTALL_HINT = 'npm i -D github:harriswekselblatt/pocp#<commit>';
 
+// The pocp that is running now. Hooks remember it, so a commit still finds pocp when it isn't
+// in the project's node_modules or on PATH (for example, run once with npx or from a checkout).
+export const SELF_BIN = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'pocp.js');
+
+const shQuote = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+
 // pocp_run runs pocp, or calls pocp_missing (defined per hook) when it can't be found. The
-// project's own pinned copy comes before one on PATH.
-const RUNNER = `pocp_run() {
+// project's own pinned copy comes before one on PATH; the pocp that installed the hooks is last.
+function runner(known) {
+  const fallback = known ? `\n  elif [ -x ${shQuote(known)} ]; then ${shQuote(known)} "$@"` : '';
+  return `pocp_run() {
   if [ -n "$POCP_BIN" ]; then $POCP_BIN "$@"
   elif [ -x ./node_modules/.bin/pocp ]; then ./node_modules/.bin/pocp "$@"
-  elif command -v pocp >/dev/null 2>&1; then pocp "$@"
+  elif command -v pocp >/dev/null 2>&1; then pocp "$@"${fallback}
   else pocp_missing
   fi
 }`;
+}
+
+/** The pocp path a hook remembers from install time, or null. */
+export function recordedBin(hookText) {
+  const m = /elif \[ -x '((?:[^']|'\\'')+)' \]; then/.exec(String(hookText || ''));
+  return m ? m[1].replace(/'\\''/g, "'") : null;
+}
 
 const NOT_FOUND = `pocp: not found (install it with ${INSTALL_HINT}, or set POCP_BIN)`;
 
@@ -31,11 +47,15 @@ const NOT_FOUND = `pocp: not found (install it with ${INSTALL_HINT}, or set POCP
 // under "git commit --no-verify"; they only add trailers and record landings, so without pocp
 // they warn and let the commit through. CI's "pocp verify --require-coverage" still flags a
 // commit that needed proof and has none.
-export const HOOKS = {
-  'pre-commit': `${RUNNER}\npocp_missing() { echo "${NOT_FOUND}; this commit can't be checked, so it is blocked. To commit without the check once: git commit --no-verify (CI's pocp verify still checks it)" >&2; return 1; }\nexport POCP_GATE_SOURCE=hook\npocp_run gate || exit $?`,
-  'prepare-commit-msg': `${RUNNER}\npocp_missing() { echo "${NOT_FOUND}; warning: committing without proof trailers. CI's pocp verify will flag this commit if it needed proof" >&2; return 0; }\ncase "$2" in merge|squash) ;; *) pocp_run trailer "$1" "$2" || exit $? ;; esac`,
-  'post-commit': `${RUNNER}\npocp_missing() { echo "${NOT_FOUND}; warning: this commit's landing was not recorded" >&2; return 0; }\npocp_run land --quiet || true`,
-};
+export function hookBodies(known = SELF_BIN) {
+  const RUNNER = runner(known);
+  return {
+    'pre-commit': `${RUNNER}\npocp_missing() { echo "${NOT_FOUND}; this commit can't be checked, so it is blocked. To commit without the check once: git commit --no-verify (CI's pocp verify still checks it)" >&2; return 1; }\nexport POCP_GATE_SOURCE=hook\npocp_run gate || exit $?`,
+    'prepare-commit-msg': `${RUNNER}\npocp_missing() { echo "${NOT_FOUND}; warning: committing without proof trailers. CI's pocp verify will flag this commit if it needed proof" >&2; return 0; }\ncase "$2" in merge|squash) ;; *) pocp_run trailer "$1" "$2" || exit $? ;; esac`,
+    'post-commit': `${RUNNER}\npocp_missing() { echo "${NOT_FOUND}; warning: this commit's landing was not recorded" >&2; return 0; }\npocp_run land --quiet || true`,
+  };
+}
+export const HOOKS = hookBodies();
 
 function block(body) {
   return `${HOOK_BEGIN}\n# Installed by pocp. Edit outside these markers; "pocp hooks uninstall" removes this block.\n${body}\n${HOOK_END}\n`;
@@ -250,7 +270,7 @@ export function initProofDir(cwd) {
  * then pocp. Hooks installed by older versions that appended to such a hook are repaired.
  * Refuses when core.hooksPath is set, unless `force`, since that folder may be shared.
  */
-export function installHooks(cwd, { force = false } = {}) {
+export function installHooks(cwd, { force = false, bin = SELF_BIN } = {}) {
   const root = repoRoot(cwd);
   const custom = configuredHooksPath(root);
   if (custom && !force) {
@@ -261,7 +281,7 @@ export function installHooks(cwd, { force = false } = {}) {
   const installed = [];
   const warnings = [];
   const chained = [];
-  for (const [name, body] of Object.entries(HOOKS)) {
+  for (const [name, body] of Object.entries(hookBodies(bin))) {
     const file = path.join(dir, name);
     const original = `${file}${ORIGINAL_SUFFIX}`;
     const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;

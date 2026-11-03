@@ -566,7 +566,8 @@ first; a failure still stops it), then pocp's step. Reinstalling changes nothing
 are reported by `pocp hooks status` and `pocp doctor`, and repaired by `pocp hooks install`.
 
 **Hooks without pocp.** The hooks look for pocp in `POCP_BIN`, then the project's own
-`node_modules/.bin/pocp`, then `PATH`. If none is found, pre-commit fails closed: it is the gate. prepare-commit-msg and
+`node_modules/.bin/pocp`, then `PATH`, then the pocp that installed them (its absolute path is
+written into the hook at install time). If none is found, pre-commit fails closed: it is the gate. prepare-commit-msg and
 post-commit also run under `git commit --no-verify`; they print a warning and exit 0, since
 they only add trailers and record landings. A commit made that way carries no proof
 trailers, and `verify --require-coverage` in CI flags it if it needed coverage.

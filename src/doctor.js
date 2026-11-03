@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as g from './git.js';
 import { matchGlob } from './glob.js';
-import { hooksHealth, INSTALL_HINT } from './init.js';
+import { hooksHealth, INSTALL_HINT, recordedBin } from './init.js';
 import { requiredChecksPlan } from './ci-github.js';
 import { validateRules } from './rules.js';
 import { validateConfig } from './store.js';
@@ -113,11 +113,15 @@ export async function runDoctor(engine, { base, offline = false } = {}) {
     });
   } else if (h.problems.length) add({ id: 'hooks', status: 'problem', what: h.problems.join('; '), why: 'git skips a hook that is missing or not executable', fix: 'pocp hooks install' });
   else {
-    // The order the hooks use: POCP_BIN, the project's own copy, then PATH.
+    // The order the hooks use: POCP_BIN, the project's own copy, PATH, then the pocp that installed them.
     const local = fs.existsSync(path.join(root, 'node_modules', '.bin', 'pocp')) ? 'node_modules/.bin/pocp' : '';
-    const found = process.env.POCP_BIN || local || spawnSync('sh', ['-c', 'command -v pocp'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+    const onPath = spawnSync('sh', ['-c', 'command -v pocp'], { cwd: root, encoding: 'utf8' }).stdout.trim();
+    const pre = path.join(h.dir, 'pre-commit');
+    const recorded = recordedBin(fs.existsSync(pre) ? fs.readFileSync(pre, 'utf8') : '');
+    const known = recorded && fs.existsSync(recorded) ? `the pocp that installed them (${recorded})` : '';
+    const found = process.env.POCP_BIN || local || (onPath && 'pocp from PATH') || known;
     add(found
-      ? { id: 'hooks', status: 'ok', what: `hooks installed in ${path.relative(root, h.dir) || h.dir}; they run ${found.startsWith('/') ? 'pocp from PATH' : found}` }
+      ? { id: 'hooks', status: 'ok', what: `hooks installed in ${path.relative(root, h.dir) || h.dir}; they run ${found}` }
       : { id: 'hooks', status: 'problem', what: 'hooks are installed but cannot find pocp', why: 'each commit would fail with "pocp: not found"', fix: `${INSTALL_HINT}, put pocp on PATH, or set POCP_BIN` });
     if (g.git(root, ['rev-parse', '--git-common-dir']) !== g.git(root, ['rev-parse', '--git-dir'])) {
       add({ id: 'hooks-shared', status: 'warning', what: 'this is a linked worktree: git hooks are shared by every checkout of the repository', why: 'checkouts without .proof/rules.json are left alone, so this is safe, but every checkout that has adopted POCP is gated' });
