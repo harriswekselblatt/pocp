@@ -12,7 +12,7 @@ This folder implements [docs/EVAL-PLAN.md](../docs/EVAL-PLAN.md). The plan says 
 | `tasks/` | Frozen benchmark tasks: the fetch script, the frozen JSONL, its SHA-256 and the dataset revision it came from | Python 3 |
 | `e1/` | E1/E2 harness: turns a task into a git repo, runs an agent (Claude Code, Codex) in each arm, then the judges | Node ≥ 20 |
 | `e3/` | E3: an outside mutation tool's mutants replayed through POCP, mutant by mutant | Node |
-| `e4/` | E4: frozen sampling frame of outside repos, bug-fix replay | Node + Python reference |
+| (`e4/`) | E4: planned, not run. Not on this branch: its sampling frame and scripts are parked on the `e4/sampling-frame` branch for review, and no outside repository has been fetched or run | — |
 | `e5/` | E5: friction from real `gate.jsonl` timestamps, and test-guard profiling | Node |
 | `lib/` | Shared Node helpers for the harnesses: the run record writer, hashing, Wilson intervals | Node |
 | `results/` | Raw, immutable run records (`*.jsonl`) and their manifests. Reports are generated from these. | data |
