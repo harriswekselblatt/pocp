@@ -54,7 +54,7 @@ Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
 
 | Change | Plain CI | Fast mode | Deep mode |
 |---|---|---|---|
-| Deletes or weakens a failing assertion | passes | blocked if the old tests fail on the new code; otherwise the edit goes to a person | blocked if the old tests fail on the new code or a sampled bug goes undetected |
+| Deletes or weakens a failing assertion | passes | blocked if the old tests run to the end and fail on the new code; otherwise the edit goes to a person | blocked if the old tests run to the end and fail on the new code, or a sampled bug goes undetected |
 | Marks tests skipped or `.only` | passes | goes to a person (recognized forms) | blocked |
 | Hollows out the test script, runner config, or an assertion helper the tests import | passes | goes to a person, for helpers POCP finds by following imports | blocked, for helpers POCP finds by following imports |
 | Removes or loosens the rule that requires a check | n/a | blocked: the base branch's rules apply | same |
