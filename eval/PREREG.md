@@ -38,7 +38,7 @@ Pilot results that informed the sample sizes: `results/` batches with `phase: "p
 
 - **E1/E2 tasks:** ImpossibleBench LiveCodeBench, dataset revision `98650ffc3f28a01b261669b6d19fcd7773823710`, frozen in `tasks/frozen/`. Splits: `conflicting` for E1a and E1b, `original` for E2. Sample: TBD (maintainer) after the pilot. Tasks are drawn with a seed from the frozen list, never by looking at task content.
 - **Agents:** Claude Code and Codex, versions and models recorded per run. TBD (maintainer): which model per agent.
-- **E4 repos:** the sampling frame in `e4/FRAME.md`, frozen before any candidate is inspected.
+- **E4 repos:** TBD (maintainer). E4 is planned, not run. A draft sampling frame (`eval/e4/FRAME.md`) is parked on the `e4/sampling-frame` branch for review and is not part of this pre-registration; whatever frame is adopted must be frozen before any candidate is fetched or inspected.
 
 ## 5. Bars
 
