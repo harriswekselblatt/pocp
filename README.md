@@ -1,6 +1,6 @@
 # POCP: Proof of Change Protocol
 
-POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it also compares the old and new tests against a sample of planted bugs, to catch some kinds of weakening. It works with any test command and any language, and needs only Node 20 or later and git.
+POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it runs the old tests on the new code, and sends any test edit it can't vouch for to a person. An optional deep mode also compares the old and new tests against a sample of planted bugs. It works with any test command and any language, and needs only Node 20 or later and git.
 
 It is an early prototype. The results below come from a scripted test suite and small pilot runs, not from a completed evaluation.
 
@@ -38,29 +38,39 @@ In CI, `pocp verify origin/main..HEAD --require-coverage --rerun` (the base bran
 
 - re-runs every required check itself, instead of trusting the packets, which are only pointers;
 - judges the pull request by the base branch's rules, so the pull request can't remove or loosen a rule or add its own signing key;
-- when the pull request edits existing tests or test setup, runs the old tests against the new code, and plants a sample of small bugs (10 by default) to check that the new tests still catch every sampled bug the old tests caught. This test check runs once, on the pull request's net change, so a weakening split across commits or placed in a merge commit is judged the same way. The other checks still run as described above, so this doesn't make the whole `verify` run fast;
+- when the pull request edits existing tests or test setup, runs the test check once, on the pull request's net change, so a weakening split across commits or placed in a merge commit is judged the same way. It has two modes (below);
 - fails with a named reason, and says when only a maintainer can resolve it, for example by approving an intended test change with a label.
 
-With the default settings, and within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
+### The test check: fast and deep
 
-| Change | Plain CI | `pocp verify --rerun` |
-|---|---|---|
-| Deletes or weakens a failing assertion | passes | blocked if the old tests fail on the new code or a sampled bug goes undetected |
-| Marks tests skipped or `.only` | passes | blocked |
-| Hollows out the test script, runner config, or an assertion helper the tests import | passes | blocked, for helpers POCP finds by following imports |
-| Removes or loosens the rule that requires a check | n/a | blocked: the base branch's rules apply |
-| Edits a packet so failing proofs read as passed | n/a | blocked: the checks are re-run |
-| Removes POCP from the CI workflow | passes | blocked only if the Git host requires the POCP check |
-| Writes code that special-cases the test inputs | passes | not blocked |
+Both modes first run the old versions of the edited tests on the new code. If they run to the end and fail, but pass on the base, behavior changed, and a person approves it. If they don't finish (a timeout, for example, under load), the result is inconclusive rather than a behavior change, and it still needs a re-run or a person.
+
+- **Fast** (`guard.mutants: 0`, what `pocp init` sets up). A test edit passes on its own only when it adds lines to existing test files, and none of the added lines matches a list of risky patterns: skipping or focusing tests, exiting, a bare early return, reassigning or patching an assertion object or a prototype, calling a common mocking or stubbing API (`jest.mock`, `vi.mock`, `mock.module`, `mock.method`, `sinon.stub`, `monkeypatch`, `patch(`), resetting the exit code or handling process exit, adding a test hook or fixture, assigning to `globalThis` or `global`, or an empty `catch`. The patterns are checked on each added line and on a file's added lines joined, so a call split over lines still matches; they are text patterns, not a parser. Everything else goes to a person: changed or removed test lines, deleted or renamed tests, test helpers, runner config, and the test settings in `package.json` and similar files. The fast mode doesn't judge what an edit means. It sends edits it can't classify to review, and an added line can still weaken a test in a way its patterns miss.
+- **Deep** (`guard.mutants: 10`, `pocp init --deep`). The fast mode's review is replaced by planted bugs: POCP plants a sample of small bugs (flipped comparisons, swapped operators, changed constants) and checks that the new tests catch every sampled bug the old tests caught. That can pass an edit the fast mode sends to a person, such as a rewritten assertion that still catches the same bugs, and it can catch some weakenings the fast mode's patterns miss. It samples: a weakening that matters only outside the sample passes, and only the bug types POCP can plant are tried. On POCP's own code, about 14% of StrykerJS's mutants are edits POCP's operators can make. It is much slower (below).
+
+A project set up before fast mode existed, with no `guard.mutants` in its config, keeps deep mode: the built-in default is still 10, and upgrading POCP never rewrites a config. To switch such a project to fast mode, set `"guard": { "mutants": 0 }` in `.proof/config.json` in a pull request of its own. Lowering `guard.mutants` is a policy change, so CI fails it until a maintainer approves it with the `pocp-approve-policy` label.
+
+Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
+
+| Change | Plain CI | Fast mode | Deep mode |
+|---|---|---|---|
+| Deletes or weakens a failing assertion | passes | blocked if the old tests fail on the new code; otherwise the edit goes to a person | blocked if the old tests fail on the new code or a sampled bug goes undetected |
+| Marks tests skipped or `.only` | passes | goes to a person (recognized forms) | blocked |
+| Hollows out the test script, runner config, or an assertion helper the tests import | passes | goes to a person, for helpers POCP finds by following imports | blocked, for helpers POCP finds by following imports |
+| Removes or loosens the rule that requires a check | n/a | blocked: the base branch's rules apply | same |
+| Edits a packet so failing proofs read as passed | n/a | blocked: the checks are re-run | same |
+| Removes POCP from the CI workflow | passes | blocked only if the Git host requires the POCP check | same |
+| Writes code that special-cases the test inputs | passes | not blocked | not blocked |
+
+"Goes to a person" means CI fails until a maintainer approves the change with a label. Neither mode makes an agent's test edits safe without review: they decide which edits can pass without one.
 
 ## What it doesn't do
 
 - It doesn't judge whether code is honest. Code written to pass the specific test inputs passes every mechanical check.
 - It doesn't enforce merges. `verify` fails a check; whether a failing check blocks the merge is your Git host's setting (on GitHub, branch protection).
 - It doesn't measure new tests. The test check compares a change with tests that already existed, so a weak test added in the same pull request isn't measured.
-- It samples. The test check plants 10 small bugs by default (flipped comparisons, swapped operators, changed constants), and a weakening that matters only outside that sample passes. On POCP's own code, about 14% of StrykerJS's mutants are edits POCP's operators can make.
 - It isn't hermetic. Checks can read the network, environment variables and installed packages, and the re-runs execute the pull request's code in your CI job.
-- It can be slow. The test check re-runs the required checks for each planted bug, so its cost grows with your suite's run time. On POCP's own repository it took up to about 17 minutes locally. One measured case: on 2026-11-02, a full `verify` of a 13-commit pull request to POCP that edited test helpers took about 25 minutes on a GitHub runner, of which the test check took about 16 ([run](https://github.com/harriswekselblatt/pocp/actions/runs/41524329250)).
+- Deep mode is slow. It re-runs the required checks for each planted bug, so its cost grows with your suite's run time. On POCP's own repository it took up to about 17 minutes locally. One measured case: on 2026-11-02, a full `verify` of a 13-commit pull request to POCP that edited test helpers took about 25 minutes on a GitHub runner, of which the test check took about 16 ([run](https://github.com/harriswekselblatt/pocp/actions/runs/41524329250)).
 - A process a check starts in a new session (`setsid`, a daemon) can outlive the check.
 - Native Windows isn't supported. The hooks and checks need a POSIX shell: Linux, macOS, or Windows through WSL.
 
@@ -90,7 +100,9 @@ This repository's CI runs the test suite on Ubuntu and macOS with Node 20, 22 an
 
 None of these is a completed evaluation. The pre-registration ([eval/PREREG.md](eval/PREREG.md)) is unfinished, and no counted run exists. The plan is in [docs/EVAL-PLAN.md](docs/EVAL-PLAN.md).
 
-Scripted test suite ([bench/tamper/RESULTS.md](bench/tamper/RESULTS.md)): 79 scripted scenarios on POCP's own repository, with default settings unless noted.
+These results were all measured in deep mode (`guard.mutants: 10`), before fast mode existed. They don't describe fast mode, which hasn't been benchmarked yet.
+
+Scripted test suite ([bench/tamper/RESULTS.md](bench/tamper/RESULTS.md)): 79 scripted scenarios on POCP's own repository, in deep mode with the other settings at their defaults unless noted.
 - 73 of them plant a bug. Of those, 52 also cheat in a way that makes plain CI pass, and `verify --rerun` blocked all 52.
 - The other 6 are honest changes, and POCP blocked none of them.
 - In the optional `attest` mode, the author of a test change can approve it themselves, which is a weaker approval model than the default (a maintainer's approval). The same suite in `attest` mode blocked 33 of the 52 cheats.

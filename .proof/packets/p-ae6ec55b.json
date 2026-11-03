@@ -1,0 +1,328 @@
+{
+  "pocp": 1,
+  "id": "p-ae6ec55b",
+  "intent": "Fast test guard by default for new projects (pocp init writes guard.mutants 0); deep mode opt-in; checks drop NODE_TEST_CONTEXT",
+  "touches": [
+    "src/cli.js",
+    "src/guard-check.js",
+    "src/guard.js",
+    "src/init.js",
+    "src/runner.js",
+    "test/e2e-guard-equivalence.test.js",
+    "test/e2e-guard-fast-mode.test.js",
+    "test/e2e-guard-once.test.js",
+    "test/e2e-guard-timeouts.test.js",
+    "test/e2e-net-change.test.js",
+    "test/helpers.js",
+    "test/init-layout.test.js",
+    "test/runner-env.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/e2e-guard-equivalence.test.js",
+        "test/e2e-guard-once.test.js",
+        "test/e2e-guard-timeouts.test.js",
+        "test/e2e-net-change.test.js",
+        "test/helpers.js",
+        "test/init-layout.test.js"
+      ],
+      "mutants": 10,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/e2e-guard-equivalence.test.js, test/e2e-guard-once.test.js, test/e2e-guard-timeouts.test.js, test/e2e-net-change.test.js, test/helpers.js, test/init-layout.test.js): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-03T17:50:31.363Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:6d910cfd3075b77e5a062c0337f1a340ac9861b4d9dd78f207239f3706b5716a",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-03T18:53:14.842Z",
+      "duration_ms": 2534,
+      "stdout_sha256": "d4e0dde04f55b354b05804c963d0d1e2e075a28797954bc19ca6e9a8b4b4daad",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-4e2d8d54",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:6d910cfd3075b77e5a062c0337f1a340ac9861b4d9dd78f207239f3706b5716a",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-03T18:53:17.470Z",
+      "duration_ms": 74832,
+      "stdout_sha256": "e66bc019f591448f5b21565569c1d08bc529512b1d18cd3311105b6724ec408f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-245459f2",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:6d910cfd3075b77e5a062c0337f1a340ac9861b4d9dd78f207239f3706b5716a",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-03T18:54:32.381Z",
+      "duration_ms": 169861,
+      "stdout_sha256": "da6c001a6046f2af40033b6ce63014fae40dfab79a03239df224bdb9d3dc2ba0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-fbd85980",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:6cf81e59920ea4ab75194861d71f47c818ad4fef5f71a6d906c34283fd6d4a62",
+      "subject": "sha256:6d910cfd3075b77e5a062c0337f1a340ac9861b4d9dd78f207239f3706b5716a",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-03T18:57:22.395Z",
+      "duration_ms": 1178405,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: guard results identical before and after the speedups: kept; guard results identical before and after the speedups: dropped; weakening an assertion fails the detection check (part 2), and the gate wants a person; a check that runs no tests proves nothing: the guard is inconclusive and wants a person; guard obligations follow the change; budget and seed are policy; two commits that each edit an existing test: one check, on the net change; a single commit is its own net change: its check runs once, on the commit; through pocp prove: a new-side timeout leaves the guard inconclusive and the gate wants a person; an honest multi-commit pull request that changes code and adds tests still verifies; an honest merge from main still verifies, and only the branch's own changes are judged: behavior changed, so a person must approve it",
+        "base": "e28be3f920e14e4e26cd32abf1c0e0bf72677bbd",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/e2e-guard-equivalence.test.js",
+            "test/e2e-guard-once.test.js",
+            "test/e2e-guard-timeouts.test.js",
+            "test/e2e-net-change.test.js",
+            "test/helpers.js",
+            "test/init-layout.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2717
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 62500
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 575849,
+              "failed_tests": [
+                "guard results identical before and after the speedups: kept",
+                "guard results identical before and after the speedups: dropped",
+                "weakening an assertion fails the detection check (part 2), and the gate wants a person",
+                "a check that runs no tests proves nothing: the guard is inconclusive and wants a person",
+                "guard obligations follow the change; budget and seed are policy",
+                "two commits that each edit an existing test: one check, on the net change",
+                "a single commit is its own net change: its check runs once, on the commit",
+                "through pocp prove: a new-side timeout leaves the guard inconclusive and the gate wants a person",
+                "an honest multi-commit pull request that changes code and adds tests still verifies",
+                "an honest merge from main still verifies, and only the branch's own changes are judged"
+              ]
+            }
+          ],
+          "left_out": [
+            "test/e2e-guard-fast-mode.test.js",
+            "test/runner-env.test.js"
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 162480
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 10,
+          "seed": 1
+        },
+        "duration_ms": 1178405,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-03T17:50:31.363Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-03T17:50:31.363Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-03T18:11:03.685Z",
+      "event": "touches_widened",
+      "added": [
+        "test/e2e-guard-timeouts.test.js"
+      ],
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-03T18:11:03.685Z",
+      "event": "guard_replaced",
+      "removed": [
+        "o4"
+      ]
+    },
+    {
+      "at": "2026-11-03T18:11:03.685Z",
+      "event": "requirements_synced",
+      "added": [
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-03T19:17:01.182Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:6d910cfd3075b77e5a062c0337f1a340ac9861b4d9dd78f207239f3706b5716a"
+    },
+    {
+      "at": "2026-11-03T19:17:01.521Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:6d910cfd3075b77e5a062c0337f1a340ac9861b4d9dd78f207239f3706b5716a"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:6cf81e59920ea4ab75194861d71f47c818ad4fef5f71a6d906c34283fd6d4a62",
+      "subject": "sha256:6d910cfd3075b77e5a062c0337f1a340ac9861b4d9dd78f207239f3706b5716a",
+      "by": "harriswekselblatt",
+      "at": "2026-11-03T19:17:01.521Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: guard results identical before and after the speedups: kept; guard results identical before and after the speedups: dropped; weakening an assertion fails the detection check (part 2), and the gate wants a person; a check that runs no tests proves nothing: the guard is inconclusive and wants a person; guard obligations follow the change; budget and seed are policy; two commits that each edit an existing test: one check, on the net change; a single commit is its own net change: its check runs once, on the commit; through pocp prove: a new-side timeout leaves the guard inconclusive and the gate wants a person; an honest multi-commit pull request that changes code and adds tests still verifies; an honest merge from main still verifies, and only the branch's own changes are judged: behavior changed, so a person must approve it"
+    }
+  ]
+}

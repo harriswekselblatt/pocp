@@ -36,6 +36,70 @@ export const DEFAULT_RUNNER_GLOBS = [
 const REMOVED_ASSERT = /\b(assert\w*|expect|should|t\.(is|deepEqual|equal|true|false|throws|ok|not\w*)|toBe\w*|toEqual|toMatch\w*|toThrow\w*|toHave\w*|self\.assert\w*)\b/;
 const ADDED_SKIP = /(\b(describe|it|test|context|suite)\.(skip|only|todo)\b|\bx(it|describe|test)\s*\(|\bt\.skip\b|@pytest\.mark\.(skip|xfail)|\{\s*skip\s*:\s*true|\.skip\(\))/;
 
+// Added lines that can hollow out a test without removing anything: leaving early, exiting,
+// overriding or patching assertions, the common mocking APIs named below, test hooks,
+// assignments to globalThis/global, swallowing errors. A heuristic: it can't catch every way an added line weakens a
+// test (a new helper later tests call instead of the real assertion, a change made through an
+// alias such as `const a = assert; a.equal = ...`, shared state set in an added test that runs
+// first), so the fast mode only promises what it lists here.
+const RISKY_ADDED = [
+  [ADDED_SKIP, 'skips or focuses tests'],
+  [/\b(?:todo|only|skip)\s*:\s*true\b/, 'skips or focuses tests'],
+  [/\bprocess\.(?:exit|abort)\s*\(|\bsys\.exit\s*\(|\bos\._exit\s*\(/, 'exits the process'],
+  [/^\s*return\s*;?\s*$|\bif\s*\(\s*(?:true|1|!0)\s*\)\s*return\b/, 'returns early'],
+  [/\b(?:assert|expect|should|t)(?:\.\w+)+\s*=(?![=>])|^\s*(?:assert|expect|should)\s*=(?![=>])/, 'reassigns an assertion'],
+  [/\bObject\.(?:assign|defineProperty|defineProperties|setPrototypeOf)\s*\(\s*(?:assert|expect|should|t)\b|\.prototype\.\w+\s*=(?![=>])|\b__proto__\b/, 'patches an assertion or a prototype'],
+  [/\b(?:jest|vi)\.(?:mock|doMock|spyOn|stubGlobal)\s*\(|\bmock\.(?:module|method|fn)\s*\(|\bsinon\.(?:stub|replace)\s*\(|\bmonkeypatch\.|\b(?:mock\.)?patch\s*\(/, 'mocks or stubs a module or function'],
+  [/\bprocess\.exitCode\s*=\s*(?:0|undefined|null)\b|\bprocess\.on\s*\(\s*['"](?:exit|beforeExit|uncaughtException|unhandledRejection)['"]/, 'resets the exit code or handles process exit'],
+  [/\b(?:before|after|beforeEach|afterEach|beforeAll|afterAll|setup|teardown|setUp|tearDown)\s*\(|\bdef\s+(?:setUp|tearDown|setup_method|teardown_method)\b|@pytest\.fixture\b/, 'adds a test hook or fixture'],
+  [/\bglobalThis\.\w+\s*=(?![=>])|\bglobal\.\w+\s*=(?![=>])/, 'changes a global'],
+  [/\bcatch\s*(?:\([^)]*\))?\s*\{\s*\}|\bexcept\b[^:]*:\s*pass\b/, 'swallows errors'],
+];
+
+/**
+ * The fast mode's check (guard.mutants 0), run after the old tests pass on the new code.
+ * It lets a change through only when every guarded change is an existing test file that is
+ * modified by adding lines, none of which match RISKY_ADDED. Anything else goes to a person:
+ * changed or removed lines, deleted or renamed tests, helpers, runner config, test settings.
+ * Returns the reasons a person must look, [] when none. `rev` null means the staged index.
+ */
+export function structuralReview(root, { base, rev = null, changes = [] }) {
+  const reasons = [];
+  for (const c of changes) {
+    const file = c.status === 'R' ? `${c.oldPath} → ${c.path}` : c.path;
+    if (c.kind !== 'test') {
+      reasons.push({ file, why: c.kind === 'runner-config' ? 'test setup or a test helper changed' : 'test settings changed' });
+      continue;
+    }
+    if (c.status === 'D') {
+      reasons.push({ file, why: 'a test file was deleted' });
+      continue;
+    }
+    if (c.status === 'R') {
+      reasons.push({ file, why: 'a test file was renamed' });
+      continue;
+    }
+    if (c.status !== 'M') {
+      reasons.push({ file, why: `a test file changed (${c.status})` });
+      continue;
+    }
+    const args = rev ? ['diff', '-U0', base, rev, '--', c.path] : ['diff', '--cached', '-U0', base, '--', c.path];
+    const diff = g.git(root, args, { allowFail: true, trim: false }) || '';
+    const lines = diff.split('\n').filter((l) => !l.startsWith('---') && !l.startsWith('+++'));
+    if (lines.some((l) => l.startsWith('-'))) {
+      reasons.push({ file, why: 'existing test lines were changed or removed' });
+      continue;
+    }
+    // Each added line, and all of a file's added lines joined into one, so a call split over
+    // several lines (`Object.assign(\n  assert,\n  {...})`) still matches.
+    const added = lines.filter((l) => l.startsWith('+')).map((l) => l.slice(1));
+    const texts = [...added, added.map((l) => l.trim()).join(' ').replace(/\s*\.\s*/g, '.')];
+    const hits = [...new Set(texts.flatMap((t) => RISKY_ADDED.filter(([re]) => re.test(t)).map(([, why]) => why)))];
+    if (hits.length) reasons.push({ file, why: `an added line ${hits.join(', ')}` });
+  }
+  return reasons;
+}
+
 /** The globs the test guard actually uses: replacements (or defaults) plus extras. */
 export function effectiveGuardGlobs(config = {}) {
   const guardCfg = config.guard || {};
@@ -226,7 +290,9 @@ export function guardRequirement(files, config = {}) {
       kind: 'guard',
       files,
       ...guardBudget(config),
-      text: `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught`,
+      text: guardBudget(config).mutants === 0
+        ? `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)`
+        : `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught`,
     },
   });
 }

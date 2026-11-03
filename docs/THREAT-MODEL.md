@@ -13,7 +13,7 @@ environment.
 | The set of required checks | Rules re-derived on every gate and verify; requirements matched against the changed files a packet covers (§6, §7) |
 | The rules themselves | Policy files need a packet; CI judges each commit by the **base** branch's rules and fails any loosening without approval (§7.2) |
 | The trust root for signatures | `allowed_signers` read from the base (or a pinned file), never from the commit under review (§7.2) |
-| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code and the new tests must catch every sampled mutant the old ones caught; otherwise a sign-off, or approval in block mode (§6.2). In CI the whole pull request is also judged as one change, merges included (§7.2) |
+| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code. Fast mode (`guard.mutants: 0`): the change must only add non-risky lines to existing test files. Deep mode: the new tests must catch every sampled mutant the old ones caught. Otherwise a sign-off, or approval in block mode (§6.2). In CI the whole pull request is also judged as one change, merges included (§7.2) |
 | Lessons from escapes | Misses close only through a runnable rule; replay shows it catches the old code (§8) |
 
 ## Who it defends against
@@ -199,7 +199,19 @@ check isn't required, pull requests aren't required, or admins can merge past th
   records that verify. Protect them as you would release credentials.
 - **Heuristic signals.** The test guard's "assertions removed / skips added" counts are
   hints for the reviewer, not a parser of every test framework.
-- **Limits of the mechanical test check.** It samples: with the default 10 mutants, a
+- **Limits of fast mode** (`guard.mutants: 0`). It passes a test edit only when the edit adds
+  lines to existing test files and none matches its risky text patterns (skip or focus,
+  exit, a bare early return, reassigning or patching an assertion object or a prototype, the
+  common mocking and stubbing APIs it names, exit-code resets and exit handlers, test hooks
+  and fixtures, assignments to `globalThis`/`global`, empty `catch`). They are matched on
+  each added line and on a file's added lines joined. They are not a parser, and an added
+  line can still weaken a test in ways they miss. Known examples: patching through an alias
+  (`const a = assert; a.equal = () => {}`), a mocking API it doesn't name, a global changed
+  some other way (`Reflect.set`, a bare assignment in sloppy mode), a statement split around
+  an unchanged line, a new helper that later tests call instead of the real assertion, and
+  shared state set by an added test that runs first. Everything else goes to a person, so fast mode trades the planted-bug
+  check for more reviews.
+- **Limits of the mechanical test check (deep mode).** It samples: with the default 10 mutants, a
   weakening that only matters on lines outside the sample can pass. Raise `guard.mutants`
   for more confidence. It needs the old tests to catch something in the sample, or it can't
   measure a drop (it then asks for a sign-off). A change can still alter the code until a
@@ -221,10 +233,11 @@ check isn't required, pull requests aren't required, or admins can merge past th
   has no timeout ceiling), so on a suite with a 10-minute limit a hung mutant costs up to 40
   minutes of check time. A test runner that dies by a signal on a mutant (a native crash)
   counts as not measured, not caught, so it too is inconclusive. Only mutant runs are
-  retried: a baseline run that doesn't finish blocks without a retry, and if the old tests
-  time out on the new code but pass on the base, the result reads `behavior-changed`, so
-  load can be mistaken for a real change (it still blocks; a re-run with `--force` on a
-  quiet machine tells them apart).
+  retried: a baseline run that doesn't finish blocks without a retry. If the old tests
+  don't finish on the new code (a timeout, a signal, a spawn error) but pass on the base,
+  the result is `inconclusive`, not `behavior-changed`: a run that didn't finish says
+  nothing about behavior. It still blocks; a re-run with `--force` on a quiet machine, or a
+  person, decides.
 - **Processes that leave the check's process group.** POCP kills every process that stays
   in the check's group, including when POCP itself is killed. A check that starts a new
   session (`setsid`), detaches a daemon, or starts a service elsewhere can leave it running.

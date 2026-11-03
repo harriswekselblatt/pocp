@@ -6,7 +6,7 @@ A guide for an engineer reviewing POCP: what to try, which code matters most, an
 
 ## 1. What it is, in one minute
 
-POCP gates git commits on proof that the required checks ran on the exact code being committed, and re-verifies in CI. Its headline claim, stated in the README: *a coding agent can't fake green CI by weakening the tests*. That covers deleting or loosening assertions, skipping tests, rewiring the test setup, deleting the rule that requires a check, and forging a proof. It doesn't judge whether the code is honest (special-casing test inputs), and it relies on the Git host to make its CI check required. Read [README.md](README.md) first; it's short.
+POCP gates git commits on proof that the required checks ran on the exact code being committed, and re-verifies in CI. Its claim, stated in the README: a coding agent's test edits can't pass CI on their own unless POCP can vouch for them. In fast mode (the default for new projects) that means the edit only adds non-risky lines to existing tests; in deep mode, planted bugs show the new tests still catch what the old ones caught. Everything else, such as loosened assertions, skipped tests, rewired test setup, a deleted rule or a forged proof, is blocked or goes to a maintainer. It doesn't judge whether the code is honest (special-casing test inputs), and it relies on the Git host to make its CI check required. Read [README.md](README.md) first; it's short.
 
 ## 2. Try it (about 10 minutes)
 

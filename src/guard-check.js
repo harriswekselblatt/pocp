@@ -4,6 +4,7 @@ import path from 'node:path';
 import * as g from './git.js';
 import { matchGlob } from './glob.js';
 import { applySite, DEFAULT_EVAL_EXCLUDE, mutationSites, prng, SOURCE_EXT } from './mutants.js';
+import { structuralReview } from './guard.js';
 import { ranAndFailed, unfinishedReason } from './run-result.js';
 import { restoreTestSettings } from './test-setup.js';
 import { copySnapshot, createTreeSnapshot } from './workspace.js';
@@ -244,7 +245,14 @@ export async function runGuardCheck({
       } finally {
         baseTpl.cleanup();
       }
-      // A check that passes at the base but fails on the new code: the change did that.
+      // A check that passes at the base but fails on the new code: the change did that, but
+      // only if the failing runs on the new code ran to the end. A timeout, a signal or a spawn
+      // error there says nothing about behavior: under load (deep mode's planted-bug runs
+      // compete with this one) an honest change was blocked as "behavior changed" this way.
+      const unfinishedOld = result.old_tests.runs.filter((r) => !r.passed && !ranAndFailed(r));
+      if (result.baseline.runs.some((r) => r.passed) && unfinishedOld.length) {
+        return finish('inconclusive', `the old tests didn't finish on the new code (${failedList(unfinishedOld, checks)}), though they pass on the base: a run that times out or is killed says nothing about behavior, so this can't be read as a behavior change. Re-run with less load (pocp prove --force), or a person must approve it`);
+      }
       if (result.baseline.runs.some((r) => r.passed)) {
         const names = testNames(result.old_tests.runs);
         return finish('behavior-changed', `the old tests fail on the new code (${failedList(result.old_tests.runs, checks)})${names.length ? `; failing: ${names.join('; ')}` : ''}: behavior changed, so a person must approve it`);
@@ -270,8 +278,16 @@ export async function runGuardCheck({
       return finish('inconclusive', `the old tests fail on the new code, and on the base the same checks didn't finish normally (${failedList(result.baseline.runs.filter((r) => !ranAndFailed(r)), checks)}), so it can't be told whether they were already failing: a person must approve it`);
     }
     if (mutants === 0) {
+      // Fast mode: no planted bugs. Only a change that adds lines to existing tests, none of
+      // them risky, passes on its own; anything else goes to a person (guard.js).
       result.detection = { result: 'off', budget: 0, seed };
-      return finish('passed', 'the old tests pass on the new code (mutant check off: guard.mutants is 0)');
+      const reasons = structuralReview(root, { base, rev, changes });
+      result.structural = { result: reasons.length ? 'needs-review' : 'passed', reasons };
+      if (reasons.length) {
+        const shown = reasons.slice(0, 3).map((r) => `${r.file}: ${r.why}`).join('; ') + (reasons.length > 3 ? `; and ${reasons.length - 3} more` : '');
+        return finish('needs-review', `the old tests pass on the new code, but the change does more than add lines to existing tests (${shown}); without planted bugs (guard.mutants is 0) POCP can't check it, so a person must review it`);
+      }
+      return finish('passed', 'the old tests pass on the new code, and the change only adds lines to existing tests, none of which matches the risky patterns (skips, exits, early returns, patched assertions, mocks, exit-code resets, test hooks, globals, empty catch); guard.mutants is 0: no planted bugs');
     }
 
     // Part 2: the same seeded sample was planted on both sides (above).

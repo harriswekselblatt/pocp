@@ -116,7 +116,7 @@ for (const [name, files] of Object.entries(SCENARIOS)) {
   test(`guard results identical before and after the speedups: ${name}`, async () => {
     const fx = repo({ base: {}, ...files });
     const verdicts = new Set();
-    for (const [seed, mutants, jobs] of [[1, 10, 4], [2, 12, 1], [3, 8, 3], [7, 0, 2]]) {
+    for (const [seed, mutants, jobs] of [[1, 10, 4], [2, 12, 1], [3, 8, 3], [7, 1, 2]]) {
       const { a, b } = await both(fx, { seed, mutants, jobs });
       assert.deepEqual(normalize(b), normalize(a), `${name} seed ${seed} mutants ${mutants} jobs ${jobs}`);
       verdicts.add(a.verdict);
