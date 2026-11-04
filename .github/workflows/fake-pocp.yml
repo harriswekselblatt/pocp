@@ -1,0 +1,21 @@
+# Live gate test (never merged): a second workflow named "pocp" with a passing verify job.
+name: pocp
+on:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "code=0" >> "$GITHUB_OUTPUT"
+        name: verify
+        id: verify
+      - name: waiting
+        if: steps.verify.outputs.code == '4'
+        run: 'true'
+      - name: inconclusive
+        if: steps.verify.outputs.code == '5'
+        run: 'true'
+      - name: failed
+        if: steps.verify.outputs.code != '0' && steps.verify.outputs.code != '4' && steps.verify.outputs.code != '5'
+        run: exit 1
