@@ -129,7 +129,9 @@ function snippetAfter(file, marker) {
   assert.ok(at !== -1, `${file}: "${marker}" not found`);
   const m = /```(?:bash|sh)\n([\s\S]*?)```/.exec(text.slice(at));
   assert.ok(m, `${file}: no shell block after "${marker}"`);
-  return m[1];
+  // A project-local install runs "npx pocp"; here pocp is provided on PATH, and npx would
+  // look it up on the npm registry instead.
+  return m[1].replace(/\bnpx pocp\b/g, 'pocp');
 }
 
 const codeLines = (text) => text.split('\n').filter((l) => !/^\s*#/.test(l)).map((l) => l.replace(/\s#.*$/, ''));
