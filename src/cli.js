@@ -680,7 +680,10 @@ export async function main(argv = process.argv.slice(2)) {
         const nextSteps = (rows2) => {
           const seen = new Map();
           for (const c of rows2) for (const f of (c.findings || []).filter((x) => x.blocking)) if (!seen.has(f.code)) seen.set(f.code, { code: f.code, ...verifyRemedy(f.code, f.detail) });
-          for (const f of (result?.rerun_failures || []).filter((x) => x.blocking !== false)) if (!seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed') });
+          // A re-run that ran and failed outranks one that only timed out, for what to do next.
+          const reruns = (result?.rerun_failures || []).filter((x) => x.blocking !== false);
+          const worst = reruns.find((x) => !x.unfinished) || reruns[0];
+          if (worst && !seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed', worst.detail || worst.problem) });
           const list2 = [...seen.values()];
           if (!list2.length) return [];
           const out2 = ['  what to do:', ...list2.map((x) => `    ${x.code}: ${x.why ? `${x.why} ` : ''}next: ${x.next}${x.by === 'person' ? '   (needs a person)' : ''}`)];

@@ -140,10 +140,14 @@ export function verifyRemedy(code, detail = '') {
       return { why: 'this change loosens the rules or CI that judge every later change; the change cannot approve itself.', next: `a maintainer reviews it and adds the \`${APPROVE_POLICY_LABEL}\` label`, by: 'person' };
     case 'invalid_policy':
       return { why: 'POCP cannot judge anything under an invalid policy.', next: 'fix .proof/rules.json or .proof/config.json until "pocp rules check" passes, in a new commit', by: 'agent' };
+    case 'ci_unfinished':
+      return { why: "a required CI check didn't finish when verify re-ran it (it timed out or was killed), so nothing is known about the code yet.", next: 're-run the job; if it still can\'t finish, fix the hang or raise the time limit', by: 'agent' };
     case 'ci_missing':
     case 'ci_failed':
       return { why: 'verify.require_ci lists checks CI must run on this exact code.', next: code === 'ci_failed' ? 'fix the code (not the tests) in a new commit' : 'run verify with --rerun, which runs the required checks itself (see examples/github/pocp.yml)', by: 'agent' };
     case 'rerun_failed':
+      if (/, timed out\)/.test(detail)) return { why: "a required check didn't finish when verify re-ran it (it timed out), so nothing is known about the code yet.", next: 're-run the job; if it still can\'t finish, fix the hang or raise the time limit', by: 'agent' };
+      // falls through: a check that ran and failed
     case 'failed_proof':
       return { why: 'a required check fails on this code.', next: 'fix the code (not the tests) and commit the fix with "pocp fix" then "git commit"', by: 'agent' };
     case 'trailer_mismatch':

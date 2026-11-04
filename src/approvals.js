@@ -28,9 +28,15 @@ export function approvalSummary(findings = [], rerunFailures = []) {
   const needs = new Map();
   // A re-run that didn't finish (timed out, killed, didn't start) says nothing about the code:
   // it waits for a re-run, not a label. One that ran and failed is a real failure.
-  const unfinishedReruns = rerunFailures.filter((f) => f.unfinished === true).length;
+  let unfinishedReruns = rerunFailures.filter((f) => f.unfinished === true).length;
   let other = rerunFailures.length > unfinishedReruns;
   for (const f of findings.filter((x) => x.blocking)) {
+    // A required CI check whose re-run didn't finish: like an unfinished re-run, it waits for a
+    // re-run, never a label.
+    if (f.code === 'ci_unfinished') {
+      unfinishedReruns++;
+      continue;
+    }
     const r = verifyRemedy(f.code, f.detail);
     const label = r.by === 'person' && Object.values(LABEL_FOR).find((l) => r.next.includes(`\`${l}\``));
     if (!label) {
