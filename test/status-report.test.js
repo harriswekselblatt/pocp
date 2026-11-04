@@ -23,7 +23,7 @@ const run = (pattern = {}, over = {}) => ({
 });
 const facts = (over = {}) => ({
   event_sha: SHA, repository: 'o/r', workflow: WF, ci_globs: workflowFiles(null),
-  pr: { number: 7, state: 'open', head_sha: SHA, labels: [] },
+  pr: { number: 7, state: 'open', head_sha: SHA, labels: [], author: 'author' },
   files: [{ filename: 'src/a.js' }], runs: [run()], label_events: [], ...over,
 });
 
@@ -65,7 +65,7 @@ test('spoof: a PR that edits the workflow gets no green from its own run, whatev
 test('spoof: a workflow change turns green only with pocp-approve-workflow from a writer, given after the first run', () => {
   const first = run({}, { created_at: '2026-11-04T10:00:00Z' });
   const base = { files: [{ filename: '.github/workflows/pocp.yml' }], runs: [first] };
-  const labelled = (e) => facts({ ...base, pr: { number: 7, state: 'open', head_sha: SHA, labels: ['pocp-approve-workflow'] }, label_events: [e] });
+  const labelled = (e) => facts({ ...base, pr: { number: 7, state: 'open', head_sha: SHA, labels: ['pocp-approve-workflow'], author: 'author' }, label_events: [{ actor: 'maintainer', ...e }] });
   assert.equal(decideStatus(labelled({ label: 'pocp-approve-workflow', permission: 'write', created_at: '2026-11-04T11:00:00Z' })).state, 'success');
   assert.equal(decideStatus(labelled({ label: 'pocp-approve-workflow', permission: 'triage', created_at: '2026-11-04T11:00:00Z' })).state, 'pending', 'triage can label but not approve');
   assert.equal(decideStatus(labelled({ label: 'pocp-approve-workflow', permission: null, created_at: '2026-11-04T11:00:00Z' })).state, 'pending', 'unknown permission never approves');
@@ -74,8 +74,46 @@ test('spoof: a workflow change turns green only with pocp-approve-workflow from 
   assert.equal(decideStatus(facts({ ...base, label_events: [{ label: 'pocp-approve-workflow', permission: 'admin', created_at: '2026-11-04T11:00:00Z' }] })).state, 'pending');
   // Approved, but the run itself failed: still red.
   const failedRun = run({ failed: 'failure' }, { created_at: '2026-11-04T10:00:00Z' });
-  const d = decideStatus(facts({ files: base.files, runs: [failedRun], pr: { number: 7, state: 'open', head_sha: SHA, labels: ['pocp-approve-workflow'] }, label_events: [{ label: 'pocp-approve-workflow', permission: 'maintain', created_at: '2026-11-04T11:00:00Z' }] }));
+  const d = decideStatus(facts({ files: base.files, runs: [failedRun], pr: { number: 7, state: 'open', head_sha: SHA, labels: ['pocp-approve-workflow'], author: 'author' }, label_events: [{ label: 'pocp-approve-workflow', actor: 'maintainer', permission: 'maintain', created_at: '2026-11-04T11:00:00Z' }] }));
   assert.equal(d.state, 'failure');
+});
+
+// A CI-changing pull request whose workflow a maintainer approved: the run is then judged by
+// every normal rule. Approving the workflow approves nothing else.
+const ciChanged = (pattern, { labels = ['pocp-approve-workflow'], actor = 'maintainer', approver } = {}) => facts({
+  files: [{ filename: '.github/workflows/pocp.yml' }],
+  runs: [run(pattern, { created_at: '2026-11-04T10:00:00Z' })],
+  pr: { number: 7, state: 'open', head_sha: SHA, labels, author: 'author' },
+  label_events: [{ label: 'pocp-approve-workflow', actor, permission: 'write', created_at: '2026-11-04T11:00:00Z' }],
+  ...(approver ? { workflow_approver: approver } : {}),
+});
+
+test('regression: a CI-changing PR whose run still waits for another approval stays pending, never green', () => {
+  // Live mode: the waiting step passes, so the job concludes success.
+  const live = decideStatus(ciChanged({ waiting: 'success' }));
+  assert.equal(live.state, 'pending');
+  assert.equal(live.description, TEXT.waiting);
+  // Report-only mode: the waiting step fails the job.
+  const reportOnly = decideStatus(ciChanged({ waiting: 'failure', jobFailed: true }));
+  assert.equal(reportOnly.state, 'pending');
+  assert.equal(decideStatus(ciChanged({ inconclusive: 'success' })).description, TEXT.inconclusive);
+  // The run relied on a test approval that has since been removed: pending, not green.
+  const gone = decideStatus(ciChanged({ approvals: ['approval-tests'] }));
+  assert.equal(gone.state, 'pending');
+  assert.equal(gone.description, TEXT.approvalGone);
+  // With that approval still on, and the workflow approved, it's green.
+  assert.equal(decideStatus(ciChanged({ approvals: ['approval-tests'] }, { labels: ['pocp-approve-workflow', 'pocp-approve-tests'] })).state, 'success');
+});
+
+test('pocp-approve-workflow must come from someone other than the author, unless the base allows any writer', () => {
+  const byAuthor = decideStatus(ciChanged({}, { actor: 'author' }));
+  assert.equal(byAuthor.state, 'pending');
+  assert.equal(byAuthor.description, TEXT.workflow);
+  assert.match(byAuthor.reason, /a writer other than the author/);
+  assert.equal(decideStatus(ciChanged({}, { actor: null })).state, 'pending', 'an unknown actor never approves');
+  assert.equal(decideStatus(ciChanged({}, { actor: 'maintainer' })).state, 'success');
+  // A solo maintainer can choose "any-writer" in the base's config (a policy loosening).
+  assert.equal(decideStatus(ciChanged({}, { actor: 'author', approver: 'any-writer' })).state, 'success');
 });
 
 test('identity: runs of another workflow, event, repository or head are ignored', () => {
@@ -171,4 +209,14 @@ test('reportStatus writes one pocp status on the head', async () => {
   assert.equal(posted[0].url, `/repos/o/r/statuses/${SHA}`);
   assert.equal(posted[0].body.context, 'pocp');
   assert.equal(posted[0].body.state, 'success');
+});
+
+test('ci.workflow_approver: "independent" by default, validated, and loosening it is a policy change', async () => {
+  const { configWeakening, validateConfig, withDefaults } = await import('../src/store.js');
+  assert.equal(withDefaults({}).ci.workflow_approver, 'independent');
+  assert.deepEqual(validateConfig(withDefaults({})), []);
+  assert.deepEqual(validateConfig(withDefaults({ ci: { workflow_approver: 'any-writer' } })), []);
+  assert.match(validateConfig(withDefaults({ ci: { workflow_approver: 'anyone' } })).join(), /ci\.workflow_approver must be/);
+  assert.deepEqual(configWeakening(withDefaults({}), withDefaults({ ci: { workflow_approver: 'any-writer' } })), ['ci.workflow_approver no longer requires an approver other than the author']);
+  assert.deepEqual(configWeakening(withDefaults({ ci: { workflow_approver: 'any-writer' } }), withDefaults({})), [], 'tightening is not a loosening');
 });

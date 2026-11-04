@@ -39,7 +39,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   sign: { key: null, principal: null },
   guard: { tests: DEFAULT_GUARD_MODE, test_globs: null, runner_globs: null, mutants: DEFAULT_GUARD_MUTANTS, seed: DEFAULT_GUARD_SEED },
   verify: { fail_on: [...FINDING_CODES], require_ci: [] },
-  ci: { files: [...DEFAULT_CI_FILES], branch: null, required_checks: [], require_pull_request: true, enforce_admins: true },
+  ci: { files: [...DEFAULT_CI_FILES], branch: null, required_checks: [], require_pull_request: true, enforce_admins: true, workflow_approver: 'independent' },
 });
 
 // Calibrated on real history: counting only code and config, these thresholds asked for
@@ -324,6 +324,7 @@ export function validateConfig(config) {
   if (ci.branch !== null && typeof ci.branch !== 'string') problems.push('ci.branch must be a branch name or null');
   if (!isStrArray(ci.required_checks)) problems.push('ci.required_checks must be an array of check names');
   for (const k of ['require_pull_request', 'enforce_admins']) if (typeof ci[k] !== 'boolean') problems.push(`ci.${k} must be true or false`);
+  if (!['independent', 'any-writer'].includes(ci.workflow_approver)) problems.push('ci.workflow_approver must be "independent" or "any-writer"');
   const globLists = { 'guard.test_globs': guard.test_globs, 'guard.runner_globs': guard.runner_globs, 'guard.extra_test_globs': guard.extra_test_globs, 'guard.extra_runner_globs': guard.extra_runner_globs, 'ci.files': ci.files, 'eval.exclude': c.eval?.exclude };
   for (const [k, list] of Object.entries(globLists)) {
     if (!isStrArray(list)) continue;
@@ -352,6 +353,7 @@ export function configWeakening(base, head) {
   }
   if (base.ci?.require_pull_request === true && head.ci?.require_pull_request !== true) out.push('ci.require_pull_request turned off');
   if (base.ci?.enforce_admins === true && head.ci?.enforce_admins !== true) out.push('ci.enforce_admins turned off');
+  if ((base.ci?.workflow_approver ?? 'independent') === 'independent' && (head.ci?.workflow_approver ?? 'independent') !== 'independent') out.push('ci.workflow_approver no longer requires an approver other than the author');
   if (base.ci?.branch && head.ci?.branch !== base.ci.branch) out.push(`ci.branch changed from "${base.ci.branch}"`);
   // What the test guard watches: replacing or trimming its globs can hide a gutted test.
   const bg = effectiveGuardGlobs(base);
@@ -382,6 +384,7 @@ export function strictConfig(base, head) {
   out.ci.required_checks = [...new Set([...(base.ci?.required_checks || []), ...(head.ci?.required_checks || [])])];
   out.ci.require_pull_request = base.ci?.require_pull_request === true || head.ci?.require_pull_request === true;
   out.ci.enforce_admins = base.ci?.enforce_admins === true || head.ci?.enforce_admins === true;
+  out.ci.workflow_approver = [base.ci?.workflow_approver, head.ci?.workflow_approver].includes('independent') || !base.ci?.workflow_approver || !head.ci?.workflow_approver ? 'independent' : 'any-writer';
   if (base.ci?.branch) out.ci.branch = base.ci.branch;
   const bg = effectiveGuardGlobs(base);
   const hg = effectiveGuardGlobs(head);

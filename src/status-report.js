@@ -74,7 +74,8 @@ export function readRun(job) {
  *
  * facts: {
  *   event_sha,                     the head the triggering event was about
- *   pr: { number, state, head_sha, labels: [names] } | null,
+ *   pr: { number, state, head_sha, labels: [names], author } | null,
+ *   workflow_approver,             "independent" (default: not the author) or "any-writer"
  *   workflow: { id, path },        the trusted workflow, by path on the default branch
  *   repository,                    "owner/name"
  *   files: [{ filename, previous_filename }],  the pull request's diff from its merge base
@@ -104,28 +105,32 @@ export function decideStatus(facts) {
   const newest = runs.at(-1) || null;
 
   const changed = changedWorkflowFiles(facts.files, facts.ci_globs || workflowFiles(null));
+  let via = '';
   if (changed.length) {
-    // The run's steps come from the pull request's own workflow: not evidence. Only a
-    // maintainer's review of the change, given after the head's first run, can approve it.
+    // The run's steps come from the pull request's own workflow: not evidence until a
+    // maintainer has reviewed that workflow. pocp-approve-workflow approves only the workflow
+    // change: after it, the run is judged by every rule below, exactly like any other run, so
+    // anything else it still waits for (tests, policy, a check that didn't finish) stays pending.
     const firstRunAt = (facts.runs || []).filter((r) => r.head_sha === sha).map((r) => String(r.created_at)).sort()[0] || null;
+    const independent = (facts.workflow_approver || 'independent') === 'independent';
     const approved = pr.labels.includes(APPROVE_WORKFLOW_LABEL) && (facts.label_events || []).some((e) => e.label === APPROVE_WORKFLOW_LABEL
-      && WRITE_PERMISSIONS.has(e.permission) && firstRunAt && String(e.created_at) > firstRunAt);
-    if (!approved) return status('pending', TEXT.workflow, `CI files changed (${changed.join(', ')}), so the run's results aren't trusted`, newest);
-    if (!newest) return status('pending', TEXT.pending, 'workflow change approved; no completed run yet', null);
-    const { outcome } = readRun(newest.job);
-    if (outcome === 'verified') return status('success', 'CI workflow change approved by a maintainer.', `CI files changed (${changed.join(', ')}); approved with ${APPROVE_WORKFLOW_LABEL}`, newest);
-    return status(outcome === 'failed' ? 'failure' : 'pending', TEXT[outcome], `CI files changed and approved, but the run is ${outcome}`, newest);
+      && WRITE_PERMISSIONS.has(e.permission) && firstRunAt && String(e.created_at) > firstRunAt
+      && (!independent || (e.actor && pr.author && e.actor !== pr.author)));
+    if (!approved) {
+      return status('pending', TEXT.workflow, `CI files changed (${changed.join(', ')}), so the run's results aren't trusted until ${independent ? 'a writer other than the author' : 'a writer'} adds ${APPROVE_WORKFLOW_LABEL} after this head's first run`, newest);
+    }
+    via = `; CI files changed (${changed.join(', ')}), workflow approved with ${APPROVE_WORKFLOW_LABEL}`;
   }
 
   if (!newest) return status('pending', TEXT.pending, `no completed run of ${facts.workflow.path} for ${short(sha)} yet`, null);
   const { outcome, approvals } = readRun(newest.job);
   if (outcome === 'verified') {
     const gone = approvals.filter((l) => !pr.labels.includes(l));
-    if (gone.length) return status('pending', TEXT.approvalGone, `run ${newest.id} relied on ${gone.join(', ')}, which is no longer on the pull request`, newest);
-    return status('success', TEXT.verified, `run ${newest.id} verified${approvals.length ? ` with ${approvals.join(', ')}` : ''}`, newest);
+    if (gone.length) return status('pending', TEXT.approvalGone, `run ${newest.id} relied on ${gone.join(', ')}, which is no longer on the pull request${via}`, newest);
+    return status('success', TEXT.verified, `run ${newest.id} verified${approvals.length ? ` with ${approvals.join(', ')}` : ''}${via}`, newest);
   }
-  if (outcome === 'failed') return status('failure', TEXT.failed, `run ${newest.id} failed`, newest);
-  return status('pending', TEXT[outcome], `run ${newest.id} is ${outcome}`, newest);
+  if (outcome === 'failed') return status('failure', TEXT.failed, `run ${newest.id} failed${via}`, newest);
+  return status('pending', TEXT[outcome], `run ${newest.id} is ${outcome}${via}`, newest);
 }
 
 const short = (sha) => (sha ? String(sha).slice(0, 12) : '(none)');
@@ -171,9 +176,10 @@ export async function gather(gh, { repository, sha, prNumber, baseConfig }) {
     const open = await gh.all(`${repo}/pulls?state=open&per_page=100`);
     pr = open.find((p) => p.head?.sha === sha) || null;
   }
-  const facts = { event_sha: sha, repository, ci_globs: workflowFiles(baseConfig), pr: null, files: [], runs: [], label_events: [] };
+  const facts = { event_sha: sha, repository, ci_globs: workflowFiles(baseConfig), workflow_approver: baseConfig?.ci?.workflow_approver || 'independent', pr: null, files: [], runs: [], label_events: [] };
   if (!pr) return facts;
-  facts.pr = { number: pr.number, state: pr.state, head_sha: pr.head.sha, labels: (pr.labels || []).map((l) => l.name) };
+  facts.pr = { number: pr.number, state: pr.state, head_sha: pr.head.sha, labels: (pr.labels || []).map((l) => l.name), author: pr.user?.login || null };
+  facts.workflow_approver = baseConfig?.ci?.workflow_approver || 'independent';
   const head = pr.head.sha;
   const wf = await gh.get(`${repo}/actions/workflows/${encodeURIComponent(WORKFLOW_PATH.split('/').pop())}`);
   facts.workflow = { id: wf.id, path: wf.path };

@@ -23,9 +23,17 @@ Each label covers one thing, only on the head it was added to. Every push remove
 | `pocp-approve-policy` | loosening `.proof/` rules, signers or CI files |
 | `pocp-approve-coverage` | commits listed in `.proof/exceptions.json` that have no proof |
 | `pocp-approve-inconclusive` | a test change whose check **didn't finish**. A test approval doesn't cover this: the person approving the test change hasn't seen whether the code hangs. |
-| `pocp-approve-workflow` | a change to a CI file, which makes the pull request's own run untrustworthy. It counts only if added by someone with write access after the head's first run. |
+| `pocp-approve-workflow` | a change to a CI file, which makes the pull request's own run untrustworthy. It counts only if added after the head's first run by someone with write access who **isn't the pull request's author** (see below). It approves the workflow change only: the run is then judged like any other, so anything else it waits for still needs its own approval. |
 
 A plain re-run that didn't finish is never cleared by a label, only by a re-run that finishes, or a fix.
+
+### Who can approve a workflow change
+
+By default (`"ci": { "workflow_approver": "independent" }`), `pocp-approve-workflow` must come from a writer other than the pull request's author. On a team, that means a second person reviews any change to CI.
+
+A solo maintainer can set `"workflow_approver": "any-writer"` in the base branch's `.proof/config.json`. That's a policy loosening, so it needs `pocp-approve-policy`. Be clear about what it means: the author can approve their own workflow change, and so can anything acting with the author's GitHub token, such as a coding agent.
+
+The same holds for every approval label. A label shows that an account with write access added it; it can't show that a different person was involved. For approvals from someone other than the author on every change, also require pull request reviews from code owners in branch protection.
 
 ## How it's decided
 
