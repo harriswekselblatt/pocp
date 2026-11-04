@@ -611,7 +611,9 @@ says so and asks for at least one runnable obligation. It never invents filler t
 `0` pass, `1` blocked, `2` usage or config error, `3` internal error. With `--exit-detail`,
 `verify` also tells a wait from a failure: `4` when only a maintainer's approval is missing,
 `5` when something didn't finish (a test check or a re-run timed out, was killed or didn't
-start), and `1` for anything else, including any mixture with a real failure.
+start), and `1` for anything else, including any mixture with a real failure. A required CI check
+(`verify.require_ci`) whose re-run didn't finish is `ci_unfinished`, not `ci_failed`: it blocks
+whenever `ci_failed` does, and only a re-run that finishes, or a fix, clears it.
 
 ### 7.1 Landing and the commit trailer
 
