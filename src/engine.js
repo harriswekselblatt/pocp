@@ -19,7 +19,7 @@ import { ranAndFailed } from './run-result.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { gateRemedies, pendingApprovals } from './remedies.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '1.0.0-rc.1';
 export const STAGES = Object.freeze(['gate', 'commit', 'ci', 'review', 'production']);
 export const SEVERITIES = Object.freeze(['low', 'medium', 'high', 'critical']);
 export const POLICY_FILES = Object.freeze(['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers', '.proof/exceptions.json']);

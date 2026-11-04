@@ -2,6 +2,8 @@
 
 POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it runs the old tests on the new code, and sends any test edit it can't vouch for to a person. An optional deep mode also compares the old and new tests against a sample of planted bugs. It works with any test command and any language, and needs only Node 20 or later and git.
 
+If you build with coding agents, POCP helps you trust that the checks a change needed actually ran on the code being merged, and it sends the changes it can't confidently judge to a person.
+
 It is an early prototype. The results below come from a scripted test suite and small pilot runs, not from a completed evaluation.
 
 ## Why this exists
@@ -39,7 +41,7 @@ In CI, `pocp verify origin/main..HEAD --require-coverage --rerun` (the base bran
 - re-runs every required check itself, instead of trusting the packets, which are only pointers;
 - judges the pull request by the base branch's rules, so the pull request can't remove or loosen a rule or add its own signing key;
 - when the pull request edits existing tests or test setup, runs the test check once, on the pull request's net change, so a weakening split across commits or placed in a merge commit is judged the same way. It has two modes (below);
-- fails with a named reason, and says when only a maintainer can resolve it, for example by approving an intended test change with a label.
+- fails with a named reason, and says when only a maintainer can resolve it, for example by approving an intended test change with a label. On GitHub, a separate trusted workflow turns that into one commit status, **`pocp`**: green when verified, yellow while it waits for a maintainer or a check didn't finish, red on a real failure ([docs/STATUS.md](docs/STATUS.md)).
 
 ### The test check: fast and deep
 
@@ -59,16 +61,16 @@ Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
 | Hollows out the test script, runner config, or an assertion helper the tests import | passes | goes to a person, for helpers POCP finds by following imports | blocked, for helpers POCP finds by following imports |
 | Removes or loosens the rule that requires a check | n/a | blocked: the base branch's rules apply | same |
 | Edits a packet so failing proofs read as passed | n/a | blocked: the checks are re-run | same |
-| Removes POCP from the CI workflow | passes | blocked only if the Git host requires the POCP check | same |
+| Edits or removes POCP's CI workflow | passes | with `pocp` required: stays yellow until a maintainer approves the workflow change (`pocp-approve-workflow`); see the limit below | same |
 | Writes code that special-cases the test inputs | passes | not blocked | not blocked |
 
-"Goes to a person" means CI fails until a maintainer approves the change with a label. Neither mode makes an agent's test edits safe without review: they decide which edits can pass without one.
+"Goes to a person" means the change waits until a maintainer approves it with a label. With the `pocp` status that's a yellow wait, not a red ✗. Neither mode makes an agent's test edits safe without review: they decide which edits can pass without one.
 
 ## What it doesn't do
 
 - It doesn't judge whether code is honest. Code written to pass the specific test inputs passes every mechanical check.
 - It doesn't enforce merges. `verify` fails a check; whether a failing check blocks the merge is your Git host's setting (on GitHub, branch protection).
-- It doesn't stop a pull request from faking its own check. On GitHub a pull request runs its own copy of the workflow, so one that edits the workflow can report a passing `verify` without running POCP, and branch protection accepts it. Read the diff of any pull request that touches `.github/` before merging ([threat model](docs/THREAT-MODEL.md#verification-vs-merge-enforcement)). A fix is planned.
+- It can't fully stop a pull request from faking its own check. A pull request runs its own copy of the workflow. With the `pocp` status required, a pull request that edits CI files stays yellow until a maintainer approves the edit, and pull requests from forks can't post a status at all. But a branch pushed to your repository by someone with write access, including an agent using your token, can edit its workflow to post its own `pocp` status. Read the diff of any such pull request that touches `.github/` ([docs/STATUS.md](docs/STATUS.md#a-limit-of-the-pocp-status)). A dedicated GitHub App for the reporter, which would close this, is planned.
 - It doesn't measure new tests. The test check compares a change with tests that already existed, so a weak test added in the same pull request isn't measured.
 - It isn't hermetic. Checks can read the network, environment variables and installed packages, and the re-runs execute the pull request's code in your CI job.
 - Deep mode is slow. It re-runs the required checks for each planted bug, so its cost grows with your suite's run time. On POCP's own repository it took up to about 17 minutes locally. One measured case: on 2026-11-02, a full `verify` of a 13-commit pull request to POCP that edited test helpers took about 25 minutes on a GitHub runner, of which the test check took about 16 ([run](https://github.com/harriswekselblatt/pocp/actions/runs/41524329250)).
@@ -77,25 +79,37 @@ Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
 
 ## How to try it
 
-POCP isn't published on npm. Install a pinned commit:
+POCP needs Node 20 or later, git and a POSIX shell. Your project can be in any language. In a git repository:
 
 ```bash
-# Replace COMMIT_SHA with a full commit SHA from this repository's history.
-npm install --save-dev "github:harriswekselblatt/pocp#COMMIT_SHA"
-npx pocp init --hooks
+npm install --save-dev "github:harriswekselblatt/pocp#v1.0.0"
+npx pocp init --hooks --github
 ```
 
-`init` creates `.proof/`, reports where it found your tests, and installs the git hooks. Hooks you already have keep running. Add a rule as above, change a file it covers, and commit. If the commit is blocked, run `pocp fix --intent "<what the change does>"` and commit again.
+`init` creates `.proof/` and reports where it found your tests. `--hooks` installs the git hooks; hooks you already have keep running. `--github` writes three workflows to `.github/workflows/`, pinned to this release:
 
-In CI: keep your existing test step, and add:
+- `pocp.yml` runs verify;
+- `pocp-status.yml` sets the `pocp` status;
+- `pocp-labels.yml` removes approval labels on every push.
+
+Then:
+
+1. **Say what must be proven.** Add a rule to `.proof/rules.json` (above). Change a file it covers, and commit. If the commit is blocked, run `npx pocp fix --intent "<what the change does>"` and commit again.
+2. **Check the setup:** `npx pocp doctor`. It lists anything missing, with the commands to fix it, such as the approval labels to create on GitHub. Pushing the workflow files needs a GitHub login with the `workflow` permission.
+3. **Try it in report-only mode.** Require the `verify` check on your main branch (`npx pocp ci required --apply` sets it from `ci.required_checks`), and watch the `pocp` status on a few pull requests.
+4. **Go live, in one sitting:** set the repository variable `POCP_STATUS_LIVE` to `true`, *and* require `pocp` instead of `verify`. A wait for approval then shows yellow, with no red ✗ and no failure email, and merging stays blocked until the approval. To roll back, unset the variable and require `verify` again.
+
+[docs/QUICKSTART.md](docs/QUICKSTART.md) walks through this on a non-JavaScript project. [docs/STATUS.md](docs/STATUS.md) covers the status, the approval labels, who may approve, and its limits.
+
+**On another CI** (GitLab, Jenkins, plain shell). In CI: keep your existing test step, and add:
 
 ```bash
-pocp verify origin/main..HEAD --require-coverage --rerun
+npx pocp verify origin/main..HEAD --require-coverage --rerun
 ```
 
-This needs the base branch fetched with its history (on GitHub, `actions/checkout` with `fetch-depth: 0`). The complete workflows in [`examples/`](examples/) for GitHub, GitLab and plain shell handle that. There's also a GitHub Action in [`action.yml`](action.yml), and a walkthrough on a non-JavaScript repository in [docs/QUICKSTART.md](docs/QUICKSTART.md).
+This needs the base branch fetched with its history. [`examples/`](examples/) has complete workflows for GitLab and plain shell.
 
-This repository's CI runs the test suite on Ubuntu and macOS with Node 20, 22 and 24, plus POCP's own `verify`, on every pull request. The checks on each commit show whether that commit passed.
+This repository uses POCP on itself: every pull request needs the `pocp` status, plus the test suite on Ubuntu with Node 20, 22 and 24 and the eval tests. The test suite also runs on macOS, which is temporarily not required while GitHub's macOS runners are unreliable.
 
 ## Results so far
 

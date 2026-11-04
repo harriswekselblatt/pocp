@@ -1,0 +1,519 @@
+{
+  "pocp": 1,
+  "id": "p-111ed9c8",
+  "intent": "v1.0.0-rc.1: README and QUICKSTART for the adopter flow; version 1.0.0-rc.1",
+  "touches": [
+    "package.json",
+    "src/engine.js",
+    "test/e2e-cli.test.js",
+    "test/install-hint.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/e2e-cli.test.js",
+        "test/install-hint.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/e2e-cli.test.js, test/install-hint.test.js): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-04T21:45:03.222Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T21:45:03.627Z",
+      "duration_ms": 2512,
+      "stdout_sha256": "48794c412b3e2061197565136cb4a32c72301fb92c94f71b502d8a0e0b9ec7ce",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-78e77870",
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T21:45:06.208Z",
+      "duration_ms": 60278,
+      "stdout_sha256": "062fb566691d27d5cf899a430990e722a53227c0ab2f7ab5f9acf4684134bcce",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-fc1f1268",
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-11-04T21:46:06.603Z",
+      "duration_ms": 368932,
+      "stdout_sha256": "af5f8a2ccad19a2c8fed5787cb27c271b8218a02b6701434380e4c78ddd6bb4c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-38abe3d0",
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:5b6a538bbe4d7df95ea00c5700aacf1ea6152c697a628de6f6211caedfc3d34b",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-04T21:52:15.731Z",
+      "duration_ms": 509698,
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "inconclusive",
+        "passed": false,
+        "summary": "the checks fail on the new code (\"npm test --silent\" exit 1), so there is nothing to compare",
+        "base": "b08273e0ea2aa6f796a26e2ab98afdbf08712d08",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/install-hint.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2566
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 54799
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 230590,
+              "failed_tests": [
+                "help and version",
+                "the install commands in the README and QUICKSTART run in a shell as copied"
+              ]
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "fail",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 220056,
+              "failed_tests": [
+                "help and version"
+              ]
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 509698,
+        "checks_from": "rules"
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T22:04:21.999Z",
+      "duration_ms": 2400,
+      "stdout_sha256": "9029c699a86169c02e5dae8bef69c18c314b35b33558b85556d86bc02db1363b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-479ae2eb",
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T22:04:24.468Z",
+      "duration_ms": 99044,
+      "stdout_sha256": "4c066c4ad517c5c0cc12cd2fe37d7b5aa0a5a05e82c01716d7c4eaf7e5de8442",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-8bf042ab",
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T22:06:03.665Z",
+      "duration_ms": 276844,
+      "stdout_sha256": "aeccb1958104af6d73cc10a4d60228e8c5ca4ce8ba73d989393ccb51d33a9eab",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-6229b8bc",
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:06dbcaf556656fdeaa2c164de3b84df6e8545c17f7470132bac12afe0fe420a8",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-04T22:10:40.683Z",
+      "duration_ms": 620097,
+      "runner": {
+        "pocp": "1.0.0-rc.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: help and version; the install commands in the README and QUICKSTART run in a shell as copied: behavior changed, so a person must approve it",
+        "base": "b08273e0ea2aa6f796a26e2ab98afdbf08712d08",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/e2e-cli.test.js",
+            "test/install-hint.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2444
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 55019
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 288992,
+              "failed_tests": [
+                "help and version",
+                "the install commands in the README and QUICKSTART run in a shell as copied"
+              ]
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 271596
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 620097,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T21:45:03.222Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T21:45:03.222Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T21:52:15.614Z",
+      "event": "proof_failed",
+      "obligation": "o3",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac"
+    },
+    {
+      "at": "2026-11-04T22:00:45.861Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac"
+    },
+    {
+      "at": "2026-11-04T22:00:45.911Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac"
+    },
+    {
+      "at": "2026-11-04T22:00:46.203Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac"
+    },
+    {
+      "at": "2026-11-04T22:04:21.666Z",
+      "event": "touches_widened",
+      "added": [
+        "test/e2e-cli.test.js"
+      ],
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T22:04:21.666Z",
+      "event": "guard_replaced",
+      "removed": [
+        "o4"
+      ]
+    },
+    {
+      "at": "2026-11-04T22:04:21.666Z",
+      "event": "requirements_synced",
+      "added": [
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T22:21:01.230Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd"
+    },
+    {
+      "at": "2026-11-04T22:21:01.298Z",
+      "event": "state",
+      "from": "failed",
+      "to": "open",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd"
+    },
+    {
+      "at": "2026-11-04T22:21:01.719Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:5b6a538bbe4d7df95ea00c5700aacf1ea6152c697a628de6f6211caedfc3d34b",
+      "subject": "sha256:31ab039491a3738164d2c427509d01975c67bdada277c92dc9e940367fa8a9ac",
+      "by": "harriswekselblatt",
+      "at": "2026-11-04T22:00:46.203Z",
+      "to": "ci-approval",
+      "reason": "the checks fail on the new code (\"npm test --silent\" exit 1), so there is nothing to compare"
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:06dbcaf556656fdeaa2c164de3b84df6e8545c17f7470132bac12afe0fe420a8",
+      "subject": "sha256:7dc1cbca21fc3d78070131675468a5d70c60a9ccc7a72dcf91ed1b91b864cccd",
+      "by": "harriswekselblatt",
+      "at": "2026-11-04T22:21:01.719Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: help and version; the install commands in the README and QUICKSTART run in a shell as copied: behavior changed, so a person must approve it"
+    }
+  ]
+}
