@@ -15,7 +15,8 @@ export const CHAIN_MARK = '# pocp: chained hook';
 // Where a chained hook's original goes.
 export const ORIGINAL_SUFFIX = '.pre-pocp';
 // How to install pocp: from the repository at a pinned commit (the npm name isn't pocp's).
-export const INSTALL_HINT = 'npm i -D github:harriswekselblatt/pocp#<commit>';
+// Single-quoted so it can be copied into a shell as is, and stays intact inside the hooks' echo "...".
+export const INSTALL_HINT = "npm i -D 'github:harriswekselblatt/pocp#COMMIT_SHA'";
 
 // The pocp that is running now. Hooks remember it, so a commit still finds pocp when it isn't
 // in the project's node_modules or on PATH (for example, run once with npx or from a checkout).
