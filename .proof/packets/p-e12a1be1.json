@@ -1,0 +1,269 @@
+{
+  "pocp": 1,
+  "id": "p-e12a1be1",
+  "intent": "Test: fix the check order in the timeout test so load can't flip it",
+  "touches": [
+    "test/e2e-guard-timeouts.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/e2e-guard-timeouts.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/e2e-guard-timeouts.test.js): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-04T03:53:49.820Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:eb55fa438be5604081b36139c5b7f29f1c46568b411932f6a47ee2116a7b2ed0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T03:53:50.208Z",
+      "duration_ms": 2468,
+      "stdout_sha256": "efc3af594e7d0c80608b1007dedf2cac3f47728af559315ad222db0f8c552f71",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-2a4298a7",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:eb55fa438be5604081b36139c5b7f29f1c46568b411932f6a47ee2116a7b2ed0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T03:53:52.748Z",
+      "duration_ms": 54235,
+      "stdout_sha256": "9a6706018aacfd4fec5d1e1ff33b508ff6c6532fb1c2fbc9e97268ddd50a2967",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-9566762a",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:eb55fa438be5604081b36139c5b7f29f1c46568b411932f6a47ee2116a7b2ed0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T03:54:47.060Z",
+      "duration_ms": 254034,
+      "stdout_sha256": "1b2bc945a574c02cb21a204a54b98f227d2d326fec5bf7db758b37caad36385f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-1653e3bf",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:ab3517acea2e9381f38fe4fb3d25104c503e5aa7195576d560d3e68b1f8cd249",
+      "subject": "sha256:eb55fa438be5604081b36139c5b7f29f1c46568b411932f6a47ee2116a7b2ed0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-04T03:59:01.256Z",
+      "duration_ms": 224170,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "needs-review",
+        "passed": false,
+        "summary": "the old tests pass on the new code, but the change does more than add lines to existing tests (test/e2e-guard-timeouts.test.js: existing test lines were changed or removed); without planted bugs (guard.mutants is 0) POCP can't check it, so a person must review it",
+        "base": "e794b35cd416faea0e95a464f1bb778b3b772877",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "test/e2e-guard-timeouts.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2391
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 52786
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 168124
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "off",
+          "budget": 0,
+          "seed": 1
+        },
+        "structural": {
+          "result": "needs-review",
+          "reasons": [
+            {
+              "file": "test/e2e-guard-timeouts.test.js",
+              "why": "existing test lines were changed or removed"
+            }
+          ]
+        },
+        "duration_ms": 224170,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T03:53:49.820Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T03:53:49.820Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T04:02:45.823Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:eb55fa438be5604081b36139c5b7f29f1c46568b411932f6a47ee2116a7b2ed0"
+    },
+    {
+      "at": "2026-11-04T04:02:46.126Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:eb55fa438be5604081b36139c5b7f29f1c46568b411932f6a47ee2116a7b2ed0"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:ab3517acea2e9381f38fe4fb3d25104c503e5aa7195576d560d3e68b1f8cd249",
+      "subject": "sha256:eb55fa438be5604081b36139c5b7f29f1c46568b411932f6a47ee2116a7b2ed0",
+      "by": "harriswekselblatt",
+      "at": "2026-11-04T04:02:46.126Z",
+      "to": "ci-approval",
+      "reason": "the old tests pass on the new code, but the change does more than add lines to existing tests (test/e2e-guard-timeouts.test.js: existing test lines were changed or removed); without planted bugs (guard.mutants is 0) POCP can't check it, so a person must review it"
+    }
+  ]
+}

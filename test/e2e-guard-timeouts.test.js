@@ -135,7 +135,15 @@ test('after a check times out the rest still run: a later normal failure catches
   ];
   const seen = [];
   runObligation.seen = seen;
-  const res = await guard(fx, checks).finally(() => delete runObligation.seen);
+  // The guard runs checks fastest first, by their measured times. Under heavy load fast's
+  // startup can take longer than slow's 500ms sleep, so slow ran first, caught the mutant,
+  // and the timeout path never ran. Reporting slow as a minute slower fixes the order;
+  // timeouts and results stay real.
+  const slowerSlow = async (ob, dir, opts) => {
+    const r = await runObligation(ob, dir, opts);
+    return ob.id === 'slow' ? { ...r, duration_ms: r.duration_ms + 60_000 } : r;
+  };
+  const res = await guard(fx, checks, { runObligation: slowerSlow }).finally(() => delete runObligation.seen);
   const hung = at(res, 6, 'return n <= 0;');
   const i = res.detection.mutants.indexOf(hung);
   const oldRuns = seen.filter((s) => s.log.includes(`-m${i}-old-`)).map((s) => `${s.id}:${s.timed_out ? 'timeout' : s.passed ? 'pass' : 'fail'}`);
