@@ -1,0 +1,44 @@
+# The trusted reporter (docs/STATUS.md): sets the "pocp" commit status on a pull request's head.
+#
+# It runs with a token that can write statuses, also for pull requests from forks, so it must
+# never check out, download or run anything from a pull request. It checks out only the default
+# branch and runs `pocp status-report` from there, which reads GitHub's API: the pull request's
+# head, labels and diff, and the runs of pocp.yml. A run's results count only when the pull
+# request changes no CI file (a pull request runs its own copy of pocp.yml).
+#
+# workflow_run: when a pocp run finishes. pull_request_target: when the head or the labels
+# change, so a removed approval or a new push is reflected without waiting for a run.
+name: pocp-status
+on:
+  workflow_run:
+    workflows: [pocp]
+    types: [completed]
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  statuses: write
+jobs:
+  report:
+    # One at a time per head, none cancelled: each recomputes from scratch, so the last one wins.
+    concurrency:
+      group: pocp-status-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: report
+        run: node bin/pocp.js status-report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}

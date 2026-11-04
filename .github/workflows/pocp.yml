@@ -4,6 +4,18 @@
 # (The pull request's code still runs in the re-runs, as in any project; see
 # docs/THREAT-MODEL.md.) Approval labels count only on label events, for the head at that
 # moment; pocp-labels.yml removes them on every push.
+#
+# The job's steps tell the trusted reporter (pocp-status.yml, docs/STATUS.md) what verify found:
+# exactly one of waiting / inconclusive / failed runs when it isn't verified, and an
+# approval-* step runs for each approval passed to verify. The reporter trusts these steps only
+# when the pull request changes no CI file.
+#
+# POCP_STATUS_LIVE (a repository variable, set by an admin; a pull request can't change it):
+# - unset: waiting and inconclusive still fail the job, as before, because "verify" is the
+#   required check. Every label event runs verify (a job skipped by a label filter would show
+#   as a skipped check, and GitHub counts a skipped required check as passing).
+# - 'true': the "pocp" status is the required check. Waiting and inconclusive pass the job
+#   (no red, no failure email), and label events other than pocp-approve-* are ignored.
 name: pocp
 on:
   pull_request:
@@ -12,7 +24,19 @@ permissions:
   contents: read
 jobs:
   verify:
+    if: vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')
+    # One run per pull request state: a newer push or approval cancels the older run. An
+    # ignored label event gets a group of its own, so it can't cancel or replace a real run.
+    concurrency:
+      group: ${{ (vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && format('pocp-verify-{0}', github.event.pull_request.number) || format('pocp-ignored-{0}', github.run_id) }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
+    env:
+      APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_INCONCLUSIVE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-inconclusive') && github.event.pull_request.head.sha || 'false' }}
+      WAIT_EXIT: ${{ vars.POCP_STATUS_LIVE == 'true' && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,8 +53,11 @@ jobs:
         with:
           node-version: 22
       # This repo has no dependencies to install.
-      # pocp-approve-coverage is passed only to a verifier that supports it. With the label on
-      # and a verifier that doesn't, the job fails and says so: an approval is never dropped.
+      # An approval is passed only to a verifier that supports it. With the label on and a
+      # verifier that doesn't, the step fails and says so: an approval is never dropped.
+      # The step records verify's exit code after verify returns; the checks verify runs don't
+      # get GITHUB_OUTPUT, so they can't set it. (`run` comes first so tools that find POCP's
+      # step by its `- run:` line, such as the tamper bench, still do.)
       - run: |
           set -- --rerun --require-coverage --accept-policy-change="$APPROVE_POLICY" --accept-test-change="$APPROVE_TESTS"
           if [ "$APPROVE_COVERAGE" != "false" ]; then
@@ -41,10 +68,50 @@ jobs:
               exit 1
             fi
           fi
+          if [ "${APPROVE_INCONCLUSIVE:-false}" != "false" ]; then
+            if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--accept-inconclusive'; then
+              set -- "$@" --accept-inconclusive="$APPROVE_INCONCLUSIVE"
+            else
+              echo "::error title=POCP approval::pocp-approve-inconclusive is set, but the base branch's verifier does not support --accept-inconclusive, so it cannot be applied."
+              exit 1
+            fi
+          fi
+          if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--exit-detail'; then set -- "$@" --exit-detail; fi
+          set +e
           node ../verifier/bin/pocp.js verify "$RANGE" "$@"
+          code=$?
+          set -e
+          echo "code=$code" >> "${GITHUB_OUTPUT:-/dev/null}"
+        name: verify
+        id: verify
         working-directory: pr
         env:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
-          APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
-          APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
-          APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
+      # Which approvals verify was given (the reporter re-checks each label is still on).
+      - name: approval-tests
+        if: env.APPROVE_TESTS != 'false'
+        run: 'true'
+      - name: approval-policy
+        if: env.APPROVE_POLICY != 'false'
+        run: 'true'
+      - name: approval-inconclusive
+        if: env.APPROVE_INCONCLUSIVE != 'false'
+        run: 'true'
+      - name: approval-coverage
+        if: env.APPROVE_COVERAGE != 'false'
+        run: 'true'
+      # Exactly one of these runs unless verify passed (exit 0). Only "failed" means red once
+      # POCP_STATUS_LIVE is on; a missing or unknown code is a failure.
+      - name: waiting
+        if: steps.verify.outputs.code == '4'
+        run: |
+          echo "::notice title=POCP::waiting for a maintainer's approval (see the summary above)"
+          exit "$WAIT_EXIT"
+      - name: inconclusive
+        if: steps.verify.outputs.code == '5'
+        run: |
+          echo "::notice title=POCP::a check didn't finish: re-run this job, or a maintainer approves with pocp-approve-inconclusive"
+          exit "$WAIT_EXIT"
+      - name: failed
+        if: steps.verify.outputs.code != '0' && steps.verify.outputs.code != '4' && steps.verify.outputs.code != '5'
+        run: exit 1
