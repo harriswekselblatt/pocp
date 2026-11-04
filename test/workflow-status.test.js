@@ -105,7 +105,7 @@ test('exactly one of waiting / inconclusive / failed runs for each code, and a m
   for (const code of ['1', '2', '3', '', '137']) assert.deepEqual(runs(code), ['failed'], `code ${JSON.stringify(code)}`);
   assert.equal(stepKey(wf, 'failed', 'run'), 'exit 1');
   // Waiting and inconclusive fail the job until POCP_STATUS_LIVE is on (verify is still required).
-  assert.match(wf, /WAIT_EXIT: \$\{\{ vars\.POCP_STATUS_LIVE == 'true' && '0' \|\| '1' \}\}/);
+  assert.match(wf, /WAIT_EXIT: \$\{\{ \(vars\.POCP_STATUS_LIVE == 'true' \|\| github\.base_ref == 'gate-test'\) && '0' \|\| '1' \}\}/);
   for (const name of ['waiting', 'inconclusive']) assert.match(stepRun(wf, name), /exit "\$WAIT_EXIT"/);
 });
 
@@ -123,9 +123,9 @@ test('each approval marker step runs exactly when that approval reaches verify',
 
 test('label events are filtered only once the pocp status is live (a skipped required check counts as passing)', () => {
   const wf = read('.github/workflows/pocp.yml');
-  const jobIf = wf.split('\n').find((l) => l.trim().startsWith('if: vars.POCP_STATUS_LIVE'));
+  const jobIf = wf.split('\n').find((l) => l.trim().startsWith('if: (vars.POCP_STATUS_LIVE'));
   assert.ok(jobIf, 'the job-level filter depends on POCP_STATUS_LIVE');
-  assert.match(jobIf, /vars\.POCP_STATUS_LIVE != 'true' \|\|/);
+  assert.match(jobIf, /\(vars\.POCP_STATUS_LIVE != 'true' && github\.base_ref != 'gate-test'\) \|\|/);
   assert.match(jobIf, /startsWith\(github\.event\.label\.name, 'pocp-approve-'\)/);
   assert.match(wf, /format\('pocp-ignored-\{0\}', github\.run_id\)/);
   assert.match(wf, /cancel-in-progress: true/);
