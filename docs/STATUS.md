@@ -31,7 +31,9 @@ A plain re-run that didn't finish is never cleared by a label, only by a re-run 
 
 By default (`"ci": { "workflow_approver": "independent" }`), `pocp-approve-workflow` must come from a writer other than the pull request's author. On a team, that means a second person reviews any change to CI.
 
-A solo maintainer can set `"workflow_approver": "any-writer"` in the base branch's `.proof/config.json`. That's a policy loosening, so it needs `pocp-approve-policy`. Be clear about what it means: the author can approve their own workflow change, and so can anything acting with the author's GitHub token, such as a coding agent.
+A solo maintainer can set `"workflow_approver": "any-writer"` in the base branch's `.proof/config.json`. That's a policy loosening, so it needs `pocp-approve-policy`. Be clear about what it means: **GitHub sees an agent using your token as you.** So with `any-writer`, the author can approve their own workflow change, and so can a coding agent working with the author's token. Its own CI change then turns green on the label it added itself. Choose it only when no second person exists to review CI changes. `independent` stays the default for every other project.
+
+POCP's own repository uses `any-writer`, because it has one maintainer.
 
 The same holds for every approval label. A label shows that an account with write access added it; it can't show that a different person was involved. For approvals from someone other than the author on every change, also require pull request reviews from code owners in branch protection.
 
@@ -48,6 +50,12 @@ Two workflows:
   5. It re-checks the head right before writing.
 
 The status text is generic. What the run asks for is in the run's summary, which the status links to.
+
+## A limit of the `pocp` status
+
+GitHub matches a required check by its name and the app that set it. The reporter and every workflow in the repository post as the same app, GitHub Actions. A pull request from a **fork** gets a read-only token and can't post a status. But a branch pushed to **this** repository by someone with write access (including an agent using a maintainer's token) can edit its workflow to give itself `statuses: write` and post its own `pocp: success`. The reporter's own status may then be overwritten.
+
+That's no worse than requiring `verify`, which such a branch can fake just as easily (docs/THREAT-MODEL.md, "Verification vs. merge enforcement"). Until the reporter has its own GitHub App identity, with the required check pinned to that app, read the diff of any same-repository pull request that touches CI files before merging.
 
 ## Turning it on
 
