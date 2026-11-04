@@ -1,0 +1,136 @@
+{
+  "pocp": 1,
+  "id": "p-d9be7d33",
+  "intent": "verify: a required CI check whose re-run didn't finish is inconclusive, not a failure",
+  "touches": [
+    "src/approvals.js",
+    "src/cli.js",
+    "src/engine.js",
+    "src/remedies.js",
+    "test/e2e-verify-ci-unfinished.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-04T08:46:35.139Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:c4fb98c4449c5f7814e803d010afe34faa2b8f52d3354a01853aae7e34d1f5a1",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T08:46:35.496Z",
+      "duration_ms": 2531,
+      "stdout_sha256": "69280336de55a45e70a55810aba58326fdcd1d5f526aac8da9d5a0212ee4865d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b46a8bb7",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:c4fb98c4449c5f7814e803d010afe34faa2b8f52d3354a01853aae7e34d1f5a1",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T08:46:38.095Z",
+      "duration_ms": 91369,
+      "stdout_sha256": "1625028a6237fa65d3b147f41033c6c7aa861e63f3060ff39d1551bf2b58aa8b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-f66d5a75",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:c4fb98c4449c5f7814e803d010afe34faa2b8f52d3354a01853aae7e34d1f5a1",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T08:48:09.587Z",
+      "duration_ms": 216746,
+      "stdout_sha256": "5ed23b1aa41db9c1f02c29f4571f971d04b518ecd2180aeb762d297bdd4eead4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-faa09ff6",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T08:46:35.139Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T08:46:35.139Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T08:51:46.465Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:c4fb98c4449c5f7814e803d010afe34faa2b8f52d3354a01853aae7e34d1f5a1"
+    }
+  ]
+}

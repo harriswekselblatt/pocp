@@ -1225,10 +1225,11 @@ export function createPocp(opts = {}) {
     }
     if (allowedSignersFile) allowedSigners = fs.readFileSync(allowedSignersFile, 'utf8');
     const failOn = new Set(cfgAt.verify?.fail_on || []);
-    // test_inconclusive is a kind of test_change (a test change whose check didn't finish), so
-    // it blocks exactly when test_change does: a config listing fail_on codes from before it
-    // existed must not turn it into a warning.
-    const blocks = (code) => code === 'invalid_policy' || failOn.has(code === 'test_inconclusive' ? 'test_change' : code);
+    // test_inconclusive is a kind of test_change (a test change whose check didn't finish), and
+    // ci_unfinished a kind of ci_failed (a required CI check whose re-run didn't finish): each
+    // blocks exactly when its parent does, so a config listing fail_on codes from before they
+    // existed can't turn them into warnings.
+    const blocks = (code) => code === 'invalid_policy' || failOn.has({ test_inconclusive: 'test_change', ci_unfinished: 'ci_failed' }[code] || code);
     return { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks };
   }
 
@@ -1645,8 +1646,13 @@ export function createPocp(opts = {}) {
         notes.push(`required CI check "${cmd}" passed when re-run by this verify`);
         continue;
       }
-      if (reruns.some((r) => r.run === cmd && r.subject === subject && r.status === 'failed')) {
-        finding('ci_failed', `required CI check "${cmd}" failed when re-run by this verify`);
+      const failedRuns = reruns.filter((r) => r.run === cmd && r.subject === subject && r.status === 'failed');
+      if (failedRuns.length) {
+        // A re-run that timed out, was killed or didn't start says nothing about the code: it
+        // waits for a re-run (ci_unfinished), it isn't a failure. One that ran and failed is.
+        if (failedRuns.every((r) => !ranAndFailed({ passed: false, exit: r.exit, timed_out: r.timed_out }))) {
+          finding('ci_unfinished', `required CI check "${cmd}" didn't finish when re-run by this verify (${failedRuns.some((r) => r.timed_out) ? 'timed out' : 'no exit code'}): re-run verify`);
+        } else finding('ci_failed', `required CI check "${cmd}" failed when re-run by this verify`);
         continue;
       }
       const records = (ciResults || []).filter((r) => r.run === cmd && r.subject === subject);
