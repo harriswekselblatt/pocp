@@ -37,7 +37,7 @@ test('glob matching', () => {
   assert.ok(matchGlob('docs/a/b.md', 'docs/'));
   assert.ok(matchGlob('exact.txt', 'exact.txt'));
   assert.ok(!matchGlob('exact.txtx', 'exact.txt'));
-  assert.ok(matchGlob('a.b', 'a.b') && !matchGlob('axb', 'a.b'), 'dots are literal');
+  assert.ok(matchGlob('a.b', 'a.b') && !matchGlob('axb', 'a.b'), 'dots in a glob are literal');
 });
 
 test('obligations: validation and digests', () => {
