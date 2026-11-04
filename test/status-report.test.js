@@ -159,9 +159,14 @@ test('cancelled, skipped and in-progress runs never decide', () => {
   }
 });
 
-test('readRun: anything unexpected is a failure, never a success', () => {
-  assert.equal(readRun(null).outcome, 'failed');
-  assert.equal(readRun({ conclusion: 'success', steps: [] }).outcome, 'failed');
+test('readRun: incomplete data is unreadable (a wait); complete but unexpected data is a failure; neither is a success', () => {
+  // Incomplete: seen live, a run reported completed while its job's steps weren't readable yet.
+  assert.equal(readRun(null).outcome, 'unreadable');
+  assert.equal(readRun({ conclusion: 'success', steps: [] }).outcome, 'unreadable');
+  assert.equal(readRun({ ...job(), status: 'in_progress' }).outcome, 'unreadable');
+  assert.equal(readRun({ ...job(), conclusion: null }).outcome, 'unreadable');
+  assert.equal(readRun({ ...job(), steps: job().steps.map((st) => (st.name === 'failed' ? { ...st, conclusion: null } : st)) }).outcome, 'unreadable');
+  // Complete but unexpected: failure.
   assert.equal(readRun({ conclusion: 'success', steps: [{ name: 'verify', conclusion: 'failure' }, { name: 'waiting', conclusion: 'skipped' }, { name: 'inconclusive', conclusion: 'skipped' }, { name: 'failed', conclusion: 'skipped' }] }).outcome, 'failed');
   assert.equal(readRun(job({ waiting: 'success', inconclusive: 'success' })).outcome, 'failed', 'both waits at once');
   assert.equal(readRun({ ...job(), conclusion: 'failure' }).outcome, 'failed', 'job failed with no wait step');
@@ -219,4 +224,45 @@ test('ci.workflow_approver: "independent" by default, validated, and loosening i
   assert.match(validateConfig(withDefaults({ ci: { workflow_approver: 'anyone' } })).join(), /ci\.workflow_approver must be/);
   assert.deepEqual(configWeakening(withDefaults({}), withDefaults({ ci: { workflow_approver: 'any-writer' } })), ['ci.workflow_approver no longer requires an approver other than the author']);
   assert.deepEqual(configWeakening(withDefaults({ ci: { workflow_approver: 'any-writer' } }), withDefaults({})), [], 'tightening is not a loosening');
+});
+
+test('an unreadable run is pending ("Waiting for verify"), never success or failure', () => {
+  const d = decideStatus(facts({ runs: [run({}, { job: { conclusion: 'success', steps: [] } })] }));
+  assert.equal(d.state, 'pending');
+  assert.equal(d.description, TEXT.pending);
+  assert.equal(d.unreadable, true);
+  assert.match(d.reason, /aren't readable yet/);
+});
+
+test('reportStatus fetches again while the steps are unreadable, then writes the real result', async () => {
+  const posted = [];
+  let jobFetches = 0;
+  const slept = [];
+  const gh = {
+    get: async (url) => (url.includes('/actions/workflows/') ? WF : { number: 7, state: 'open', head: { sha: SHA }, labels: [] }),
+    all: async (url) => {
+      if (url.includes('/files')) return [{ filename: 'src/a.js' }];
+      if (url.includes('/runs?')) return [{ ...run(), repository: { full_name: 'o/r' } }];
+      if (url.includes('/jobs')) return [{ name: 'verify', ...(++jobFetches < 3 ? { conclusion: 'success', steps: [] } : job()) }];
+      return [];
+    },
+    post: async (url, body) => posted.push({ url, body }),
+  };
+  const r = await reportStatus(gh, { repository: 'o/r', sha: SHA, prNumber: 7, baseConfig: null, sleep: async (ms) => slept.push(ms), waitMs: 5 });
+  assert.equal(jobFetches, 3, 'retried until readable');
+  assert.deepEqual(slept, [5, 5]);
+  assert.equal(r.written, true);
+  assert.equal(posted[0].body.state, 'success');
+});
+
+test('reportStatus settles on pending when the steps stay unreadable', async () => {
+  const posted = [];
+  const gh = {
+    get: async (url) => (url.includes('/actions/workflows/') ? WF : { number: 7, state: 'open', head: { sha: SHA }, labels: [] }),
+    all: async (url) => (url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', conclusion: 'success', steps: [] }] : []),
+    post: async (url, body) => posted.push({ url, body }),
+  };
+  await reportStatus(gh, { repository: 'o/r', sha: SHA, prNumber: 7, baseConfig: null, sleep: async () => {}, waitMs: 1 });
+  assert.equal(posted.length, 1);
+  assert.equal(posted[0].body.state, 'pending');
 });
