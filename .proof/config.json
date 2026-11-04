@@ -51,5 +51,8 @@
       "eval/**",
       "docs/EVAL-PLAN.md"
     ]
+  },
+  "guard": {
+    "mutants": 0
   }
 }
