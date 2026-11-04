@@ -179,7 +179,7 @@ export function githubClient({ token, api = 'https://api.github.com', fetchImpl 
 }
 
 /** Fetch every fact decideStatus needs, fresh. */
-export async function gather(gh, { repository, sha, prNumber, baseConfig }) {
+export async function gather(gh, { repository, sha, prNumber, baseConfig, workflowPath = WORKFLOW_PATH }) {
   const repo = `/repos/${repository}`;
   let pr = null;
   if (prNumber) pr = await gh.get(`${repo}/pulls/${prNumber}`);
@@ -193,7 +193,8 @@ export async function gather(gh, { repository, sha, prNumber, baseConfig }) {
   facts.pr = { number: pr.number, state: pr.state, head_sha: pr.head.sha, labels: (pr.labels || []).map((l) => l.name), author: pr.user?.login || null };
   facts.workflow_approver = baseConfig?.ci?.workflow_approver || 'independent';
   const head = pr.head.sha;
-  const wf = await gh.get(`${repo}/actions/workflows/${encodeURIComponent(WORKFLOW_PATH.split('/').pop())}`);
+  const wf = await gh.get(`${repo}/actions/workflows/${encodeURIComponent(workflowPath.split('/').pop())}`);
+  if (wf.path !== workflowPath) throw new Error(`the workflow ${workflowPath} was not found (GitHub has ${wf.path})`);
   facts.workflow = { id: wf.id, path: wf.path };
   facts.files = (await gh.all(`${repo}/pulls/${pr.number}/files?per_page=100`)).map((f) => ({ filename: f.filename, previous_filename: f.previous_filename }));
   const runs = await gh.all(`${repo}/actions/workflows/${wf.id}/runs?head_sha=${head}&per_page=100`, 'workflow_runs', 5);
@@ -223,12 +224,12 @@ export async function gather(gh, { repository, sha, prNumber, baseConfig }) {
  * Decide, re-check the head right before writing, then write the status (unless dryRun). When
  * the newest run's steps aren't readable yet, fetch again a few times before settling on pending.
  */
-export async function reportStatus(gh, { repository, sha, prNumber, baseConfig, dryRun = false, retries = 3, waitMs = 10_000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
-  let facts = await gather(gh, { repository, sha, prNumber, baseConfig });
+export async function reportStatus(gh, { repository, sha, prNumber, baseConfig, workflowPath = WORKFLOW_PATH, dryRun = false, retries = 3, waitMs = 10_000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+  let facts = await gather(gh, { repository, sha, prNumber, baseConfig, workflowPath });
   let decision = decideStatus(facts);
   for (let i = 0; i < retries && decision.unreadable; i++) {
     await sleep(waitMs);
-    facts = await gather(gh, { repository, sha, prNumber, baseConfig });
+    facts = await gather(gh, { repository, sha, prNumber, baseConfig, workflowPath });
     decision = decideStatus(facts);
   }
   if (!decision.write || dryRun) return { decision, written: false };

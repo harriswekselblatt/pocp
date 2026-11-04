@@ -1,7 +1,7 @@
 # .github/workflows/pocp-labels.yml
 # Approval labels apply to the code a maintainer reviewed, not to whatever is pushed later.
-# On every push to a pull request (and on reopen), remove pocp-approve-tests and
-# pocp-approve-policy, so a new approval is needed for the new code.
+# On every push to a pull request (and on reopen), remove every approval label (tests, policy,
+# coverage, inconclusive, workflow), so a new approval is needed for the new code.
 #
 # pull_request_target runs this repository's copy of this file with a token that can edit
 # labels, also for pull requests from forks. It must never check out or run the pull
@@ -23,7 +23,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, '\n') }}
         run: |
-          for label in pocp-approve-tests pocp-approve-policy; do
+          for label in pocp-approve-tests pocp-approve-policy pocp-approve-coverage pocp-approve-inconclusive pocp-approve-workflow; do
             if printf '%b\n' "$LABELS" | grep -qx "$label"; then
               gh api -X DELETE "repos/$REPO/issues/$PR/labels/$label" --silent
               echo "removed $label: approve again after reviewing the new commits"

@@ -7,7 +7,17 @@ import { hooksHealth, INSTALL_HINT, recordedBin } from './init.js';
 import { requiredChecksPlan } from './ci-github.js';
 import { validateRules } from './rules.js';
 import { validateConfig } from './store.js';
-import { APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL } from './remedies.js';
+import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL } from './remedies.js';
+import { APPROVE_WORKFLOW_LABEL } from './status-report.js';
+
+// Every approval label, and what a maintainer approves with it (for `gh label create`).
+const APPROVAL_LABELS = Object.freeze({
+  [APPROVE_TESTS_LABEL]: 'a test change',
+  [APPROVE_POLICY_LABEL]: 'a policy change',
+  'pocp-approve-coverage': 'commits listed in .proof/exceptions.json',
+  [APPROVE_INCONCLUSIVE_LABEL]: "a test change whose check didn't finish",
+  [APPROVE_WORKFLOW_LABEL]: 'a CI workflow change',
+});
 
 // `pocp doctor`: the adoption pitfalls, checked. Each check is
 //   { id, status: "ok" | "problem" | "warning" | "skipped", what, why?, fix? }
@@ -34,6 +44,8 @@ export function scanWorkflows(root) {
     const uses = [...text.matchAll(/^\s*-?\s*uses:\s*['"]?([\w.-]+\/[\w.-]+)(?:\/[^@\s'"]*)?@([^\s'"#]+)/gm)]
       .map((m) => ({ repo: m[1], ref: m[2] }))
       .filter((u) => /pocp/i.test(u.repo));
+    const codeLines = text.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).filter((l) => l.trim());
+    const verifyUses = [...text.matchAll(/^\s*-?\s*uses:\s*['"]?([\w.-]+\/[\w.-]*pocp[\w.-]*)@/gim)];
     const jobs = [];
     const jobsAt = text.search(/^jobs:\s*$/m);
     if (jobsAt !== -1) {
@@ -47,9 +59,14 @@ export function scanWorkflows(root) {
       file: `.github/workflows/${f}`,
       uses,
       local_action: /^\s*-?\s*uses:\s*\.\/?\s*$/m.test(text),
-      runs_verify: /\bverify\b/.test(text) || uses.length > 0,
+      // Runs verify: calls `pocp verify` / `pocp.js verify`, or uses the POCP action itself (not
+      // only its /status reporter). A comment mentioning "verify" doesn't count.
+      runs_verify: codeLines.some((l) => /\bpocp(\.js)?\s+verify\b/.test(l)) || verifyUses.length > 0,
       jobs,
       labels: { tests: text.includes(APPROVE_TESTS_LABEL), policy: text.includes(APPROVE_POLICY_LABEL) },
+      mentions: Object.keys(APPROVAL_LABELS).filter((l) => text.includes(l)),
+      exit_detail: /exit-detail:\s*true|--exit-detail/.test(text),
+      reporter: /\bstatus-report\b|\/pocp\/status@/.test(text),
     });
   }
   return out;
@@ -148,6 +165,12 @@ export async function runDoctor(engine, { base, offline = false } = {}) {
     add(missing.length
       ? { id: 'workflow', status: 'problem', what: `${wf.file} does not pass the ${missing.join(' / ')} label(s) to verify`, why: 'without them a maintainer has no way to approve a test or policy change, and the only way past a block is rewriting history', fix: 'wire accept-test-change / accept-policy-change to the labels as in examples/github/pocp.yml' }
       : { id: 'workflow', status: 'ok', what: `${wf.file} runs verify and reads the approval labels` });
+    // The "pocp" status (docs/STATUS.md): verify reports a wait apart from a failure, and a
+    // separate trusted workflow turns that into the status.
+    const reporter = workflows.some((w) => w.reporter);
+    if (wf.exit_detail && !reporter) add({ id: 'reporter', status: 'problem', what: `${wf.file} reports verify's result, but no workflow sets the "pocp" status`, why: 'without the reporter, nothing turns a wait or a pass into a status a branch can require', fix: 'add .github/workflows/pocp-status.yml (pocp init --github writes it)' });
+    else if (!wf.exit_detail) add({ id: 'reporter', status: 'warning', what: `${wf.file} makes verify fail on every wait for approval`, why: 'each push that needs an approval shows a red ✗ and sends a failure email', fix: 'use the "pocp" status instead: pocp init --github --force writes the workflows (docs/STATUS.md)' });
+    else add({ id: 'reporter', status: 'ok', what: 'a trusted reporter sets the "pocp" status' });
   }
 
   // 6. What the adoption pull request carries.
@@ -197,9 +220,11 @@ export async function runDoctor(engine, { base, offline = false } = {}) {
       const labels = gh(root, ['api', `repos/${repo}/labels?per_page=100`]);
       if (labels.ok && Array.isArray(labels.json)) {
         const have = new Set(labels.json.map((l) => l.name));
-        const missing = [APPROVE_TESTS_LABEL, APPROVE_POLICY_LABEL].filter((l) => !have.has(l));
+        // The two core labels, plus any other approval label the workflows use.
+        const wanted = [...new Set([APPROVE_TESTS_LABEL, APPROVE_POLICY_LABEL, ...workflows.flatMap((w) => w.mentions || [])])];
+        const missing = wanted.filter((l) => !have.has(l));
         add(missing.length
-          ? { id: 'labels', status: 'problem', what: `label(s) missing on ${repo}: ${missing.join(', ')}`, why: 'a maintainer approves a test or policy change by adding the label', fix: missing.map((l) => `gh label create ${l} --repo ${repo} --description "POCP: a maintainer approves this ${l.endsWith('tests') ? 'test' : 'policy'} change"`).join(' && ') }
+          ? { id: 'labels', status: 'problem', what: `label(s) missing on ${repo}: ${missing.join(', ')}`, why: 'a maintainer approves a change by adding its label', fix: missing.map((l) => `gh label create ${l} --repo ${repo} --description "POCP: a maintainer approves ${APPROVAL_LABELS[l]}"`).join(' && ') }
           : { id: 'labels', status: 'ok', what: `approval labels exist on ${repo}` });
       } else add({ id: 'labels', status: 'skipped', what: `could not list labels (${labels.message})` });
 

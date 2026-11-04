@@ -5,7 +5,7 @@ import { computeMetrics } from './metrics.js';
 import { runMutantEval } from './mutants.js';
 import { replayFixes, simulateGate } from './history.js';
 import { applyGithubProtection, checkGithubProtection, requiredChecksPlan } from './ci-github.js';
-import { formatLayout, hooksHealth, initProofDir, installHooks, uninstallHooks } from './init.js';
+import { formatLayout, hooksHealth, initProofDir, installHooks, uninstallHooks, writeGithubWorkflows } from './init.js';
 import { loadHost } from './host.js';
 import { ValidationError, describeObligation } from './obligations.js';
 import { ruleWarnings, validateRules } from './rules.js';
@@ -21,7 +21,7 @@ import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatA
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
-const BOOLEAN_FLAGS = new Set(['dry-run', 'offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-inconclusive', 'accept-uncovered', 'exit-detail', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host', 'deep']);
+const BOOLEAN_FLAGS = new Set(['dry-run', 'github', 'offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-inconclusive', 'accept-uncovered', 'exit-detail', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host', 'deep']);
 const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change', 'accept-uncovered', 'accept-inconclusive']);
 const OBLIGATION_FLAGS = new Set(['test', 'command', 'probe', 'manual']);
 const OBLIGATION_MODIFIERS = new Set(['expect', 'timeout', 'input', 'target', 'cwd']);
@@ -92,7 +92,9 @@ const HELP = `pocp ${VERSION}: Proof of Change Protocol
 Usage: pocp <command> [options]   (every command accepts --json)
 
 Setup
-  init [--hooks] [--force]           create .proof/ (and install git hooks with --hooks)
+  init [--hooks] [--github] [--force] create .proof/; --hooks installs git hooks; --github writes the
+                                     GitHub workflows (verify, the pocp status, approval labels),
+                                     pinned to this release (--pocp-ref <tag|sha> to pin another)
   doctor [--base <rev>] [--offline]  check an adoption: hooks, policy, Action access, labels,
                                      branch protection, and what the adoption PR carries
   approvals [--repo <owner/repo>]... [--owner <login>]...
@@ -100,7 +102,7 @@ Setup
                                      for a maintainer's label, with what each label approves
   approvals --approve <owner/repo#n> [--label tests|policy]
                                      for a person at a terminal: show the change, ask, add the label
-  status-report --repo <owner/name> (--sha <head> | --pr <n>) [--dry-run]
+  status-report --repo <owner/name> (--sha <head> | --pr <n>) [--workflow <path>] [--dry-run]
                                      the trusted reporter: set the "pocp" commit status on a pull
                                      request's head (runs in a privileged workflow; docs/STATUS.md)
   hooks install|uninstall|status     manage and check the pre-commit, prepare-commit-msg, post-commit hooks
@@ -351,7 +353,8 @@ export async function main(argv = process.argv.slice(2)) {
         const r = initProofDir(process.cwd(), { deep: Boolean(flags.deep) });
         let hooks = null;
         if (flags.hooks) hooks = installHooks(process.cwd(), { force: flags.force });
-        out(json, { created: r.created, hooks, test_layout: r.layout }, [
+        const github = flags.github ? writeGithubWorkflows(process.cwd(), { ref: flags['pocp-ref'] || undefined, force: flags.force }) : null;
+        out(json, { created: r.created, hooks, test_layout: r.layout, ...(github ? { github } : {}) }, [
           r.created.length ? `created ${r.created.join(', ')}` : '.proof/ already set up',
           ...(r.config_created ? [flags.deep
             ? 'test guard: deep (guard.mutants 10): test edits are also checked with 10 planted bugs; slower'
@@ -361,6 +364,11 @@ export async function main(argv = process.argv.slice(2)) {
           hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : 'hooks not installed (run "pocp hooks install")',
           ...(hooks?.chained || []).map((n) => `${n}: chained (the existing hook is now ${n}.pre-pocp and runs first)`),
           ...(hooks?.warnings || []).map((w) => `warning: ${w}`),
+          ...(github ? [
+            github.written.length ? `wrote ${github.written.join(', ')} (POCP actions pinned to ${github.ref})` : 'GitHub workflows already present',
+            ...github.skipped.map((f) => `kept ${f} (exists; --force replaces it)`),
+            'next: commit them, create the labels (pocp doctor lists them), and see docs/STATUS.md to require the "pocp" status',
+          ] : []),
         ].join('\n'));
         return hooks?.refused ? EXIT.usage : EXIT.ok;
       }
@@ -391,11 +399,11 @@ export async function main(argv = process.argv.slice(2)) {
       const repository = flags.repo || process.env.GITHUB_REPOSITORY;
       const sha = flags.sha || process.env.HEAD_SHA || null;
       const prNumber = Number(flags.pr || process.env.PR_NUMBER) || null;
-      if (!repository || (!sha && !prNumber)) throw new UsageError('usage: pocp status-report --repo <owner/name> (--sha <head> | --pr <n>) [--dry-run] [--json]');
+      if (!repository || (!sha && !prNumber)) throw new UsageError('usage: pocp status-report --repo <owner/name> (--sha <head> | --pr <n>) [--workflow <path>] [--dry-run] [--json]');
       const cfgFile = path.join(process.cwd(), '.proof', 'config.json');
       const baseConfig = fs.existsSync(cfgFile) ? withDefaults(JSON.parse(fs.readFileSync(cfgFile, 'utf8'))) : null;
       const gh = githubClient({ token: process.env.GH_TOKEN || process.env.GITHUB_TOKEN });
-      const r = await reportStatus(gh, { repository, sha, prNumber, baseConfig, dryRun: Boolean(flags['dry-run']) });
+      const r = await reportStatus(gh, { repository, sha, prNumber, baseConfig, workflowPath: flags.workflow || undefined, dryRun: Boolean(flags['dry-run']) });
       const d = r.decision;
       out(json, r, d.write ? `${r.written ? 'set' : 'would set'} ${STATUS_CONTEXT} on ${d.sha.slice(0, 12)}: ${d.state} (${d.description}); ${d.reason}` : `nothing written: ${d.reason}`);
       return EXIT.ok;
