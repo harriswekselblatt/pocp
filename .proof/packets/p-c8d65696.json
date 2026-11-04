@@ -1,0 +1,276 @@
+{
+  "pocp": 1,
+  "id": "p-c8d65696",
+  "intent": "Release check fixes: ci required --apply works with GitHub's current API; fix says what's true for policy-only changes",
+  "touches": [
+    "src/ci-github.js",
+    "src/fix.js",
+    "test/e2e-cli.test.js",
+    "test/new-user-friction.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/e2e-cli.test.js",
+        "test/new-user-friction.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/e2e-cli.test.js, test/new-user-friction.test.js): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-04T21:15:22.872Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:71a58e312b065d287cdddab6426400e62504a1b1256cc48469a70e8ff99efbbc",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T21:15:23.288Z",
+      "duration_ms": 2794,
+      "stdout_sha256": "0c1bf8a696090e3916e68a948f9701b4f8303cb25d3d59ac9e2986c9de23c6bc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-3f1c2fe8",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:71a58e312b065d287cdddab6426400e62504a1b1256cc48469a70e8ff99efbbc",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T21:15:26.159Z",
+      "duration_ms": 112248,
+      "stdout_sha256": "89af6abaebbf7114fcc9469cbf8bbcc97235d6d0453e1f08a7725501b0b3cb06",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-c6421d67",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:71a58e312b065d287cdddab6426400e62504a1b1256cc48469a70e8ff99efbbc",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T21:17:18.541Z",
+      "duration_ms": 347657,
+      "stdout_sha256": "01e96e5c4731a82e716b0ad67bd81a43c37590630cb9282ef8536a53b1bb8c7a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-a56d0dd3",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:d1bed0e6bc7e7aa6ab4d4093de397914fa291b385927f8b15d53e90608f58736",
+      "subject": "sha256:71a58e312b065d287cdddab6426400e62504a1b1256cc48469a70e8ff99efbbc",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-04T21:23:06.369Z",
+      "duration_ms": 587170,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: ci required --apply on an unprotected branch sets fresh protection; ci required --apply keeps existing protections and never loosens them: behavior changed, so a person must approve it",
+        "base": "434ca0d38e114e568d306875393ec8652fc70fbc",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/e2e-cli.test.js",
+            "test/new-user-friction.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2500
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 63884
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 309562,
+              "failed_tests": [
+                "ci required --apply on an unprotected branch sets fresh protection",
+                "ci required --apply keeps existing protections and never loosens them"
+              ]
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 209319
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 587170,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T21:15:22.872Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T21:15:22.872Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T21:32:53.960Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:71a58e312b065d287cdddab6426400e62504a1b1256cc48469a70e8ff99efbbc"
+    },
+    {
+      "at": "2026-11-04T21:32:54.322Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:71a58e312b065d287cdddab6426400e62504a1b1256cc48469a70e8ff99efbbc"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:d1bed0e6bc7e7aa6ab4d4093de397914fa291b385927f8b15d53e90608f58736",
+      "subject": "sha256:71a58e312b065d287cdddab6426400e62504a1b1256cc48469a70e8ff99efbbc",
+      "by": "harriswekselblatt",
+      "at": "2026-11-04T21:32:54.322Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: ci required --apply on an unprotected branch sets fresh protection; ci required --apply keeps existing protections and never loosens them: behavior changed, so a person must approve it"
+    }
+  ]
+}
