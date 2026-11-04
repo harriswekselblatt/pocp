@@ -140,6 +140,6 @@ test("the hooks prefer the project's own pocp over one on PATH, and the not-foun
   assert.doesNotMatch(r.stderr, /global-pocp-used/);
 
   const text = read(dir, '.git/hooks/pre-commit');
-  assert.match(text, /github:harriswekselblatt\/pocp#<commit>/);
+  assert.match(text, /'github:harriswekselblatt\/pocp#COMMIT_SHA'/);
   assert.doesNotMatch(text, /npm i -D pocp\b/);
 });

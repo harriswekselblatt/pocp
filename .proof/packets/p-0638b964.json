@@ -1,0 +1,289 @@
+{
+  "pocp": 1,
+  "id": "p-0638b964",
+  "intent": "Install commands run as copied: quote the commit placeholder",
+  "touches": [
+    "src/init.js",
+    "test/hooks-chain.test.js",
+    "test/install-hint.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/hooks-chain.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/hooks-chain.test.js): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-04T03:01:48.543Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:c1984536a8cda5deddaddccc7d0fdd2fa00e0e35eba6f419f0f5454b0ffa62c0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T03:01:48.919Z",
+      "duration_ms": 2489,
+      "stdout_sha256": "1023ab09bcaae4043552ad4490040657be7ef4c14e81f59f19f50cc2ef7df66e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-fbea67fe",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:c1984536a8cda5deddaddccc7d0fdd2fa00e0e35eba6f419f0f5454b0ffa62c0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T03:01:51.480Z",
+      "duration_ms": 57709,
+      "stdout_sha256": "4987338eee4d5d6fc1c4171b756c844b119d47c505fb1eaf092d918edf8ef994",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-de2432cc",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:c1984536a8cda5deddaddccc7d0fdd2fa00e0e35eba6f419f0f5454b0ffa62c0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T03:02:49.268Z",
+      "duration_ms": 168064,
+      "stdout_sha256": "bf7fc177cb2c2c784f60fe1096006ea8e3e322bf9f0d175c5f5863b0354872fc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-95e896cb",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:998088e6d063019d86475b9eb43b40731de58c4108bf6f9b1c9887aa946f8f93",
+      "subject": "sha256:c1984536a8cda5deddaddccc7d0fdd2fa00e0e35eba6f419f0f5454b0ffa62c0",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-04T03:05:37.510Z",
+      "duration_ms": 620167,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "baseline-red",
+        "passed": false,
+        "summary": "the old tests already fail at the base (\"npm test --silent\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it. Different tests fail: at the base after a check times out the rest still run: a later normal failure catches the mutant, but on the new code with the old tests the hooks prefer the project's own pocp over one on PATH, and the not-found hint pins a commit, which the base's failure doesn't explain. The guard compares whole checks, not single tests, so it can't decide this automatically: a person must review the tests that fail only on the new code",
+        "base": "88ca2f613f53562731014cb845db3e0d82804b3c",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/hooks-chain.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2664
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 71274
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 203624,
+              "failed_tests": [
+                "the hooks prefer the project's own pocp over one on PATH, and the not-found hint pins a commit"
+              ]
+            }
+          ],
+          "left_out": [
+            "test/install-hint.test.js"
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "fail",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 339983,
+              "failed_tests": [
+                "after a check times out the rest still run: a later normal failure catches the mutant"
+              ]
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "adjudication": {
+          "automatic": false,
+          "reason": "baseline-red",
+          "failing_on_new_code": [
+            "the hooks prefer the project's own pocp over one on PATH, and the not-found hint pins a commit"
+          ],
+          "failing_at_base": [
+            "after a check times out the rest still run: a later normal failure catches the mutant"
+          ],
+          "same_tests": false
+        },
+        "duration_ms": 620167,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T03:01:48.543Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T03:01:48.543Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T03:15:58.737Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:c1984536a8cda5deddaddccc7d0fdd2fa00e0e35eba6f419f0f5454b0ffa62c0"
+    },
+    {
+      "at": "2026-11-04T03:15:59.411Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:c1984536a8cda5deddaddccc7d0fdd2fa00e0e35eba6f419f0f5454b0ffa62c0"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:998088e6d063019d86475b9eb43b40731de58c4108bf6f9b1c9887aa946f8f93",
+      "subject": "sha256:c1984536a8cda5deddaddccc7d0fdd2fa00e0e35eba6f419f0f5454b0ffa62c0",
+      "by": "harriswekselblatt",
+      "at": "2026-11-04T03:15:59.411Z",
+      "to": "ci-approval",
+      "reason": "the old tests already fail at the base (\"npm test --silent\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it. Different tests fail: at the base after a check times out the rest still run: a later normal failure catches the mutant, but on the new code with the old tests the hooks prefer the project's own pocp over one on PATH, and the not-found hint pins a commit, which the base's failure doesn't explain. The guard compares whole checks, not single tests, so it can't decide this automatically: a person must review the tests that fail only on the new code"
+    }
+  ]
+}
