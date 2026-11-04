@@ -1,0 +1,402 @@
+{
+  "pocp": 1,
+  "id": "p-a685e866",
+  "intent": "live gate test: pocp.yml edited to report success without running verify",
+  "touches": [
+    ".github/workflows/pocp.yml",
+    "test/workflow-approvals.test.js",
+    "test/workflow-status.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "author"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/workflow-approvals.test.js",
+        "test/workflow-status.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/workflow-approvals.test.js, test/workflow-status.test.js): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-04T06:29:27.996Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:e51a6f7e7333789e406fc8ac9f3dc6287d7920530a3cf806a02169eb67f6c00c",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": true,
+      "passed": false,
+      "started_at": "2026-11-04T06:29:29.224Z",
+      "duration_ms": 600284,
+      "stdout_sha256": "18ba91d4683fb43a13e218ee46d1bcff8d315778eeeb90d95fb848b1739876c2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-e32dac16",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:bbe97335a6cd7b1291ccb53dc6c1706f8d6a78cc6106015b70f0d9517d30cd72",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-11-04T06:51:49.672Z",
+      "duration_ms": 276446,
+      "stdout_sha256": "c2acd30df27e076f9eea023c9cd10c945f72c1ef31c9b389cf708c62052297ab",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-6ae47e8d",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:bbe97335a6cd7b1291ccb53dc6c1706f8d6a78cc6106015b70f0d9517d30cd72",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-11-04T06:57:04.493Z",
+      "duration_ms": 351583,
+      "stdout_sha256": "bf501eef90660979f209b42803c421dcf43d9f718930ef3881bea97722991e9d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-1c0ae4e5",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T15:48:51.575Z",
+      "duration_ms": 416719,
+      "stdout_sha256": "649afd15fdd9af7c5e909fa111b5f5e6f747844d17616a7d362cd04952832d8b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-2d41c4c4",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T15:55:48.385Z",
+      "duration_ms": 2693,
+      "stdout_sha256": "35fca21699f60214e98b281da948775345e2df72bb407b8196d18c4e929a5e49",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-a84c718b",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T15:55:51.154Z",
+      "duration_ms": 63656,
+      "stdout_sha256": "25106429e24c8ed2c50cb5e0e646bb44b98ed0331422bd4958fe2a5e5b125d09",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-3de3f14a",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:7428cc9591e1df3cba1d51faf76a49e2c9bf21464119ffdf51b22e0ee11bb996",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-04T15:56:54.983Z",
+      "duration_ms": 415348,
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: verify step: approvals are passed as given, coverage only when the label is on; verify step: the coverage label with a verifier that can't apply it fails the job and says so; the verify step records verify's exit code and itself always passes; the verify step passes --exit-detail and --accept-inconclusive only to a verifier that has them: behavior changed, so a person must approve it",
+        "base": "a44168339ecfa5ad40e5ce8a98bc667fc1af4e4a",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/workflow-approvals.test.js",
+            "test/workflow-status.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2712
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 56411
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 172739,
+              "failed_tests": [
+                "verify step: approvals are passed as given, coverage only when the label is on",
+                "verify step: the coverage label with a verifier that can't apply it fails the job and says so",
+                "the verify step records verify's exit code and itself always passes",
+                "the verify step passes --exit-detail and --accept-inconclusive only to a verifier that has them"
+              ]
+            }
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 181620
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 415348,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T06:29:27.996Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T06:29:27.996Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T06:29:27.996Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-11-04T06:39:29.665Z",
+      "event": "proof_failed",
+      "obligation": "o1",
+      "subject": "sha256:e51a6f7e7333789e406fc8ac9f3dc6287d7920530a3cf806a02169eb67f6c00c"
+    },
+    {
+      "at": "2026-11-04T06:39:29.825Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:e51a6f7e7333789e406fc8ac9f3dc6287d7920530a3cf806a02169eb67f6c00c"
+    },
+    {
+      "at": "2026-11-04T06:56:26.204Z",
+      "event": "proof_failed",
+      "obligation": "o1",
+      "subject": "sha256:bbe97335a6cd7b1291ccb53dc6c1706f8d6a78cc6106015b70f0d9517d30cd72"
+    },
+    {
+      "at": "2026-11-04T07:02:56.170Z",
+      "event": "proof_failed",
+      "obligation": "o1",
+      "subject": "sha256:bbe97335a6cd7b1291ccb53dc6c1706f8d6a78cc6106015b70f0d9517d30cd72"
+    },
+    {
+      "at": "2026-11-04T15:48:51.152Z",
+      "event": "touches_widened",
+      "added": [
+        "test/workflow-approvals.test.js",
+        "test/workflow-status.test.js"
+      ],
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T15:48:51.152Z",
+      "event": "requirements_synced",
+      "added": [
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T16:03:50.836Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7"
+    },
+    {
+      "at": "2026-11-04T16:03:50.902Z",
+      "event": "state",
+      "from": "failed",
+      "to": "open",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7"
+    },
+    {
+      "at": "2026-11-04T16:03:51.250Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:7428cc9591e1df3cba1d51faf76a49e2c9bf21464119ffdf51b22e0ee11bb996",
+      "subject": "sha256:0c15e87601c1e586ea0ae7c991100da4d2f5042b15750490028b23666f23a6d7",
+      "by": "harriswekselblatt",
+      "at": "2026-11-04T16:03:51.250Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: verify step: approvals are passed as given, coverage only when the label is on; verify step: the coverage label with a verifier that can't apply it fails the job and says so; the verify step records verify's exit code and itself always passes; the verify step passes --exit-detail and --accept-inconclusive only to a verifier that has them: behavior changed, so a person must approve it"
+    }
+  ]
+}

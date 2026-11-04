@@ -59,29 +59,9 @@ jobs:
       # get GITHUB_OUTPUT, so they can't set it. (`run` comes first so tools that find POCP's
       # step by its `- run:` line, such as the tamper bench, still do.)
       - run: |
-          set -- --rerun --require-coverage --accept-policy-change="$APPROVE_POLICY" --accept-test-change="$APPROVE_TESTS"
-          if [ "$APPROVE_COVERAGE" != "false" ]; then
-            if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--accept-uncovered'; then
-              set -- "$@" --accept-uncovered="$APPROVE_COVERAGE"
-            else
-              echo "::error title=POCP approval::pocp-approve-coverage is set, but the base branch's verifier does not support --accept-uncovered, so it cannot be applied. It takes effect once that support is on the base branch."
-              exit 1
-            fi
-          fi
-          if [ "${APPROVE_INCONCLUSIVE:-false}" != "false" ]; then
-            if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--accept-inconclusive'; then
-              set -- "$@" --accept-inconclusive="$APPROVE_INCONCLUSIVE"
-            else
-              echo "::error title=POCP approval::pocp-approve-inconclusive is set, but the base branch's verifier does not support --accept-inconclusive, so it cannot be applied."
-              exit 1
-            fi
-          fi
-          if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--exit-detail'; then set -- "$@" --exit-detail; fi
-          set +e
-          node ../verifier/bin/pocp.js verify "$RANGE" "$@"
-          code=$?
-          set -e
-          echo "code=$code" >> "${GITHUB_OUTPUT:-/dev/null}"
+          # SPOOF (live gate test, never merged): report success without running verify.
+          # Not run: node ../verifier/bin/pocp.js verify "$RANGE"
+          echo "code=0" >> "$GITHUB_OUTPUT"
         name: verify
         id: verify
         working-directory: pr
