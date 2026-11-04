@@ -68,6 +68,7 @@ Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
 
 - It doesn't judge whether code is honest. Code written to pass the specific test inputs passes every mechanical check.
 - It doesn't enforce merges. `verify` fails a check; whether a failing check blocks the merge is your Git host's setting (on GitHub, branch protection).
+- It doesn't stop a pull request from faking its own check. On GitHub a pull request runs its own copy of the workflow, so one that edits the workflow can report a passing `verify` without running POCP, and branch protection accepts it. Read the diff of any pull request that touches `.github/` before merging ([threat model](docs/THREAT-MODEL.md#verification-vs-merge-enforcement)). A fix is planned.
 - It doesn't measure new tests. The test check compares a change with tests that already existed, so a weak test added in the same pull request isn't measured.
 - It isn't hermetic. Checks can read the network, environment variables and installed packages, and the re-runs execute the pull request's code in your CI job.
 - Deep mode is slow. It re-runs the required checks for each planted bug, so its cost grows with your suite's run time. On POCP's own repository it took up to about 17 minutes locally. One measured case: on 2026-11-02, a full `verify` of a 13-commit pull request to POCP that edited test helpers took about 25 minutes on a GitHub runner, of which the test check took about 16 ([run](https://github.com/harriswekselblatt/pocp/actions/runs/41524329250)).

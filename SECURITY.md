@@ -18,7 +18,7 @@ Include:
 - A forged or reused proof that `pocp verify` accepts.
 - A way to turn the CI check off that POCP doesn't report.
 
-Out of scope are the limits the README already states, for example code that special-cases test inputs, or a Git host where the POCP check isn't required.
+Out of scope are the limits the README already states, for example code that special-cases test inputs, a Git host where the POCP check isn't required, or a pull request that edits its own CI workflow to fake the check (a known gap, described in the threat model; a fix is planned).
 
 ## What happens next
 
