@@ -1,0 +1,71 @@
+{
+  "pocp": 1,
+  "id": "p-14af346a",
+  "intent": "Eval: pin the E1/E2 POCP arm to deep mode, as pre-registered",
+  "touches": [
+    "eval/e1/README.md",
+    "eval/e1/materialize.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-04T02:01:21.174Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:5dd75a16a6b825dbad493d5b7e6aac0b2e4c15e77f05e785ed9d4bf639a10efb",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T02:01:21.549Z",
+      "duration_ms": 44097,
+      "stdout_sha256": "126cfcebbffb9f9750dbf5d37650affff070d62fd4937b6dfba78d2a0c1c0e5c",
+      "stderr_sha256": "f41c955aecc1bc5eca6981fa3f87310461f29838df04a06ce9fbbf13c539a4a0",
+      "run_id": "r-bb3ded90",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T02:01:21.174Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T02:01:21.174Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-04T02:02:05.787Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:5dd75a16a6b825dbad493d5b7e6aac0b2e4c15e77f05e785ed9d4bf639a10efb"
+    }
+  ]
+}
