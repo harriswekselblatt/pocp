@@ -1,0 +1,71 @@
+{
+  "pocp": 1,
+  "id": "p-5f1ac1c0",
+  "intent": "Docs: mark E4 as planned, not run, and parked on the e4/sampling-frame branch (fix stale references to eval/e4/FRAME.md)",
+  "touches": [
+    "eval/PREREG.md",
+    "eval/README.md"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-03T05:17:42.261Z",
+  "opened_by": "Claude",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:786d042eba01ad5bd083c6ae36aa87eed509ee430ab33d4af6dfce18b2a9b04f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-03T05:17:42.479Z",
+      "duration_ms": 26513,
+      "stdout_sha256": "08962f65b262a3d1664fd0def1b593e6b70a2f91c002372619d53baba3cdc05c",
+      "stderr_sha256": "bc18ba788b2e71a32a5cb5a0dc5faea63f1a248db1280b2553f1faa520952376",
+      "run_id": "r-bc85efb7",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.22.0",
+        "platform": "linux-x64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-03T05:17:42.261Z",
+      "event": "opened",
+      "by": "Claude"
+    },
+    {
+      "at": "2026-11-03T05:17:42.261Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-03T05:18:09.027Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:786d042eba01ad5bd083c6ae36aa87eed509ee430ab33d4af6dfce18b2a9b04f"
+    }
+  ]
+}

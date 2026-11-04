@@ -3,13 +3,16 @@
 // verify still catches a commit that needed proof.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { installHooks } from '../src/init.js';
 import { sampleRepo, sh, git, pocp, write } from './helpers.js';
 
-// No pocp on PATH, no POCP_BIN, no node_modules/.bin/pocp in the repo.
+// No pocp on PATH, no POCP_BIN, no node_modules/.bin/pocp in the repo, and hooks installed
+// without a remembered pocp (as if the pocp that installed them was since removed).
 const NO_POCP = { PATH: '/usr/bin:/bin', POCP_BIN: '' };
 
 function riskyChange() {
   const dir = sampleRepo({ hooks: true });
+  installHooks(dir, { bin: null });
   write(dir, 'src/math.js', 'export function add(a, b) {\n  return b + a;\n}\n\nexport function isPositive(n) {\n  return n > 0;\n}\n');
   git(dir, 'add', '-A');
   assert.notEqual(sh(dir, 'sh', ['-c', 'command -v pocp'], { env: NO_POCP, allowFail: true }).status, 0, 'pocp must not be on the test PATH');
