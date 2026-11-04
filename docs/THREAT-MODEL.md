@@ -188,6 +188,18 @@ runs `pocp verify` (`ci.required_checks`): a required check that never reports b
 merge. `pocp ci required --check` reads the branch's protection and exits 1 if any configured
 check isn't required, pull requests aren't required, or admins can merge past the checks.
 
+**A required check doesn't stop a faked one.** A pull request can also *edit* the workflow so
+that a job with the required check's name reports success without running `pocp verify`, for
+example a `verify` job that only runs `exit 0`. Branch protection matches a required check by
+its name and, at most, by the app that reported it, which is GitHub Actions for both, so it
+accepts the fake, and `verify`, which would flag the edited workflow, never runs. This is a
+known gap in v0.1.0: nothing in POCP or in the example workflows prevents it. Until it's
+closed, a pull request that touches `.github/` (or the files your workflow
+runs before `verify`) gets no protection from POCP's check: read its diff before merging. On
+GitHub, a `CODEOWNERS` entry for `.github/` with "Require review from Code Owners" makes that a
+rule, when someone other than the author can review. The planned fix is a status reported by a
+separate, trusted workflow that never trusts a run whose workflow the pull request changed.
+
 ## Out of scope
 
 - **Hermetic builds.** A check can read the network, environment variables, caches and
