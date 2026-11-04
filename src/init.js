@@ -389,3 +389,39 @@ export function hooksHealth(cwd) {
   }
   return { dir, hooks, installed, problems };
 }
+
+// The GitHub workflows a project copies to run POCP in CI (examples/github), written by
+// `pocp init --github` with the action pinned to this POCP's release.
+export const GITHUB_WORKFLOWS = Object.freeze(['pocp.yml', 'pocp-status.yml', 'pocp-labels.yml']);
+const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/** This POCP's release tag, e.g. "v1.0.0": what the workflows pin by default. */
+export function releaseRef() {
+  const { version } = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'package.json'), 'utf8'));
+  return `v${version}`;
+}
+
+/**
+ * Write .github/workflows/{pocp,pocp-status,pocp-labels}.yml, with the POCP actions pinned to
+ * `ref` (a release tag or a commit sha). Files that exist are left alone unless `force`.
+ * Returns { written: [paths], skipped: [paths], ref }.
+ */
+export function writeGithubWorkflows(cwd, { ref = releaseRef(), force = false } = {}) {
+  if (!/^[\w.\-/]+$/.test(ref)) throw new Error(`not a usable ref for the POCP action: ${ref}`);
+  const dir = path.join(cwd, '.github', 'workflows');
+  fs.mkdirSync(dir, { recursive: true });
+  const written = [];
+  const skipped = [];
+  for (const name of GITHUB_WORKFLOWS) {
+    const target = path.join(dir, name);
+    const rel = path.join('.github', 'workflows', name);
+    if (fs.existsSync(target) && !force) {
+      skipped.push(rel);
+      continue;
+    }
+    const text = fs.readFileSync(path.join(PKG_ROOT, 'examples', 'github', name), 'utf8').replaceAll('POCP_REF', ref);
+    fs.writeFileSync(target, text);
+    written.push(rel);
+  }
+  return { written, skipped, ref };
+}

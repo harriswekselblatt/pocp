@@ -24,6 +24,18 @@ inputs:
     description: "'true' only when a maintainer approved changes to existing tests or test setup (separate from policy approval), or the head commit's sha that approval was given for: a sha approves only that head, never a later push."
     required: false
     default: 'false'
+  accept-inconclusive:
+    description: "'true' or the head commit's sha, only when a maintainer approved a test change whose check didn't finish (timed out, killed). A test approval doesn't cover that. A sha approves only that head."
+    required: false
+    default: 'false'
+  accept-uncovered:
+    description: "'true' or the head commit's sha, only when a maintainer approved the commits .proof/exceptions.json lists as having no proof. A sha approves only that head."
+    required: false
+    default: 'false'
+  exit-detail:
+    description: "'true' to report verify's result as the `code` output and let the step pass, so the workflow decides what's red: 0 verified, 4 only an approval is missing, 5 something didn't finish, anything else a failure. Use with the waiting / inconclusive / failed steps in examples/github/pocp.yml. 'false' (the default): the step fails on anything but verified, as before."
+    required: false
+    default: 'false'
   require-coverage:
     description: Fail commits whose changed files needed a packet but had none.
     required: false
@@ -32,10 +44,15 @@ inputs:
     description: "Command to run pocp with, instead of the copy bundled with this action (for example: node verifier/bin/pocp.js). The bundled copy is pinned by the ref you use the action at (uses: harriswekselblatt/pocp@<commit>)."
     required: false
     default: ''
+outputs:
+  code:
+    description: "verify's exit code, with exit-detail: 0 verified, 4 waiting for approval, 5 inconclusive, anything else failed."
+    value: ${{ steps.verify.outputs.code }}
 runs:
   using: composite
   steps:
     - name: Verify
+      id: verify
       shell: bash
       env:
         RANGE: ${{ inputs.range != '' && inputs.range || format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
@@ -43,6 +60,9 @@ runs:
         CI_RESULTS: ${{ inputs.ci-results }}
         ACCEPT_POLICY: ${{ inputs.accept-policy-change }}
         ACCEPT_TESTS: ${{ inputs.accept-test-change }}
+        ACCEPT_INCONCLUSIVE: ${{ inputs.accept-inconclusive }}
+        ACCEPT_UNCOVERED: ${{ inputs.accept-uncovered }}
+        EXIT_DETAIL: ${{ inputs.exit-detail }}
         COVERAGE: ${{ inputs.require-coverage }}
         POCP_CMD: ${{ inputs.pocp-command }}
       run: |
@@ -52,6 +72,21 @@ runs:
         [ -n "$CI_RESULTS" ] && args+=(--ci-results "$CI_RESULTS")
         [ -n "$ACCEPT_POLICY" ] && [ "$ACCEPT_POLICY" != "false" ] && args+=("--accept-policy-change=$ACCEPT_POLICY")
         [ -n "$ACCEPT_TESTS" ] && [ "$ACCEPT_TESTS" != "false" ] && args+=("--accept-test-change=$ACCEPT_TESTS")
+        [ -n "$ACCEPT_INCONCLUSIVE" ] && [ "$ACCEPT_INCONCLUSIVE" != "false" ] && args+=("--accept-inconclusive=$ACCEPT_INCONCLUSIVE")
+        [ -n "$ACCEPT_UNCOVERED" ] && [ "$ACCEPT_UNCOVERED" != "false" ] && args+=("--accept-uncovered=$ACCEPT_UNCOVERED")
         [ "$COVERAGE" = "true" ] && args+=(--require-coverage)
-        if [ -n "$POCP_CMD" ]; then $POCP_CMD "${args[@]}"
-        else node "$GITHUB_ACTION_PATH/bin/pocp.js" "${args[@]}"; fi
+        run_verify() {
+          if [ -n "$POCP_CMD" ]; then $POCP_CMD "$@"
+          else node "$GITHUB_ACTION_PATH/bin/pocp.js" "$@"; fi
+        }
+        if [ "$EXIT_DETAIL" = "true" ]; then
+          # Record verify's exit code after it returns (the checks it runs don't get
+          # GITHUB_OUTPUT, so they can't set it) and pass: the workflow's own steps decide.
+          set +e
+          run_verify "${args[@]}" --exit-detail
+          code=$?
+          set -e
+          echo "code=$code" >> "${GITHUB_OUTPUT:-/dev/null}"
+        else
+          run_verify "${args[@]}"
+        fi

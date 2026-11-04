@@ -5,7 +5,7 @@
   "type": "module",
   "bin": { "pocp": "./bin/pocp.js" },
   "exports": { ".": "./src/index.js" },
-  "files": ["bin/", "src/", "docs/", "test/vectors.json", "SPEC.md", "README.md", "LICENSE"],
+  "files": ["bin/", "src/", "docs/", "examples/github/", "test/vectors.json", "SPEC.md", "README.md", "LICENSE"],
   "scripts": { "test": "node --test test/*.test.js" },
   "engines": { "node": ">=20" },
   "keywords": ["git", "pre-commit", "proof", "verification", "ai-agents", "ci", "regression"],

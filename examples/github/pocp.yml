@@ -1,17 +1,27 @@
 # .github/workflows/pocp.yml
-# POCP on GitHub Actions, for a project in any language.
+# POCP on GitHub Actions, for a project in any language. `pocp init --github` writes this file,
+# pocp-status.yml and pocp-labels.yml, pinned to your POCP version. docs/STATUS.md explains the
+# "pocp" status these produce; docs/QUICKSTART.md, how to turn it on.
 #
 # verify judges the pull request by the base branch's rules and re-runs every required check
-# itself (rerun: all), each in a fresh copy of the commit with no .git. The verifier is the
-# action at a pinned commit, and nothing from the pull request runs before it starts.
+# itself, each in a fresh copy of the commit. The job reports what it found through which steps
+# run: exactly one of waiting / inconclusive / failed (none when verified), plus an approval-*
+# step for each approval passed to verify. pocp-status.yml, a separate trusted workflow, reads
+# those steps and sets the "pocp" commit status: green, yellow (waiting for a maintainer, or a
+# check didn't finish) or red.
 #
-# What this does not give you: a re-run *is* the pull request's code, running in this job as
-# the same user (with passwordless sudo on GitHub-hosted runners). POCP keeps its own git calls
-# away from what that code can change and fails if the code edits the repository's git config,
-# hooks or refs, but code that runs in a job can, with enough effort, interfere with anything
-# else in that job, including the verifier's process. The result is as trustworthy as running
-# the tests yourself in CI, plus checks the pull request can't edit (base-branch rules, the test
-# guard, coverage). docs/THREAT-MODEL.md says exactly what is and isn't independent.
+# What this does not give you: a re-run *is* the pull request's code, running in this job. POCP
+# keeps its own git calls away from what that code can change, and the checks don't get this
+# job's step files, but code that runs in a job can, with enough effort, interfere with anything
+# else in it. docs/THREAT-MODEL.md says exactly what is and isn't independent.
+#
+# POCP_STATUS_LIVE (a repository variable an admin sets; a pull request can't change it):
+# - unset (start here): waits still fail this job, so "verify" can stay your required check
+#   while you watch the "pocp" status on a few pull requests. Every label event runs verify.
+# - 'true': require the "pocp" status instead of "verify" (see docs/STATUS.md). Waits pass this
+#   job, so there's no red ✗ and no failure email, and label events other than pocp-approve-*
+#   are ignored. Switch the variable and the required check together: a skipped required check
+#   counts as passing, so don't filter labels while "verify" is required.
 name: pocp
 on:
   pull_request:
@@ -20,37 +30,76 @@ permissions:
   contents: read
 jobs:
   verify:
+    if: vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')
+    # One run per pull request state: a newer push or approval cancels the older run. An ignored
+    # label event gets a group of its own, so it can't cancel or replace a real run.
+    concurrency:
+      group: ${{ (vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && format('pocp-verify-{0}', github.event.pull_request.number) || format('pocp-ignored-{0}', github.run_id) }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
+    env:
+      # Each approval is a label only maintainers apply. A label isn't tied to a commit, so it
+      # counts only on the event that changed labels, and only for the head at that moment (the
+      # sha is passed, so verify checks it). pocp-labels.yml removes every approval on each push.
+      APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_INCONCLUSIVE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-inconclusive') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
+      WAIT_EXIT: ${{ vars.POCP_STATUS_LIVE == 'true' && '0' || '1' }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}   # the PR head, not GitHub's merge commit
           fetch-depth: 0                                    # verify reads the whole range of commits
           persist-credentials: false                        # no token left in .git/config for the PR's code
-      # ▶ Your toolchain (examples: actions/setup-python, dtolnay/rust-toolchain, actions/setup-go).
+      # ▶ Your toolchain (examples: actions/setup-node, actions/setup-python, actions/setup-go).
       # ▶ Install dependencies without running the PR's install scripts where you can
       #   (for example `npm ci --ignore-scripts`): anything that runs before verify is PR code.
-      - uses: harriswekselblatt/pocp@<commit-sha>                 # pin a commit; the action runs its bundled pocp
+      - uses: harriswekselblatt/pocp@POCP_REF                  # pin a release or commit; the action runs its bundled pocp
+        name: verify
+        id: verify
         with:
           rerun: all
-          # Two separate approvals, each a label only maintainers can apply. A label isn't tied
-          # to a commit, so it counts only on the event that changed labels, and only for the head
-          # at that moment (the sha is passed, so verify checks it): a push after approval
-          # ("synchronize") is verified without approvals. pocp-labels.yml removes both labels on
-          # every push, so the next approval is a fresh decision about the new code.
-          accept-policy-change: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
-          accept-test-change: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
+          exit-detail: true
+          accept-policy-change: ${{ env.APPROVE_POLICY }}
+          accept-test-change: ${{ env.APPROVE_TESTS }}
+          accept-inconclusive: ${{ env.APPROVE_INCONCLUSIVE }}
+          accept-uncovered: ${{ env.APPROVE_COVERAGE }}
+      # Which approvals verify was given (the reporter re-checks each label is still on).
+      - name: approval-tests
+        if: env.APPROVE_TESTS != 'false'
+        run: 'true'
+      - name: approval-policy
+        if: env.APPROVE_POLICY != 'false'
+        run: 'true'
+      - name: approval-inconclusive
+        if: env.APPROVE_INCONCLUSIVE != 'false'
+        run: 'true'
+      - name: approval-coverage
+        if: env.APPROVE_COVERAGE != 'false'
+        run: 'true'
+      # Exactly one of these runs unless verify passed (code 0). A missing or unknown code is a failure.
+      - name: waiting
+        if: steps.verify.outputs.code == '4'
+        run: |
+          echo "::notice title=POCP::waiting for a maintainer's approval (see the summary above)"
+          exit "$WAIT_EXIT"
+      - name: inconclusive
+        if: steps.verify.outputs.code == '5'
+        run: |
+          echo "::notice title=POCP::a check didn't finish: re-run this job, or a maintainer approves with pocp-approve-inconclusive"
+          exit "$WAIT_EXIT"
+      - name: failed
+        if: steps.verify.outputs.code != '0' && steps.verify.outputs.code != '4' && steps.verify.outputs.code != '5'
+        run: exit 1
 #
 # Faster, but trusting: run your tests through `pocp ci-run --results ci-results.jsonl -- <cmd>`
 # in this job before verify, and pass `ci-results: ci-results.jsonl`. The tests then run once
 # instead of twice. Use it only if you accept that anything that runs earlier in the job can
-# write that file: a new test file in the pull request can append a passing result for any
-# other required check, and verify will skip that check.
+# write that file.
 #
 # Which findings fail and which CI results are required come from .proof/config.json
-# ("verify.fail_on", "verify.require_ci"), not from this file; with rerun: all, verify runs the
-# require_ci commands itself. To make this job required for merging, list "verify" in
-# "ci.required_checks" and run: pocp ci required --apply
+# ("verify.fail_on", "verify.require_ci"), not from this file.
 #
-# Pull requests from forks run the repo's own commands. Treat this job like your test
-# job for outside contributors: no secrets, read-only permissions.
+# Pull requests from forks run the repo's own commands. Treat this job like your test job for
+# outside contributors: no secrets, read-only permissions.

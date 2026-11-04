@@ -1,0 +1,27 @@
+name: POCP status reporter
+description: Set the "pocp" commit status on a pull request's head, from the default branch's code only. Run it from a privileged workflow (see examples/github/pocp-status.yml); never on a pull request's code.
+branding:
+  icon: check-circle
+  color: green
+inputs:
+  workflow:
+    description: Path of the workflow that runs the POCP verify job, as in the repository.
+    required: false
+    default: .github/workflows/pocp.yml
+  github-token:
+    description: Token that can read pull requests and Actions runs and write commit statuses.
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: Report
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+        PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+        WORKFLOW: ${{ inputs.workflow }}
+      # Event data reaches the command only through env, never interpolated into it.
+      run: node "$GITHUB_ACTION_PATH/../bin/pocp.js" status-report --workflow "$WORKFLOW"

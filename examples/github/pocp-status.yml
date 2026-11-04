@@ -1,0 +1,42 @@
+# .github/workflows/pocp-status.yml
+# The trusted reporter (docs/STATUS.md): sets the "pocp" commit status on each pull request's
+# head, green / yellow / red, from what the verify job in pocp.yml found.
+#
+# It runs with a token that can write statuses, also for pull requests from forks, so it never
+# checks out, downloads or runs anything from a pull request. It checks out only your default
+# branch (for .proof/config.json) and runs POCP's reporter action, pinned like the verify action.
+# A run's results count only when the pull request changes no CI file: a pull request runs its
+# own copy of pocp.yml, so if it edits that, the status stays yellow until a maintainer approves
+# the workflow change with pocp-approve-workflow.
+#
+# workflow_run: when a pocp run finishes. pull_request_target: when the head or the labels change.
+name: pocp-status
+on:
+  workflow_run:
+    workflows: [pocp]
+    types: [completed]
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  statuses: write
+jobs:
+  report:
+    # One at a time per head, none cancelled: each recomputes from scratch, so the last one wins.
+    concurrency:
+      group: pocp-status-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: harriswekselblatt/pocp/status@POCP_REF               # the same pin as the verify action
+        with:
+          workflow: .github/workflows/pocp.yml

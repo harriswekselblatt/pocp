@@ -64,12 +64,32 @@ A faster mode runs your tests once, through `pocp ci-run`, and passes `--ci-resu
 It trusts everything that ran earlier in the job: a new test file can write a passing result
 for any check. See [the threat model](THREAT-MODEL.md) before choosing it.
 
-See `examples/github/pocp.yml` for a complete GitHub Actions workflow, including
-maintainer approvals for rule changes and test changes, and `examples/github/pocp-labels.yml`,
-which removes the approval labels on every push so an approval covers only the code reviewed.
+### On GitHub
+
+`pocp init --github` writes three workflows, with the POCP actions pinned to your POCP release:
+
+```bash
+pocp init --github        # .github/workflows/pocp.yml, pocp-status.yml, pocp-labels.yml
+```
+
+- **`pocp.yml`** runs verify on every pull request.
+- **`pocp-status.yml`** is the trusted reporter: it sets one commit status, **`pocp`**. It's green when verified, yellow while waiting for a maintainer or when a check didn't finish, and red on a real failure. It never runs pull request code.
+- **`pocp-labels.yml`** removes every approval label on each push, so an approval covers only the code reviewed.
+
+Then:
+
+1. **Create the approval labels.** `pocp doctor` lists any that are missing, with the `gh label create` commands. A maintainer approves a change by adding its label: `pocp-approve-tests`, `pocp-approve-policy`, `pocp-approve-inconclusive`, `pocp-approve-coverage` or `pocp-approve-workflow`. [docs/STATUS.md](STATUS.md) says what each covers.
+2. **Start in report-only mode.** Keep `verify` as your required check, and watch the `pocp` status on a few pull requests.
+3. **Go live in one sitting.** Set the repository variable `POCP_STATUS_LIVE` to `true`, *and* require `pocp` instead of `verify`. Waiting for approval then shows yellow, with no red ✗ and no failure email. Merging is still blocked until the approval.
+
+   Do the two steps together: once the variable is on, `verify` passes on a wait, so requiring `verify` alone would let an unapproved pull request merge.
+
+   To roll back, unset the variable and require `verify` again.
+
+If your repository has a second maintainer, keep the default `"ci": { "workflow_approver": "independent" }`: then the author of a CI change can't approve it themselves. See [docs/STATUS.md](STATUS.md) for that, and for the limits of the `pocp` status.
 
 Then run `pocp doctor`. It checks the adoption pitfalls before they block anyone: hooks,
-the workflow's approval labels and whether they exist, Actions access when the POCP action
+the workflow's approval labels and whether they exist, whether a reporter sets the `pocp` status, Actions access when the POCP action
 is in a private repository, branch protection against `ci.required_checks`, and that this
 first pull request carries only `.proof/` and CI files (until it merges, CI judges with the
 base branch's rules, so any other change would get two verdicts). It changes nothing.
