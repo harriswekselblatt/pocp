@@ -789,7 +789,10 @@ export function createPocp(opts = {}) {
             pr.runs.push({ obligation: ob.id, skipped: 'already proven for this subject' });
             continue;
           }
-          if (existing && !retryFailed && !force) {
+          // A check that ran and failed on this exact code isn't run again (the code must change).
+          // One that didn't finish (timed out, killed, didn't start) says nothing about the code,
+          // so it's always run again: under load, a timeout would otherwise stick as a failure.
+          if (existing && !retryFailed && !force && ranAndFailed(existing)) {
             pr.runs.push({ obligation: ob.id, skipped: 'failed on this exact code before; not run again (pocp prove --force to retry)', failed_before: true, run_id: existing.run_id });
             continue;
           }
