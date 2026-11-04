@@ -125,3 +125,5 @@ Pilots ([eval/](eval/)) are small runs to size the study. None is compared with 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+<!-- live gate test: a docs-only change; never merged -->
