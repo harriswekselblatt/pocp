@@ -15,6 +15,7 @@ import { signProof, verifyProofSignature } from './sign.js';
 import { detectTestChanges, effectiveGuardGlobs, guardBudget, guardRequirement, isLegacyGuardObligation } from './guard.js';
 import { requirementCommands } from './test-setup.js';
 import { runGuardCheck } from './guard-check.js';
+import { ranAndFailed } from './run-result.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { gateRemedies, pendingApprovals } from './remedies.js';
 
@@ -624,11 +625,11 @@ export function createPocp(opts = {}) {
   }
 
   /** Run one obligation in `dir`; returns the runner result plus pass/fail. */
-  async function runObligation(ob, dir, { logName } = {}) {
+  async function runObligation(ob, dir, { logName, keepCiFiles = false } = {}) {
     const cfg = config();
     const runId = randomId('r');
     const logFile = store.kind === 'fs' ? path.join(store.runsDir(), `${logName || runId}.log`) : null;
-    const env = buildEnv({ mode: cfg.run.env, allow: cfg.run.env_allow, extra: { POCP: '1', POCP_OBLIGATION: ob.id } });
+    const env = buildEnv({ mode: cfg.run.env, allow: cfg.run.env_allow, extra: { POCP: '1', POCP_OBLIGATION: ob.id }, keepCiFiles });
     const res = await runner.run(ob.run, {
       cwd: ob.cwd ? path.join(dir, ob.cwd) : dir,
       env,
@@ -1224,7 +1225,10 @@ export function createPocp(opts = {}) {
     }
     if (allowedSignersFile) allowedSigners = fs.readFileSync(allowedSignersFile, 'utf8');
     const failOn = new Set(cfgAt.verify?.fail_on || []);
-    const blocks = (code) => code === 'invalid_policy' || failOn.has(code);
+    // test_inconclusive is a kind of test_change (a test change whose check didn't finish), so
+    // it blocks exactly when test_change does: a config listing fail_on codes from before it
+    // existed must not turn it into a warning.
+    const blocks = (code) => code === 'invalid_policy' || failOn.has(code === 'test_inconclusive' ? 'test_change' : code);
     return { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks };
   }
 
@@ -1290,7 +1294,7 @@ export function createPocp(opts = {}) {
    * obligation again in a clean checkout of that commit. With `requireCoverage`,
    * also require that files the commit changed are covered when the rules say so.
    */
-  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, acceptUncovered = false, uncoveredExceptions, testGuardOnNet = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
+  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, acceptInconclusive = false, acceptUncovered = false, uncoveredExceptions, testGuardOnNet = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
     if (rerun === true) rerun = 'all';
     // The test guard's check compares a commit with its parent, so in a range it re-runs per
     // commit (verifyRange passes guardRerun) rather than once at the head.
@@ -1477,7 +1481,7 @@ export function createPocp(opts = {}) {
     if (testGuardOnNet && commitGuard.files.length) {
       commitGuard.mechanical = [];
       out.notes.push(`test change (${commitGuard.files.join(', ')}) is judged once, on the pull request's net change`);
-    } else await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed });
+    } else await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed });
 
     // Required CI results (verify.require_ci). Fails closed: with no results supplied at all,
     // every required command counts as missing. A passing re-run by this verify also counts.
@@ -1502,7 +1506,7 @@ export function createPocp(opts = {}) {
    * passes only on an independent mechanical pass (this re-run, or a proof signed by a
    * trusted key); anything else needs --accept-test-change, which is meant for a person.
    */
-  async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, cfgAt, commitFinding, blocks, signed, memo, ciResults, seed }) {
+  async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive = false, cfgAt, commitFinding, blocks, signed, memo, ciResults, seed }) {
     if (!commitGuard.files.length) return;
     const base = g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true });
     const results = [];
@@ -1512,7 +1516,7 @@ export function createPocp(opts = {}) {
       if (guardRerun && !(guardRerun === 'unsigned' && signed.get(obligationDigest(job.ob)) === 'valid' && job.proof?.passed)) {
         // The new code's baseline is the same run as a re-run or CI result for this commit, if one exists.
         const res = await guardCheckFor(job.ob, { packet: job.packet, required: job.required, guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, seed, known: (ob) => memo.known(out.subject, ob, ciResults), onPass: (ob, r) => memo.record(out.subject, ob, r) });
-        Object.assign(r, { evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, result: res });
+        Object.assign(r, { evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, unfinished: Boolean(res.unfinished), result: res });
         out.reruns.push({ run: `test guard (${job.ob.id}, ${job.ob.mutants} mutants${seed !== undefined ? `, seed ${seed}` : ''})`, kind: 'guard', packets: [job.packet.id], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
         if (entry?.evidence) {
           if (res.passed) entry.evidence[job.ob.id] = 'mechanical:rerun';
@@ -1537,11 +1541,24 @@ export function createPocp(opts = {}) {
       results.push(r);
     }
     commitGuard.mechanical = results;
-    if (commitGuard.mode !== 'block' || acceptTestChange) return;
+    if (commitGuard.mode !== 'block') return;
     // Independent: re-run here or signed by a trusted key, with checks the rules chose.
     const independentPass = (f) => results.some((r) => r.files.includes(f) && r.passed && (r.evidence === 'rerun' || r.evidence === 'signed') && r.checks_from !== 'packet');
     const missing = commitGuard.files.filter((f) => !independentPass(f));
     if (!missing.length) return;
+    // A file whose re-run check failed only because a run didn't finish needs a different
+    // approval: one for an unfinished run, not one for the test change (docs/REFERENCE.md).
+    const unfinishedFor = (f) => {
+      const failedHere = results.filter((r) => r.files.includes(f) && r.evidence === 'rerun' && !r.passed);
+      return failedHere.length > 0 && failedHere.every((r) => r.unfinished);
+    };
+    const notFinished = missing.filter(unfinishedFor);
+    if (notFinished.length && !acceptInconclusive) {
+      const ran = results.find((r) => r.unfinished && r.summary);
+      commitFinding('test_inconclusive', `existing tests or test setup changed (${notFinished.join(', ')}) and the check didn't finish: ${ran?.summary || 'a run timed out or was killed'}. Re-run verify, or re-run with --accept-inconclusive once a person approves`);
+    }
+    const toReview = missing.filter((f) => !unfinishedFor(f));
+    if (!toReview.length || acceptTestChange) return;
     const failed = results.find((r) => r.verdict && r.verdict !== 'passed' && r.summary);
     const why = failed
       ? `the mechanical check did not pass: ${failed.summary}`
@@ -1550,7 +1567,7 @@ export function createPocp(opts = {}) {
         : results.some((r) => r.passed)
         ? 'the mechanical check passed only locally (re-run verify with --rerun to check it here)'
         : 'no mechanical check covers them';
-    commitFinding('test_change', `existing tests or test setup changed (${missing.join(', ')}); ${why}. Re-run with --accept-test-change once a person approves`);
+    commitFinding('test_change', `existing tests or test setup changed (${toReview.join(', ')}); ${why}. Re-run with --accept-test-change once a person approves`);
   }
 
   /**
@@ -1592,7 +1609,8 @@ export function createPocp(opts = {}) {
       }
       if (r.passed) memo.record(subj, job.ob, r);
       into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, duration_ms: r.duration_ms });
-      if (!r.passed) for (const id of job.packets) failures.push({ packet: id, problem: `rerun of "${job.ob.run}" failed (exit ${r.exit}${r.timed_out ? ', timed out' : ''})` });
+      // unfinished: it timed out, was killed or didn't start, so it says nothing about the code.
+      if (!r.passed) for (const id of job.packets) failures.push({ packet: id, problem: `rerun of "${job.ob.run}" failed (exit ${r.exit}${r.timed_out ? ', timed out' : ''})`, unfinished: !ranAndFailed(r) });
     }
     return failures;
   }
@@ -1671,7 +1689,7 @@ export function createPocp(opts = {}) {
     const commit = g.resolveRev(root, 'HEAD');
     const subject = g.subjectHashRev(root, commit);
     const started_at = new Date().toISOString();
-    const r = await runObligation({ id: 'ci', kind: 'test', run: command, ...(cwd ? { cwd } : {}) }, root, { env });
+    const r = await runObligation({ id: 'ci', kind: 'test', run: command, ...(cwd ? { cwd } : {}) }, root, { env, keepCiFiles: true });
     return {
       pocp: 1,
       kind: 'ci-result',
@@ -1889,7 +1907,10 @@ export function createPocp(opts = {}) {
           ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)'
           : `the mechanical check did not pass: ${r.summary}`;
       const detail = `existing tests or test setup changed (${guard.files.join(', ')}) in the pull request's net change ${span}; ${why}. Re-run with --accept-test-change once a person approves`;
-      if (guard.mode === 'block' && !independent && !options.acceptTestChange) finding('test_change', detail);
+      const netUnfinished = Boolean(guardRerun && r && !r.passed && r.result?.unfinished);
+      if (guard.mode === 'block' && !independent && netUnfinished) {
+        if (!options.acceptInconclusive) finding('test_inconclusive', `existing tests or test setup changed (${guard.files.join(', ')}) in the pull request's net change ${span} and the check didn't finish: ${r.summary}. Re-run verify, or re-run with --accept-inconclusive once a person approves`);
+      } else if (guard.mode === 'block' && !independent && !options.acceptTestChange) finding('test_change', detail);
       else if (guard.mode === 'attest' && !independent && !options.acceptTestChange) {
         // Attest mode accepts a recorded sign-off on a test change; a check that ran here and
         // failed needs one for every changed file, from some packet in the range.

@@ -16,12 +16,12 @@ import { CiResultsError, readCiResults } from './ci-results.js';
 import { DONT_REWRITE, remedyLines, verifyRemedy } from './remedies.js';
 import { formatFix, runFix } from './fix.js';
 import { formatDoctor, runDoctor } from './doctor.js';
-import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatApprovals, listApprovals } from './approvals.js';
+import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatApprovals, listApprovals, VERIFY_EXIT } from './approvals.js';
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
-const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-uncovered', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host', 'deep']);
-const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change', 'accept-uncovered']);
+const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-inconclusive', 'accept-uncovered', 'exit-detail', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host', 'deep']);
+const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change', 'accept-uncovered', 'accept-inconclusive']);
 const OBLIGATION_FLAGS = new Set(['test', 'command', 'probe', 'manual']);
 const OBLIGATION_MODIFIERS = new Set(['expect', 'timeout', 'input', 'target', 'cwd']);
 
@@ -143,6 +143,10 @@ Checking
                                      --accept-policy-change=<sha> / --accept-test-change=<sha>: only for that head
                                      --accept-uncovered=<sha>: commits .proof/exceptions.json lists (commit + exact
                                      files) may lack a packet; shown as UNPROVEN warnings; only for that head
+                                     --accept-inconclusive=<sha>: a test change whose check didn't finish (timed
+                                     out, killed); --accept-test-change doesn't cover that; only for that head
+                                     --exit-detail: exit 4 when only an approval is missing, 5 when something
+                                     didn't finish (re-run it), 1 for any other failure
   blame <file>                       packets that changed a file
 
 Misses
@@ -648,6 +652,7 @@ export async function main(argv = process.argv.slice(2)) {
           policyFrom: flags['policy-from'],
           acceptPolicyChange: approval('accept-policy-change'),
           acceptTestChange: approval('accept-test-change'),
+          acceptInconclusive: approval('accept-inconclusive'),
           acceptUncovered: approval('accept-uncovered'),
           allowedSignersFile: flags['allowed-signers'],
         };
@@ -701,7 +706,11 @@ export async function main(argv = process.argv.slice(2)) {
         if (!result.ok) result.approval = approvalSummary([...rows.flatMap((c) => c.findings || []), ...rangeFindings(result)], (result.rerun_failures || []).filter((x) => x.blocking !== false));
         writeGithubSummary(result, rows, commitProblems, Date.now() - started, { annotations: !json });
         out(json, result, human);
-        return result.ok ? EXIT.ok : EXIT.blocked;
+        if (result.ok) return EXIT.ok;
+        // --exit-detail: 4 when only a maintainer's approval is missing, 5 when something didn't
+        // finish (re-run, or approve with --accept-inconclusive); every other failure stays 1.
+        if (flags['exit-detail'] && result.approval?.outcome in VERIFY_EXIT) return VERIFY_EXIT[result.approval.outcome];
+        return EXIT.blocked;
       }
       case 'blame': {
         if (!rest[0]) throw new UsageError('usage: pocp blame <file>');

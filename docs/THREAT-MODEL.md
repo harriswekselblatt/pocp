@@ -294,7 +294,8 @@ separate, trusted workflow that never trusts a run whose workflow the pull reque
 - **The net change starts at the merge base.** Changes the branch took from main by merging
   it are main's and aren't judged again. A range without a base (`verify <rev>`) has no net
   change. The net test guard needs `--rerun` (in block mode it fails without one), and a
-  maintainer's `--accept-test-change` covers it like any test change.
+  maintainer's `--accept-test-change` covers it like any test change, unless its check didn't
+  finish (`test_inconclusive`), which only a re-run or `--accept-inconclusive` clears.
 - **The mutant sample is not secret.** In CI the guard's seed is derived from `guard.seed`, the
   merge base and the head, so it differs from the one `prove` uses and changes with every head,
   but it is a pure function of the range (verify must be reproducible). An author who knows the
