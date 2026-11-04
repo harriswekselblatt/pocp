@@ -48,10 +48,19 @@ export function changedWorkflowFiles(files, globs) {
 const stepOf = (job, name) => (job?.steps || []).find((s) => s.name === name);
 const ran = (step) => Boolean(step && step.conclusion && step.conclusion !== 'skipped');
 
+/** The verify job's key steps as "name=conclusion", for the log. */
+export function stepSummary(job) {
+  if (!job) return 'no verify job';
+  return `job ${job.status || '?'}/${job.conclusion || '?'}: ${['verify', 'waiting', 'inconclusive', 'failed'].map((n) => `${n}=${stepOf(job, n)?.conclusion ?? 'missing'}`).join(' ')}`;
+}
+
 /**
  * What one completed run of the trusted workflow says, from its verify job's steps alone.
- * Returns { outcome: verified|waiting|inconclusive|failed, approvals: [labels it relied on] }.
- * Anything that doesn't match a known pattern is "failed": unknown never reads as success.
+ * Returns { outcome: verified|waiting|inconclusive|failed|unreadable, approvals: [labels] }.
+ * "unreadable": GitHub hasn't returned complete step data (no job, the job not completed, a key
+ * step missing or without a result). Seen live: the run was reported completed while its job's
+ * steps weren't readable yet. That's a wait (pending), never a success and never a failure.
+ * Complete data that matches no known pattern is "failed": unknown never reads as success.
  */
 export function readRun(job) {
   const verify = stepOf(job, 'verify');
@@ -59,7 +68,9 @@ export function readRun(job) {
   const waiting = stepOf(job, 'waiting');
   const inconclusive = stepOf(job, 'inconclusive');
   const approvals = Object.entries(APPROVAL_MARKERS).filter(([step]) => stepOf(job, step)?.conclusion === 'success').map(([, label]) => label);
-  if (!job || !verify || verify.conclusion !== 'success' || !failed || !waiting || !inconclusive) return { outcome: 'failed', approvals };
+  const keySteps = [verify, failed, waiting, inconclusive];
+  if (!job || (job.status && job.status !== 'completed') || !job.conclusion || keySteps.some((st) => !st || !st.conclusion)) return { outcome: 'unreadable', approvals };
+  if (verify.conclusion !== 'success') return { outcome: 'failed', approvals };
   if (ran(failed)) return { outcome: 'failed', approvals };
   if (ran(waiting) && !ran(inconclusive)) return { outcome: 'waiting', approvals };
   if (ran(inconclusive) && !ran(waiting)) return { outcome: 'inconclusive', approvals };
@@ -124,12 +135,13 @@ export function decideStatus(facts) {
 
   if (!newest) return status('pending', TEXT.pending, `no completed run of ${facts.workflow.path} for ${short(sha)} yet`, null);
   const { outcome, approvals } = readRun(newest.job);
+  if (outcome === 'unreadable') return { ...status('pending', TEXT.pending, `run ${newest.id}'s steps aren't readable yet (${stepSummary(newest.job)})${via}`, newest), unreadable: true };
   if (outcome === 'verified') {
     const gone = approvals.filter((l) => !pr.labels.includes(l));
     if (gone.length) return status('pending', TEXT.approvalGone, `run ${newest.id} relied on ${gone.join(', ')}, which is no longer on the pull request${via}`, newest);
     return status('success', TEXT.verified, `run ${newest.id} verified${approvals.length ? ` with ${approvals.join(', ')}` : ''}${via}`, newest);
   }
-  if (outcome === 'failed') return status('failure', TEXT.failed, `run ${newest.id} failed${via}`, newest);
+  if (outcome === 'failed') return status('failure', TEXT.failed, `run ${newest.id} failed (${stepSummary(newest.job)})${via}`, newest);
   return status('pending', TEXT[outcome], `run ${newest.id} is ${outcome}${via}`, newest);
 }
 
@@ -190,7 +202,7 @@ export async function gather(gh, { repository, sha, prNumber, baseConfig }) {
     if (r.status === 'completed') {
       const jobs = await gh.all(`${repo}/actions/runs/${r.id}/jobs?per_page=100`, 'jobs', 3);
       const job = jobs.find((j) => j.name === VERIFY_JOB);
-      run.job = job ? { conclusion: job.conclusion, steps: (job.steps || []).map((s) => ({ name: s.name, conclusion: s.conclusion })) } : null;
+      run.job = job ? { status: job.status, conclusion: job.conclusion, steps: (job.steps || []).map((s) => ({ name: s.name, conclusion: s.conclusion })) } : null;
     }
     facts.runs.push(run);
   }
@@ -207,10 +219,18 @@ export async function gather(gh, { repository, sha, prNumber, baseConfig }) {
   return facts;
 }
 
-/** Decide, re-check the head right before writing, then write the status (unless dryRun). */
-export async function reportStatus(gh, { repository, sha, prNumber, baseConfig, dryRun = false }) {
-  const facts = await gather(gh, { repository, sha, prNumber, baseConfig });
-  const decision = decideStatus(facts);
+/**
+ * Decide, re-check the head right before writing, then write the status (unless dryRun). When
+ * the newest run's steps aren't readable yet, fetch again a few times before settling on pending.
+ */
+export async function reportStatus(gh, { repository, sha, prNumber, baseConfig, dryRun = false, retries = 3, waitMs = 10_000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
+  let facts = await gather(gh, { repository, sha, prNumber, baseConfig });
+  let decision = decideStatus(facts);
+  for (let i = 0; i < retries && decision.unreadable; i++) {
+    await sleep(waitMs);
+    facts = await gather(gh, { repository, sha, prNumber, baseConfig });
+    decision = decideStatus(facts);
+  }
   if (!decision.write || dryRun) return { decision, written: false };
   // The head can move while this runs: never write a status for a head that is no longer current.
   const now = await gh.get(`/repos/${repository}/pulls/${facts.pr.number}`);
