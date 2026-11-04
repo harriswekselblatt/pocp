@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import * as P from './packets.js';
 import { DONT_REWRITE } from './remedies.js';
 
@@ -151,7 +152,9 @@ export async function runFix(engine, { intent, test, mode, actor } = {}) {
   return {
     ok: gate.decision === 'pass',
     decision: gate.decision,
-    nothing_staged: (gate.files || []).length === 0,
+    nothing_staged: (gate.files || []).length === 0 && stagedPaths(engine.root).length === 0,
+    // Staged, but nothing in it needs proof (for example only .proof/ policy files).
+    nothing_to_prove: (gate.files || []).length === 0 && stagedPaths(engine.root).length > 0,
     actions,
     needs_agent: dedupe(needsAgent),
     needs_person: dedupe(needsPerson),
@@ -170,10 +173,17 @@ function dedupe(list) {
   });
 }
 
+/** Paths in the index that differ from HEAD (what a commit now would change). */
+function stagedPaths(root) {
+  const r = spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: root, encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.split('\n').filter(Boolean) : [];
+}
+
 /** Human output for a fix result. */
 export function formatFix(r) {
   const lines = [];
   if (r.ok && r.nothing_staged) return 'pocp fix: nothing is staged; stage the change (git add) and run pocp fix again';
+  if (r.ok && r.nothing_to_prove) return 'pocp fix: ready to commit (git commit): nothing staged needs proof';
   const onlyTests = r.needs_person.length && r.needs_person.every((x) => x.code === 'test_change');
   const head = r.ok
     ? r.needs_person.length

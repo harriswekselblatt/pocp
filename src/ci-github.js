@@ -154,7 +154,18 @@ export function applyGithubProtection(root, plan) {
   if (read.error) return { ok: false, ...(read.repo ? { repo: read.repo } : {}), error: read.error };
   const { repo: nameWithOwner, endpoint, existing } = read;
   const { payload, added_checks, kept_checks } = protectionPayload(existing, plan);
-  const r = gh(['api', '-X', 'PUT', endpoint, '--input', '-'], { input: JSON.stringify(payload) });
+  // GitHub has changed which forms of required_status_checks it accepts: once `contexts` was
+  // required (with `checks` alongside); now the two are mutually exclusive. Send `checks` (it
+  // keeps app ids), and if GitHub rejects it, `contexts` alone, then both, as older APIs wanted.
+  const { contexts, checks, strict } = payload.required_status_checks;
+  const forms = [{ strict, checks }, { strict, contexts }, { strict, contexts, checks }];
+  let r;
+  let sent;
+  for (const form of forms) {
+    sent = { ...payload, required_status_checks: form };
+    r = gh(['api', '-X', 'PUT', endpoint, '--input', '-'], { input: JSON.stringify(sent) });
+    if (r.ok || !/subschema|contexts|checks|Invalid request/i.test(ghMessage(r))) break;
+  }
   if (!r.ok) return { ok: false, repo: nameWithOwner, error: ghMessage(r) };
-  return { ok: true, repo: nameWithOwner, branch: plan.branch, was_protected: Boolean(existing), added_checks, kept_checks, payload };
+  return { ok: true, repo: nameWithOwner, branch: plan.branch, was_protected: Boolean(existing), added_checks, kept_checks, payload: sent };
 }

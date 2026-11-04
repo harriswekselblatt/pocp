@@ -273,7 +273,7 @@ test('eval --save and --replay through the CLI', () => {
   assert.equal(pocp(dir, ['eval', '--replay', '/nope.json']).code, 2);
 });
 
-function fakeGh(dir, { existing, getStatus = 0, getStdout } = {}) {
+function fakeGh(dir, { existing, getStatus = 0, getStdout, rejectChecksOnly = false } = {}) {
   const base = path.join(dir, '..', `${path.basename(dir)}-gh`);
   const log = `${base}.log`;
   const fixture = `${base}.json`;
@@ -284,7 +284,11 @@ function fakeGh(dir, { existing, getStatus = 0, getStdout } = {}) {
   fs.writeFileSync(`${base}.sh`, `#!/bin/sh
 echo "ARGS $*" >> ${log}
 if [ "$1" = repo ]; then echo owner/name; exit 0; fi
-if [ "$1" = api ] && [ "$2" = "-X" ]; then cat >> ${log}; echo; exit 0; fi
+if [ "$1" = api ] && [ "$2" = "-X" ]; then
+  body=$(cat); echo "$body" >> ${log}
+  ${rejectChecksOnly ? `case "$body" in *'"contexts"'*) ;; *) echo 'gh: Invalid request. No subschema in "anyOf" matched. (HTTP 422)' >&2; exit 1 ;; esac` : ':'}
+  echo; exit 0
+fi
 if [ "$1" = api ]; then ${get}; fi
 `);
   fs.chmodSync(`${base}.sh`, 0o755);
@@ -321,7 +325,7 @@ test('ci required --apply on an unprotected branch sets fresh protection', () =>
   const log = fs.readFileSync(fake.log, 'utf8');
   assert.match(log, /ARGS api repos\/owner\/name\/branches\/main\/protection\n/, 'reads the current protection first');
   const sent = JSON.parse(log.split('\n').find((l) => l.startsWith('{')));
-  assert.deepEqual(sent.required_status_checks, { strict: false, contexts: ['verify'], checks: [{ context: 'verify' }] });
+  assert.deepEqual(sent.required_status_checks, { strict: false, checks: [{ context: 'verify' }] });
   assert.deepEqual(sent.required_pull_request_reviews, { required_approving_review_count: 0 });
   assert.equal(sent.enforce_admins, true);
   assert.equal(sent.restrictions, null);
@@ -351,7 +355,7 @@ test('ci required --apply keeps existing protections and never loosens them', ()
   assert.match(r.stdout, /added required checks: verify/);
   assert.match(r.stdout, /also still required \(set elsewhere\): lint/);
   const sent = JSON.parse(fs.readFileSync(fake.log, 'utf8').split('\n').find((l) => l.startsWith('{')));
-  assert.deepEqual(sent.required_status_checks, { strict: true, contexts: ['lint', 'tests', 'verify'], checks: [{ context: 'lint', app_id: 15368 }, { context: 'tests' }, { context: 'verify' }] });
+  assert.deepEqual(sent.required_status_checks, { strict: true, checks: [{ context: 'lint', app_id: 15368 }, { context: 'tests' }, { context: 'verify' }] });
   assert.equal(sent.enforce_admins, true, 'config saying false does not turn existing enforcement off');
   assert.equal(sent.required_pull_request_reviews.required_approving_review_count, 2, 'existing review requirements are kept');
   assert.equal(sent.required_pull_request_reviews.require_code_owner_reviews, true);
@@ -398,4 +402,16 @@ test('only "ci required --apply" ever contacts the host: every other command lea
   assert.equal(fs.existsSync(`${tripwire}.log`), false, 'no command except "ci required --apply" called gh');
   pocp(dir, ['ci', 'required', '--apply'], { env });
   assert.equal(fs.existsSync(`${tripwire}.log`), true, 'the explicit --apply does');
+});
+
+test('ci required --apply falls back to contexts when GitHub rejects checks alone', () => {
+  // GitHub has changed which forms it accepts; found live when it rejected contexts + checks together.
+  const dir = sampleRepo();
+  write(dir, '.proof/config.json', JSON.stringify({ pocp: 1, ci: { branch: 'main', required_checks: ['verify'] } }));
+  const fake = fakeGh(dir, { rejectChecksOnly: true });
+  const r = pocp(dir, ['ci', 'required', '--apply', '--json'], { env: { POCP_GH: fake.bin } });
+  assert.equal(r.code, 0, r.stdout + r.stderr);
+  const bodies = fs.readFileSync(fake.log, 'utf8').split('\n').filter((l) => l.startsWith('{')).map((l) => JSON.parse(l).required_status_checks);
+  assert.deepEqual(bodies, [{ strict: false, checks: [{ context: 'verify' }] }, { strict: false, contexts: ['verify'] }]);
+  assert.deepEqual(r.json.result.payload.required_status_checks, { strict: false, contexts: ['verify'] });
 });

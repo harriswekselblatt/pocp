@@ -5,7 +5,7 @@ import { computeMetrics } from './metrics.js';
 import { runMutantEval } from './mutants.js';
 import { replayFixes, simulateGate } from './history.js';
 import { applyGithubProtection, checkGithubProtection, requiredChecksPlan } from './ci-github.js';
-import { formatLayout, hooksHealth, initProofDir, installHooks, uninstallHooks, writeGithubWorkflows } from './init.js';
+import { formatLayout, hooksHealth, initProofDir, installHooks, SELF_BIN, uninstallHooks, writeGithubWorkflows } from './init.js';
 import { loadHost } from './host.js';
 import { ValidationError, describeObligation } from './obligations.js';
 import { ruleWarnings, validateRules } from './rules.js';
@@ -184,9 +184,17 @@ export function shellJoin(args) {
   return args.map((a) => (/^[A-Za-z0-9_\-+=.,/:@%^]+$/.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`)).join(' ');
 }
 
+// Installed in a project (npm install --save-dev), pocp isn't on PATH: the commands it suggests
+// must read "npx pocp …", which finds the project's copy first. Installed globally, "pocp …".
+const LOCAL_INSTALL = SELF_BIN.includes(`${path.sep}node_modules${path.sep}`);
+export function localizeCommands(text, local = LOCAL_INSTALL) {
+  return local ? String(text).replace(/(?<![\w./-])(?<!npx )pocp (?=[a-z])/g, 'npx pocp ') : text;
+}
+const errWrite = (text) => process.stderr.write(localizeCommands(text));
+
 function out(json, data, human) {
   if (json) process.stdout.write(`${JSON.stringify({ pocp: 1, ...data }, null, 2)}\n`);
-  else if (human) process.stdout.write(`${human}\n`);
+  else if (human) process.stdout.write(`${localizeCommands(human)}\n`);
 }
 
 /** Why each guard obligation still needs a sign-off: what the mechanical check found. */
@@ -328,7 +336,7 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     parsed = parseArgs(argv);
   } catch (err) {
-    process.stderr.write(`pocp: ${err.message}\n`);
+    errWrite(`pocp: ${err.message}\n`);
     return EXIT.usage;
   }
   const { positional, flags, obligations } = parsed;
@@ -361,7 +369,7 @@ export async function main(argv = process.argv.slice(2)) {
             : 'test guard: fast (guard.mutants 0): a test edit passes on its own only if it adds lines to existing tests; anything else goes to a person. "pocp init --deep" or guard.mutants 10 adds planted bugs'] : []),
           // The layout on a first init, or when it needs something done; quiet otherwise.
           ...(r.config_created || r.layout.extra.length || r.layout.uncovered.length ? formatLayout(r.layout, { written: r.layout_written }) : []),
-          hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : 'hooks not installed (run "pocp hooks install")',
+          hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : Object.values(hooksHealth(process.cwd()).hooks).some((v) => v === 'ok') ? 'hooks: already installed' : 'hooks not installed (run "pocp hooks install")',
           ...(hooks?.chained || []).map((n) => `${n}: chained (the existing hook is now ${n}.pre-pocp and runs first)`),
           ...(hooks?.warnings || []).map((w) => `warning: ${w}`),
           ...(github ? [
@@ -440,7 +448,7 @@ export async function main(argv = process.argv.slice(2)) {
     // without .proof/rules.json, the commands hooks call do nothing and succeed.
     if (['gate', 'trailer', 'land', 'check-edit', 'fix'].includes(cmd) && !fs.existsSync(path.join(engine.root, '.proof', 'rules.json'))) {
       if (json) out(true, { ok: true, adopted: false, note: 'POCP is not set up in this checkout (no .proof/rules.json); nothing to check' });
-      else if (cmd === 'gate' || cmd === 'check-edit') process.stderr.write('pocp: not set up in this checkout (no .proof/rules.json); nothing to check\n');
+      else if (cmd === 'gate' || cmd === 'check-edit') errWrite('pocp: not set up in this checkout (no .proof/rules.json); nothing to check\n');
       return EXIT.ok;
     }
 
@@ -565,7 +573,7 @@ export async function main(argv = process.argv.slice(2)) {
       case 'fix': {
         const r = await runFix(engine, { intent: flags.intent, test: obligations.find((o) => o.kind === 'test')?.run, mode: flags.mode, actor: engine.actor });
         if (json) out(true, { ...r, gate: { decision: r.gate.decision, subject: r.gate.subject } });
-        else process[r.ok ? 'stdout' : 'stderr'].write(`${formatFix(r)}\n`);
+        else process[r.ok ? 'stdout' : 'stderr'].write(`${localizeCommands(formatFix(r))}\n`);
         return r.ok ? EXIT.ok : EXIT.blocked;
       }
       case 'doctor': {
@@ -579,7 +587,7 @@ export async function main(argv = process.argv.slice(2)) {
         delete process.env.POCP_GATE_SOURCE;
         const r = await engine.gate({ prove: Boolean(flags.prove), mode: flags.mode, source });
         if (json) out(true, r);
-        else process[r.decision === 'pass' ? 'stdout' : 'stderr'].write(`${formatGate(r)}\n`);
+        else process[r.decision === 'pass' ? 'stdout' : 'stderr'].write(`${localizeCommands(formatGate(r))}\n`);
         return r.decision === 'pass' ? EXIT.ok : r.decision === 'error' ? EXIT.usage : EXIT.blocked;
       }
       case 'ci-run': {
@@ -633,7 +641,7 @@ export async function main(argv = process.argv.slice(2)) {
         const r = await engine.checkEdit(rest);
         if (json) out(true, r);
         else if (r.ok) out(false, r, r.protected.length ? `ok: covered by an open packet (${r.protected.join(', ')})` : 'ok: not protected');
-        else process.stderr.write(`pocp: open a packet before editing ${r.uncovered.join(', ')}\n  why: the rules protect these files, so a change to them must say what it is for and carry its proof\n  next: ${r.suggestion.command}\n  (or edit, stage, and run "pocp fix --intent <what the change does>" before committing)\n`);
+        else errWrite(`pocp: open a packet before editing ${r.uncovered.join(', ')}\n  why: the rules protect these files, so a change to them must say what it is for and carry its proof\n  next: ${r.suggestion.command}\n  (or edit, stage, and run "pocp fix --intent <what the change does>" before committing)\n`);
         return r.ok ? EXIT.ok : EXIT.blocked;
       }
       case 'trailer': {
@@ -660,8 +668,8 @@ export async function main(argv = process.argv.slice(2)) {
           ignoredCi += r.ignored;
           return r.records;
         });
-        if (ignoredCi) process.stderr.write(`pocp: ignored ${ignoredCi} CI result(s) recorded by a different CI run\n`);
-        if (ciResults.length) process.stderr.write('pocp: trusting CI results from --ci-results: anything that ran earlier in this job could have written them (docs/THREAT-MODEL.md)\n');
+        if (ignoredCi) errWrite(`pocp: ignored ${ignoredCi} CI result(s) recorded by a different CI run\n`);
+        if (ciResults.length) errWrite('pocp: trusting CI results from --ci-results: anything that ran earlier in this job could have written them (docs/THREAT-MODEL.md)\n');
         // An approval that names a commit covers only that head: a later push needs a new one.
         const headRev = rest[0] && rest[0].includes('..') ? rest[0].split(/\.\.\.?/)[1] || 'HEAD' : rest[0] || 'HEAD';
         const approval = (name) => {
@@ -670,7 +678,7 @@ export async function main(argv = process.argv.slice(2)) {
           const head = resolveRev(engine.root, headRev);
           const given = /^[0-9a-f]{7,64}$/i.test(v) ? git(engine.root, ['rev-parse', '--verify', '--quiet', `${v}^{commit}`], { allowFail: true }) : null;
           if (given === head) return true;
-          process.stderr.write(`pocp: approval for ${v} does not cover ${head.slice(0, 12)}, the head being verified: a push after the approval needs a new one (--${name})\n`);
+          errWrite(`pocp: approval for ${v} does not cover ${head.slice(0, 12)}, the head being verified: a push after the approval needs a new one (--${name})\n`);
           return false;
         };
         const vopts = {
@@ -858,10 +866,10 @@ export async function main(argv = process.argv.slice(2)) {
     const code = usage ? EXIT.usage : err instanceof PocpError ? EXIT.blocked : known ? EXIT.usage : EXIT.internal;
     if (json) out(true, { ok: false, error: err.message, details: err.details });
     else {
-      process.stderr.write(`pocp: ${err.message}\n`);
-      if (err.details?.problems) for (const p of err.details.problems) process.stderr.write(`  ${p.detail}: ${(p.files || []).join(', ')}\n`);
-      if (/clean mode refused/.test(err.message)) process.stderr.write('  next: pocp fix (proves a snapshot of exactly what is staged), or pocp prove --mode snapshot\n');
-      if (!known && process.env.POCP_DEBUG) process.stderr.write(`${err.stack}\n`);
+      errWrite(`pocp: ${err.message}\n`);
+      if (err.details?.problems) for (const p of err.details.problems) errWrite(`  ${p.detail}: ${(p.files || []).join(', ')}\n`);
+      if (/clean mode refused/.test(err.message)) errWrite('  next: pocp fix (proves a snapshot of exactly what is staged), or pocp prove --mode snapshot\n');
+      if (!known && process.env.POCP_DEBUG) errWrite(`${err.stack}\n`);
     }
     return code;
   }

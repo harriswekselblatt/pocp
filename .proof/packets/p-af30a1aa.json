@@ -1,0 +1,134 @@
+{
+  "pocp": 1,
+  "id": "p-af30a1aa",
+  "intent": "New-user friction: npx pocp for local installs, accurate init hooks line, doctor suggests pocp",
+  "touches": [
+    "src/cli.js",
+    "src/doctor.js",
+    "test/new-user-friction.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-04T20:53:59.371Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:1600389c3c6c71dfd8f34c7bb91584055162cabdc5245415f8ae8b7083f5d652",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T20:53:59.765Z",
+      "duration_ms": 2557,
+      "stdout_sha256": "64177d50baa2a52c2da8ea0ad67cf675b39a6da616405db367c2936d4b27199c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-4596a80d",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:1600389c3c6c71dfd8f34c7bb91584055162cabdc5245415f8ae8b7083f5d652",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T20:54:02.392Z",
+      "duration_ms": 53290,
+      "stdout_sha256": "c9d09cb54b8f6d6c4a4442dce2c1d18c4323509c6fa4541709649c9235e99438",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-eb902937",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:1600389c3c6c71dfd8f34c7bb91584055162cabdc5245415f8ae8b7083f5d652",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-04T20:54:55.793Z",
+      "duration_ms": 181403,
+      "stdout_sha256": "c2b6446cac36c9a4cbaacad1c441ca60f65aad638e3fca7e85fca6fabce90d2f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-4c29dc4a",
+      "runner": {
+        "pocp": "0.1.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-04T20:53:59.371Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-04T20:53:59.371Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-04T20:57:57.341Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:1600389c3c6c71dfd8f34c7bb91584055162cabdc5245415f8ae8b7083f5d652"
+    }
+  ]
+}
