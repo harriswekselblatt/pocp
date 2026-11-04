@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { localizeCommands } from '../src/cli.js';
-import { git, pocp, write } from './helpers.js';
+import { git, pocp, read, sampleRepo, write } from './helpers.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -67,4 +67,21 @@ test('doctor suggests requiring "pocp" when a reporter sets the status', () => {
   git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'adopt');
   const r = pocp(dir, ['doctor', '--offline']);
   assert.match(r.stdout, /list "pocp" \(the status the reporter sets\)/);
+});
+
+test('pocp fix with only a policy file staged says it is ready, not "nothing is staged"', () => {
+  const dir = sampleRepo({ hooks: true, deep: false });
+  write(dir, 'src/math.js', `${read(dir, 'src/math.js')}\n`);
+  git(dir, 'add', '-A');
+  assert.equal(pocp(dir, ['fix', '--intent', 'first']).code, 0);
+  assert.equal(spawnSync('git', ['commit', '-qm', 'first'], { cwd: dir }).status, 0);
+  const cfg = JSON.parse(read(dir, '.proof/config.json'));
+  write(dir, '.proof/config.json', `${JSON.stringify({ ...cfg, ci: { ...(cfg.ci || {}), required_checks: ['verify'] } }, null, 2)}\n`);
+  git(dir, 'add', '.proof/config.json');
+  const r = pocp(dir, ['fix', '--intent', 'require verify']);
+  assert.doesNotMatch(r.stdout + r.stderr, /nothing is staged/);
+  assert.match(r.stdout, /ready to commit \(git commit\): nothing staged needs proof/);
+  // And with truly nothing staged, it still says so.
+  git(dir, 'reset', '-q');
+  assert.match(pocp(dir, ['fix', '--intent', 'x']).stdout, /nothing is staged/);
 });
