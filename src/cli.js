@@ -20,7 +20,7 @@ import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatA
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
-const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-uncovered', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host']);
+const BOOLEAN_FLAGS = new Set(['offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-uncovered', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host', 'deep']);
 const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change', 'accept-uncovered']);
 const OBLIGATION_FLAGS = new Set(['test', 'command', 'probe', 'manual']);
 const OBLIGATION_MODIFIERS = new Set(['expect', 'timeout', 'input', 'target', 'cwd']);
@@ -340,11 +340,14 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     switch (cmd) {
       case 'init': {
-        const r = initProofDir(process.cwd());
+        const r = initProofDir(process.cwd(), { deep: Boolean(flags.deep) });
         let hooks = null;
         if (flags.hooks) hooks = installHooks(process.cwd(), { force: flags.force });
         out(json, { created: r.created, hooks, test_layout: r.layout }, [
           r.created.length ? `created ${r.created.join(', ')}` : '.proof/ already set up',
+          ...(r.config_created ? [flags.deep
+            ? 'test guard: deep (guard.mutants 10): test edits are also checked with 10 planted bugs; slower'
+            : 'test guard: fast (guard.mutants 0): a test edit passes on its own only if it adds lines to existing tests; anything else goes to a person. "pocp init --deep" or guard.mutants 10 adds planted bugs'] : []),
           // The layout on a first init, or when it needs something done; quiet otherwise.
           ...(r.config_created || r.layout.extra.length || r.layout.uncovered.length ? formatLayout(r.layout, { written: r.layout_written }) : []),
           hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : 'hooks not installed (run "pocp hooks install")',

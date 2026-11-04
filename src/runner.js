@@ -13,6 +13,10 @@ export function buildEnv({ mode = 'inherit', allow = [], extra = {} } = {}) {
   } else {
     env = { ...process.env };
   }
+  // Node's test runner marks its child processes with NODE_TEST_CONTEXT. A check that inherits
+  // it (pocp run from inside a test) makes its own `node --test` report to a parent that isn't
+  // listening, and failures no longer set the exit code. A check runs as from a terminal.
+  delete env.NODE_TEST_CONTEXT;
   return { ...env, ...extra };
 }
 

@@ -388,8 +388,11 @@ runnable obligations. Every run below is in its own fresh copy of the code.
    the old file comes back and the new one stays. An added runner file is removed. For
    `package.json`, only `scripts` goes back. The checks must also pass on the new code as is.
    If the old tests fail on the new code, the checks that failed are run once more on the
-   base itself. If any of them passes there, the change altered behavior the old tests
-   pinned down (`behavior-changed`). If they all run to the end and fail there too, the
+   base itself. If any of them passes there, and every old-test run that failed on the new
+   code ran to the end, the change altered behavior the old tests pinned down
+   (`behavior-changed`). If one of those runs on the new code didn't finish normally (a
+   timeout, a signal, a spawn error, exit 126 or 127), the result is `inconclusive`
+   instead: a run that didn't finish says nothing about behavior. If they all run to the end and fail there too, the
    tests were already failing before the change, so the failure says nothing about it
    (`baseline-red`). If a base run doesn't finish normally (a timeout, a signal, a spawn
    error, exit 126 or 127), the result is `inconclusive`. In every case, only a person can
@@ -404,7 +407,17 @@ runnable obligations. Every run below is in its own fresh copy of the code.
    mutant the old tests catch then runs with the new tests. Every mutant the old tests catch,
    the new tests must catch too (which implies they catch at least as many). Otherwise the
    result is `detection-dropped`, with the lost mutants listed. With `guard.mutants: 0`
-   this part is off.
+   (fast mode, which `pocp init` writes for new projects; `pocp init --deep` writes 10) this
+   part is replaced by a structural review: the change passes only if every guarded change
+   is an existing test file modified by adding lines, none of which matches a list of risky
+   text patterns (skipping or focusing tests, exiting, a bare early return, reassigning or
+   patching an assertion object or a prototype, the common mocking and stubbing APIs,
+   exit-code resets and exit handlers, test hooks and fixtures, assignments to `globalThis`
+   or `global`, an empty `catch`), matched on each added line and on the file's added lines
+   joined. Anything else (changed or removed test lines, deleted or renamed tests, helpers,
+   runner config, test settings) is `needs-review`: a person decides. The patterns are a
+   heuristic; fast mode doesn't judge what an edit means. The built-in default stays 10, so a
+   config without `guard.mutants` (any project set up before fast mode) keeps deep mode.
 
    **Only a normal failure catches a mutant.** A check catches a mutant only if it ran to
    the end and failed: the same rule as for base runs in part 1. A run that timed out, was
@@ -446,8 +459,9 @@ runnable obligations. Every run below is in its own fresh copy of the code.
    This only turns a timed-out "catch" into no evidence, and no evidence never passes, so no
    former block becomes a pass.
 
-The result is `passed`, `behavior-changed`, `baseline-red`, `detection-dropped` or `inconclusive` (the checks
-fail on the new code, no check covers the tests, no guarded source to mutate, the old tests
+The result is `passed`, `behavior-changed`, `baseline-red`, `detection-dropped`, `needs-review` (fast
+mode only: the edit does more than add non-risky lines) or `inconclusive` (the checks
+fail on the new code, the old tests didn't finish on the new code, no check covers the tests, no guarded source to mutate, the old tests
 caught none of the measured sample, so a drop can't be measured, or a sampled mutant couldn't
 be measured on either side, even on a retry). It is recorded as a proof
 (`kind: "guard"`) for the subject, with both parts: the checks run, each run's exit, the files

@@ -27,7 +27,7 @@ function baseRepo() {
   write(dir, 'src/math.js', MATH);
   write(dir, 'lib/check.js', "export function check(ok, what) {\n  if (!ok) { console.error(`failed: ${what}`); process.exit(1); }\n}\n");
   write(dir, 'test/math.test.js', TEST);
-  const init = pocp(dir, ['init', '--hooks']);
+  const init = pocp(dir, ['init', '--hooks', '--deep']);
   assert.equal(init.code, 0, init.stderr);
   writeRules(dir, { requirements: [{ id: 'math', globs: ['src/**', 'test/**', 'lib/**'], obligation: { kind: 'test', run: 'node test/math.test.js' }, source: 'author' }] });
   git(dir, 'add', '-A');

@@ -80,5 +80,5 @@ test('a repository the defaults already cover gets no extra globs, and the confi
   const r = pocp(dir, ['init', '--json']);
   assert.deepEqual(r.json.test_layout.extra, []);
   assert.deepEqual(langs(r.json.test_layout), { Go: ['**/*_test.*'] });
-  assert.equal(JSON.parse(read(dir, '.proof/config.json')).guard, undefined);
+  assert.deepEqual(JSON.parse(read(dir, '.proof/config.json')).guard, { mutants: 0 }, 'only the fast test guard');
 });

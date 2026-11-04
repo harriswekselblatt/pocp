@@ -184,3 +184,17 @@ test('unfinishedReason names why a run did not finish normally', () => {
   assert.equal(unfinishedReason({ passed: false, exit: 126 }), 'exit 126 (command not executable)');
   assert.equal(unfinishedReason({ passed: false, exit: null }), 'ended without an exit code');
 });
+
+test('old tests that time out on the new code (but pass on the base) are inconclusive, not a behavior change', async () => {
+  // The old test hangs only on the new code: it stands in for a suite that hits the timeout
+  // there under load, as deep mode's planted-bug runs caused in a timing trial.
+  const fx = repo({ 'test/a.check.mjs': hangOn('// v2') + ADD }, { 'src/math.js': `${MATH}// v2\n`, 'test/a.check.mjs': `${ADD}// tidied\n` });
+  fx.changes = fx.changes.filter((c) => c.path.startsWith('test/'));
+  for (const mutants of [0, 4]) {
+    const res = await guard(fx, [{ id: 'a', run: 'node test/a.check.mjs', timeout_ms: TIMEOUT_MS }], { mutants });
+    assert.equal(res.old_tests.result, 'fail');
+    assert.equal(res.verdict, 'inconclusive', `mutants ${mutants}: ${res.summary}`);
+    assert.match(res.summary, /didn't finish on the new code.*says nothing about behavior/);
+    assert.notEqual(res.verdict, 'behavior-changed');
+  }
+});

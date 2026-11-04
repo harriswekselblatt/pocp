@@ -20,7 +20,7 @@ function repo() {
   write(dir, 'package.json', '{ "type": "module" }\n');
   write(dir, 'src/math.js', MATH);
   write(dir, 'test/math.check.mjs', CHECK);
-  pocp(dir, ['init']);
+  pocp(dir, ['init', '--deep']);
   writeRules(dir, { requirements: [{ id: 'unit', globs: ['src/**', 'test/**'], obligation: { kind: 'test', run: 'node test/math.check.mjs' }, source: 'author' }] });
   commit(dir, 'base');
   return { dir, base: git(dir, 'rev-parse', 'HEAD') };

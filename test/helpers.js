@@ -109,7 +109,7 @@ export function writeConfig(dir, config) {
 }
 
 /** A repo with a tiny module, a test for it, pocp initialised, and one baseline commit. */
-export function sampleRepo({ hooks = false, rules } = {}) {
+export function sampleRepo({ hooks = false, rules, deep = true } = {}) {
   const dir = tmpRepo();
   write(dir, 'src/math.js', 'export function add(a, b) {\n  return a + b;\n}\n\nexport function isPositive(n) {\n  return n > 0;\n}\n');
   write(dir, 'test/math.check.mjs', [
@@ -120,7 +120,8 @@ export function sampleRepo({ hooks = false, rules } = {}) {
     '',
   ].join('\n'));
   write(dir, 'README.md', '# sample\n');
-  const init = pocp(dir, ['init', ...(hooks ? ['--hooks'] : [])]);
+  // Most tests exercise the planted-bug check, so the fixture is deep unless asked otherwise.
+  const init = pocp(dir, ['init', ...(hooks ? ['--hooks'] : []), ...(deep ? ['--deep'] : [])]);
   if (init.code !== 0) throw new Error(`init failed: ${init.stderr}`);
   writeRules(dir, rules || {
     triggers: { broad_files: 6, cross_area: { areas: 3, min_files: 4 }, globs: [] },

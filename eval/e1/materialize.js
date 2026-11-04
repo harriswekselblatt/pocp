@@ -38,7 +38,9 @@ export const RULES = {
     },
   ],
 };
-export const CONFIG_PATCH = { guard: { tests: 'block' } };
+// E1/E2 were pre-registered and run in deep mode (planted-bug check on, 10 mutants), the
+// built-in default then. `pocp init` now writes fast mode, so the arm pins deep mode here.
+export const CONFIG_PATCH = { guard: { tests: 'block', mutants: 10 } };
 
 /**
  * The pre-commit hook gets a harness block before POCP's: an EXIT trap that logs the hook's

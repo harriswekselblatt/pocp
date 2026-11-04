@@ -5,6 +5,7 @@ import { configuredHooksPath, git, hooksDir, PROOF_DIR, repoRoot } from './git.j
 import { matchGlob } from './glob.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { DEFAULT_RULES } from './store.js';
+import { DEFAULT_GUARD_MUTANTS } from './guard.js';
 
 export const HOOK_BEGIN = '# >>> pocp >>>';
 export const HOOK_END = '# <<< pocp <<<';
@@ -232,7 +233,13 @@ export function formatLayout(layout, { written = false } = {}) {
 }
 
 /** Create `.proof/` with default config and rules. Existing files are left alone. */
-export function initProofDir(cwd) {
+/**
+ * Set up .proof/. New projects get the fast test guard: no planted bugs (guard.mutants 0),
+ * written into config.json so the choice is explicit. `deep` writes the planted-bug check
+ * instead (guard.mutants 10). Projects set up before this kept the built-in default of 10,
+ * which still applies when guard.mutants is absent, so an upgrade never turns deep mode off.
+ */
+export function initProofDir(cwd, { deep = false } = {}) {
   const root = repoRoot(cwd);
   const layout = detectTestLayout(root);
   const dir = path.join(root, PROOF_DIR);
@@ -247,11 +254,12 @@ export function initProofDir(cwd) {
     }
   };
   const config = { pocp: 1, packet_ttl_days: 14, run: { mode: 'clean', timeout_ms: 600000, env: 'inherit' }, snapshot: { link: ['node_modules'] } };
+  config.guard = { mutants: deep ? DEFAULT_GUARD_MUTANTS : 0 };
   if (layout.extra.length) {
-    config.guard = {
+    Object.assign(config.guard, {
       extra_test_globs: layout.extra,
       _note: `pocp init found tests the default patterns miss (${Object.entries(layout.declared).map(([d, from]) => `${d}/ from ${from}`).join('; ')}). Edit extra_test_globs to adjust.`,
-    };
+    });
   }
   const configWritten = !fs.existsSync(path.join(dir, 'config.json'));
   write('config.json', `${JSON.stringify(config, null, 2)}\n`);
