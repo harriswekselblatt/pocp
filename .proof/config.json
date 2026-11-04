@@ -50,7 +50,8 @@
       "eval/PREREG.md",
       "eval/**",
       "docs/EVAL-PLAN.md"
-    ]
+    ],
+    "workflow_approver": "any-writer"
   },
   "guard": {
     "mutants": 0
