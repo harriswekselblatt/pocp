@@ -68,6 +68,13 @@ export async function runGuardCheck({
     result.duration_ms = Date.now() - started;
     return result;
   };
+  // Inconclusive because a run didn't finish (a timeout, a signal, a spawn error), not because
+  // of what the tests did. A test approval doesn't cover this (--accept-inconclusive does): a
+  // person approving a test change hasn't seen whether the code hangs.
+  const finishUnfinished = (summary) => {
+    result.unfinished = true;
+    return finish('inconclusive', summary);
+  };
   if (!base) return finish('inconclusive', 'no base revision to compare the tests with');
   if (!checks.length) return finish('inconclusive', 'no check runs these tests; add a test obligation that does (pocp add <packet> --test "<command>")');
 
@@ -233,7 +240,9 @@ export async function runGuardCheck({
     if (old.err) throw old.err;
     result.old_tests.result = old.r;
     if (result.new_tests.result === 'fail') {
-      return finish('inconclusive', `the checks fail on the new code (${failedList(result.new_tests.runs, checks)}), so there is nothing to compare`);
+      const failedNew = result.new_tests.runs.filter((r) => !r.passed);
+      const done = failedNew.length && failedNew.every((r) => !ranAndFailed(r)) ? finishUnfinished : (sum) => finish('inconclusive', sum);
+      return done(`the checks fail on the new code (${failedList(result.new_tests.runs, checks)}), so there is nothing to compare`);
     }
     if (result.old_tests.result === 'fail') {
       // Were these checks already failing before the change? Run the ones that failed on the
@@ -251,7 +260,7 @@ export async function runGuardCheck({
       // compete with this one) an honest change was blocked as "behavior changed" this way.
       const unfinishedOld = result.old_tests.runs.filter((r) => !r.passed && !ranAndFailed(r));
       if (result.baseline.runs.some((r) => r.passed) && unfinishedOld.length) {
-        return finish('inconclusive', `the old tests didn't finish on the new code (${failedList(unfinishedOld, checks)}), though they pass on the base: a run that times out or is killed says nothing about behavior, so this can't be read as a behavior change. Re-run with less load (pocp prove --force), or a person must approve it`);
+        return finishUnfinished(`the old tests didn't finish on the new code (${failedList(unfinishedOld, checks)}), though they pass on the base: a run that times out or is killed says nothing about behavior, so this can't be read as a behavior change. Re-run with less load (pocp prove --force), or a person must approve it`);
       }
       if (result.baseline.runs.some((r) => r.passed)) {
         const names = testNames(result.old_tests.runs);
@@ -275,7 +284,7 @@ export async function runGuardCheck({
         }
         return finish('baseline-red', `the old tests already fail at the base (${failedList(result.baseline.runs, checks)}), so the guard can't tell whether this change altered behavior: a person must approve it${detail}`);
       }
-      return finish('inconclusive', `the old tests fail on the new code, and on the base the same checks didn't finish normally (${failedList(result.baseline.runs.filter((r) => !ranAndFailed(r)), checks)}), so it can't be told whether they were already failing: a person must approve it`);
+      return finishUnfinished(`the old tests fail on the new code, and on the base the same checks didn't finish normally (${failedList(result.baseline.runs.filter((r) => !ranAndFailed(r)), checks)}), so it can't be told whether they were already failing: a person must approve it`);
     }
     if (mutants === 0) {
       // Fast mode: no planted bugs. Only a change that adds lines to existing tests, none of
@@ -344,7 +353,7 @@ export async function runGuardCheck({
     if (baseKilled === 0) {
       result.detection.result = 'inconclusive';
       if (oldUnmeasured.length === outcomes.length) {
-        return finish('inconclusive', `none of the ${outcomes.length} sampled mutants could be measured on the old tests (e.g. ${example(oldUnmeasured[0])}, also on a retry with ${RETRY_FACTOR}× the time limit), so a drop in detection can't be measured: a person must decide`);
+        return finishUnfinished(`none of the ${outcomes.length} sampled mutants could be measured on the old tests (e.g. ${example(oldUnmeasured[0])}, also on a retry with ${RETRY_FACTOR}× the time limit), so a drop in detection can't be measured: a person must decide`);
       }
       const measured = outcomes.length - oldUnmeasured.length;
       return finish('inconclusive', `the old tests caught none of ${measured} sampled mutants${oldUnmeasured.length ? ` that could be measured (${oldUnmeasured.length} more couldn't be: e.g. ${example(oldUnmeasured[0])}, also on a retry)` : ''}, so a drop in detection can't be measured`);
@@ -356,7 +365,7 @@ export async function runGuardCheck({
     }
     if (unmeasured.length) {
       result.detection.result = 'inconclusive';
-      return finish('inconclusive', `${gaps()}: a person must decide, or prove again with --force once the checks can finish`);
+      return finishUnfinished(`${gaps()}: a person must decide, or prove again with --force once the checks can finish`);
     }
     result.detection.result = 'kept';
     return finish('passed', `the old tests pass on the new code, and the new tests catch all ${baseKilled} of the ${outcomes.length} sampled mutants the old tests caught (seed ${seed})`);

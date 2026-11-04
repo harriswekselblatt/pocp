@@ -5,7 +5,13 @@ import { onCleanup } from './exit.js';
 
 const MINIMAL_ENV = ['PATH', 'HOME', 'LANG', 'TMPDIR', 'CI'];
 
-export function buildEnv({ mode = 'inherit', allow = [], extra = {} } = {}) {
+// GitHub Actions' step files and runner tokens. A check is the pull request's code: with these
+// it could set the verify step's outputs or environment, or write to the job summary, and so
+// fake what the job reports. Checks never get them; "pocp ci-run", which wraps the
+// repository's own test step, keeps them (keepCiFiles).
+export const CI_STEP_VARS = Object.freeze(['GITHUB_OUTPUT', 'GITHUB_ENV', 'GITHUB_PATH', 'GITHUB_STATE', 'GITHUB_STEP_SUMMARY']);
+
+export function buildEnv({ mode = 'inherit', allow = [], extra = {}, keepCiFiles = false } = {}) {
   let env;
   if (mode === 'minimal') {
     env = {};
@@ -17,6 +23,10 @@ export function buildEnv({ mode = 'inherit', allow = [], extra = {} } = {}) {
   // it (pocp run from inside a test) makes its own `node --test` report to a parent that isn't
   // listening, and failures no longer set the exit code. A check runs as from a terminal.
   delete env.NODE_TEST_CONTEXT;
+  if (!keepCiFiles) {
+    for (const k of CI_STEP_VARS) delete env[k];
+    for (const k of Object.keys(env)) if (k.startsWith('ACTIONS_')) delete env[k];
+  }
   return { ...env, ...extra };
 }
 

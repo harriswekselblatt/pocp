@@ -475,8 +475,9 @@ leaves the obligation needing an attestation (`pocp attest`), which is weaker, l
 default), `verify` also fails (`test_change`) unless each guarded file is covered by a passing
 mechanical check that is independent of the author: re-run by this `verify`, or a proof signed
 by a trusted key, using checks a rule requires (not ones the packet chose). A local, unsigned
-pass isn't enough. `--accept-test-change` overrides it,
-and is meant for a maintainer when behavior changed on purpose. In `"attest"` mode the
+pass isn't enough. `--accept-test-change` overrides it when the check ran to the end,
+and is meant for a maintainer when behavior changed on purpose; a check that didn't finish
+needs `--accept-inconclusive` (`test_inconclusive`) or a re-run. In `"attest"` mode the
 sign-off is enough for `verify`; since anyone can give it, including the author, choosing
 `"attest"` over the default is a policy loosening (§7.2).
 
@@ -607,7 +608,10 @@ whose obligations come only from matching requirements. If no requirement matche
 says so and asks for at least one runnable obligation. It never invents filler text.
 
 **Output:** readable text by default, `--json` for tools. Exit codes:
-`0` pass, `1` blocked, `2` usage or config error, `3` internal error.
+`0` pass, `1` blocked, `2` usage or config error, `3` internal error. With `--exit-detail`,
+`verify` also tells a wait from a failure: `4` when only a maintainer's approval is missing,
+`5` when something didn't finish (a test check or a re-run timed out, was killed or didn't
+start), and `1` for anything else, including any mixture with a real failure.
 
 ### 7.1 Landing and the commit trailer
 
@@ -716,7 +720,13 @@ parse, or doesn't validate (§6, `validateConfig`), verify fails and names each 
 The gate does the same for the working copy (exit 2).
 
 **Approvals are separate.** `--accept-policy-change` accepts loosened rules or signers;
-`--accept-test-change` accepts changed existing tests in block mode when the mechanical check (§6.2) does not pass independently. One never implies the other.
+`--accept-test-change` accepts changed existing tests in block mode when the mechanical check (§6.2) ran to the end and does not pass independently;
+`--accept-inconclusive` accepts changed existing tests whose mechanical check didn't finish (a
+run timed out, was killed or didn't start: finding `test_inconclusive`, which blocks whenever
+`test_change` does). A person approving a test change hasn't seen whether the code hangs, so
+`--accept-test-change` doesn't cover an unfinished check; a re-run that finishes, or a fix,
+clears it too. A plain re-run that didn't finish is never cleared by a label, only by a re-run
+or a fix. None of these implies another.
 
 **Findings and what fails.** Every problem verify reports is a finding with a stable code:
 `policy_loosened`, `ci_config_changed`, `test_change`, `uncovered`, `missing_packet`,
@@ -941,7 +951,8 @@ pocp ci-run [--results <file>] [--dir <folder>] -- <command…>     CI result bo
 pocp ci required [--apply]                                         required merge checks (§7.4)
 pocp verify <rev>|<a>..<b> [--rerun|--rerun-unsigned] [--ci-results <file>]…
             [--require-coverage] [--policy-from <rev>] [--accept-policy-change]
-            [--accept-test-change] [--allowed-signers <file>]          CI checks (§7.2)
+            [--accept-test-change] [--accept-inconclusive] [--exit-detail]
+            [--allowed-signers <file>]                                  CI checks (§7.2)
 pocp metrics [--json]             see §11
 pocp eval --mutants <n|all> [--jobs <n>] [--seed <n>] [--missed] [--save <file>]   see §11.2
 pocp eval --replay <file> [--missed]                                 see §11.2

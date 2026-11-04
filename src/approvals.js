@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL, verifyRemedy } from './remedies.js';
+import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL, verifyRemedy } from './remedies.js';
 
 // `pocp approvals`: every open pull request whose POCP verify fails only because it waits for
 // a maintainer's label, in one list, and a deliberate way for that maintainer to give each one.
@@ -13,7 +13,8 @@ const POLICY_FILES = ['.proof/rules.json', '.proof/config.json', '.proof/allowed
 /** The annotation verify leaves on GitHub when approvals are all it is waiting for. */
 export const APPROVAL_TITLE = 'POCP approval needed';
 
-const LABEL_FOR = { tests: APPROVE_TESTS_LABEL, policy: APPROVE_POLICY_LABEL };
+const LABEL_FOR = { tests: APPROVE_TESTS_LABEL, policy: APPROVE_POLICY_LABEL, inconclusive: APPROVE_INCONCLUSIVE_LABEL };
+const KIND_FOR = Object.fromEntries(Object.entries(LABEL_FOR).map(([k, v]) => [v, k]));
 
 /** Files named in a finding's "(a, b, c)". */
 const filesIn = (detail) => (/\(([^)]*)\)/.exec(detail || '')?.[1] || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -25,23 +26,36 @@ const filesIn = (detail) => (/\(([^)]*)\)/.exec(detail || '')?.[1] || '').split(
  */
 export function approvalSummary(findings = [], rerunFailures = []) {
   const needs = new Map();
-  let other = rerunFailures.length > 0;
+  // A re-run that didn't finish (timed out, killed, didn't start) says nothing about the code:
+  // it waits for a re-run, not a label. One that ran and failed is a real failure.
+  const unfinishedReruns = rerunFailures.filter((f) => f.unfinished === true).length;
+  let other = rerunFailures.length > unfinishedReruns;
   for (const f of findings.filter((x) => x.blocking)) {
     const r = verifyRemedy(f.code, f.detail);
-    const label = r.by === 'person' && [APPROVE_TESTS_LABEL, APPROVE_POLICY_LABEL].find((l) => r.next.includes(`\`${l}\``));
+    const label = r.by === 'person' && Object.values(LABEL_FOR).find((l) => r.next.includes(`\`${l}\``));
     if (!label) {
       other = true;
       continue;
     }
-    const kind = label === APPROVE_TESTS_LABEL ? 'tests' : 'policy';
+    const kind = KIND_FOR[label];
     const n = needs.get(label) || { label, kind, reasons: [], files: [] };
     if (!n.reasons.includes(f.detail)) n.reasons.push(f.detail);
     const files = f.code === 'policy_loosened' ? POLICY_FILES : filesIn(f.detail);
     for (const file of files) if (!n.files.includes(file)) n.files.push(file);
     needs.set(label, n);
   }
-  return { only: !other && needs.size > 0, needs: [...needs.values()] };
+  const list = [...needs.values()];
+  const only = !other && needs.size > 0 && unfinishedReruns === 0;
+  // What CI shows: "failed" (red), or a yellow wait: "inconclusive" when anything didn't
+  // finish, else "waiting" for a maintainer's label.
+  const outcome = other || (!needs.size && !unfinishedReruns)
+    ? 'failed'
+    : unfinishedReruns || needs.has(APPROVE_INCONCLUSIVE_LABEL) ? 'inconclusive' : 'waiting';
+  return { only, needs: list, outcome, unfinished_reruns: unfinishedReruns };
 }
+
+/** verify's exit code for a result that isn't verified (0 is verified; see docs/REFERENCE.md). */
+export const VERIFY_EXIT = Object.freeze({ waiting: 4, inconclusive: 5 });
 
 /** The GitHub Actions annotation for a summary (workflow-command escaped), or null. */
 export function approvalAnnotation(summary) {
