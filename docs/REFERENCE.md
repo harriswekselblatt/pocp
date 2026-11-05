@@ -46,6 +46,30 @@ POCP doesn't discover or understand your test framework: a check is any command 
 
 A packet with no obligations never passes.
 
+### Faster test edits: `changed_test_command`
+
+When a pull request edits existing tests, the test guard runs the **old** versions of the edited tests on the new code. By default that's the rule's whole check, `run`, so a one-line test edit costs a full run of your suite (two, when the old tests fail). A rule's test check can say how to run specific test files instead:
+
+```json
+{ "id": "tests", "globs": ["src/**", "test/**"],
+  "obligation": { "kind": "test", "run": "npm test",
+                  "changed_test_command": ["node", "--test", "{tests}"] } }
+```
+
+It's an argument array, not a shell string: `"{tests}"` is one element, replaced by the edited test files, each its own argument. Examples: `["npx", "jest", "{tests}"]`, `["npx", "vitest", "run", "{tests}"]`, `["pytest", "{tests}"]`, `["bundle", "exec", "rspec", "{tests}"]`.
+
+In fast mode (`guard.mutants: 0`), the guard uses it only when:
+
+- every guarded change is an existing test file that was modified (a test file added, deleted or renamed in the same change, or any test setup, means the whole check);
+- no edited file is named in another test file or in runner config (`package.json`, `jest.config.js`, `pytest.ini` and the like), where it may be setup; if POCP can't finish that scan, it assumes it is;
+- every check involved comes from a rule (in CI, the base branch's rules) and has a `changed_test_command`.
+
+It runs the **base versions** of the edited files, never the pull request's. The shortcut can only **pass**: the command exited 0, and the runner's summary (node `--test`, Jest, Vitest, pytest, RSpec, Mocha) shows at least one test passed and none failed. It never decides that behavior changed. Anything else (a failure, a timeout, no tests run, all skipped, or a summary POCP doesn't recognize) runs the whole check, which decides as before. The guard's result records which ran (`old_tests.scope`, `old_tests.changed_tests`).
+
+Each element is passed to the program as one argument, quoted; the command itself is policy and trusted as written, like `run`.
+
+Adding or changing `changed_test_command` changes the rule, so it needs `pocp-approve-policy` once. Deep mode doesn't use it yet.
+
 ## How proof is tied to code
 
 - **Subject hash:** SHA-256 of the staged file list (`mode sha path`), `.proof/` excluded. The same value is computed from the commit later, so CI can compare.

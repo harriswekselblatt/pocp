@@ -5,6 +5,7 @@ import * as g from './git.js';
 import { matchGlob } from './glob.js';
 import { applySite, DEFAULT_EVAL_EXCLUDE, mutationSites, prng, SOURCE_EXT } from './mutants.js';
 import { structuralReview } from './guard.js';
+import { TESTS_PLACEHOLDER } from './obligations.js';
 import { ranAndFailed, unfinishedReason } from './run-result.js';
 import { restoreTestSettings } from './test-setup.js';
 import { copySnapshot, createTreeSnapshot } from './workspace.js';
@@ -120,6 +121,52 @@ export async function runGuardCheck({
       }
       return into.every((x) => x.passed) ? 'pass' : 'fail';
     };
+    // The old versions of the edited test files (restored from the base above, never the
+    // pull request's), run with each check's `changed_test_command` instead of its whole `run`.
+    // A shortcut that can only pass: a failure, a timeout, or a run that shows no passing test
+    // leaves the decision to the whole check (docs/REFERENCE.md, "changed_test_command").
+    const runChangedTests = async () => {
+      let plan = changedTestPlan(changes, checks);
+      // A file under the test folders that other tests import is test setup, whatever its name.
+      const setup = plan.skip ? null : importedByOtherTests(oldTpl.dir, plan.files, guardGlobs.test?.length ? guardGlobs.test : exclude, [...(guardGlobs.runner || []), ...SETUP_FILES]);
+      if (setup?.unknown) plan = { skip: `couldn't rule out that an edited file is test setup (${setup.unknown})` };
+      else if (setup) plan = { skip: `${setup.file} is named in ${setup.by}, so it may be test setup` };
+      if (plan.skip) {
+        result.old_tests.changed_tests = { result: 'not-used', reason: plan.skip };
+        return null;
+      }
+      const rec = { result: 'running', files: plan.files, runs: [] };
+      result.old_tests.changed_tests = rec;
+      const copy = copySnapshot(oldTpl.dir);
+      try {
+        for (const c of plan.commands) {
+          const args = c.argv.flatMap((a) => (a === TESTS_PLACEHOLDER ? c.files : [a]));
+          const ob = { id: c.ob.id, kind: 'test', run: args.map(shellQuote).join(' ') };
+          if (c.ob.cwd) ob.cwd = c.ob.cwd;
+          if (c.ob.timeout_ms) ob.timeout_ms = c.ob.timeout_ms;
+          const r = await runObligation(ob, copy.dir, { logName: `${logPrefix}-old-changed-${c.ob.id}` });
+          const tests = countTests(r.output);
+          // Node's runner reports a file that ran no test as one passing "test" named after the
+          // file (a helper, or a filter that matched nothing). Those aren't tests that ran.
+          const real = tests && fileLevelOnly(r.output, c.files) ? { ...tests, passed: 0, file_level: true } : tests;
+          const why = !r.passed
+            ? (ranAndFailed(r) ? 'failed' : 'did not finish')
+            : !real ? 'no test counts in its output' : real.failed ? 'reported failing tests' : !real.passed ? 'no test passed (none ran, or all were skipped)' : null;
+          rec.runs.push({ check: c.ob.id, args, passed: !why, exit: r.exit, timed_out: r.timed_out || undefined, duration_ms: r.duration_ms, ...(real ? { tests: real } : {}), ...(why ? { why } : {}) });
+          if (why) {
+            rec.result = 'not-used';
+            rec.reason = `"${args.join(' ')}" ${why}; running the whole check instead`;
+            return null;
+          }
+        }
+      } finally {
+        copy.cleanup();
+      }
+      rec.result = 'pass';
+      result.old_tests.scope = 'changed-tests';
+      for (const r of rec.runs) result.old_tests.runs.push({ check: r.check, passed: true, scope: 'changed-tests', duration_ms: r.duration_ms });
+      return 'pass';
+    };
     result.new_tests.result = await runAll(newTpl.dir, 'new', result.new_tests.runs);
 
     // The mutants (part 2) start alongside the old-tests baseline instead of after it: the
@@ -200,6 +247,9 @@ export async function runGuardCheck({
     const oldDone = (async () => {
       await slots.acquire();
       try {
+        // Fast mode: when a rule says how to run specific test files, run only the old versions
+        // of the edited ones. Only a clean pass counts; anything else runs the whole check below.
+        if (mutants === 0 && (await runChangedTests()) === 'pass') return 'pass';
         return await runAll(oldTpl.dir, 'old', result.old_tests.runs);
       } finally {
         slots.release();
@@ -292,11 +342,14 @@ export async function runGuardCheck({
       result.detection = { result: 'off', budget: 0, seed };
       const reasons = structuralReview(root, { base, rev, changes });
       result.structural = { result: reasons.length ? 'needs-review' : 'passed', reasons };
+      const oldPass = result.old_tests.scope === 'changed-tests'
+        ? `the old versions of the edited tests (${result.old_tests.changed_tests.files.join(', ')}) pass on the new code`
+        : 'the old tests pass on the new code';
       if (reasons.length) {
         const shown = reasons.slice(0, 3).map((r) => `${r.file}: ${r.why}`).join('; ') + (reasons.length > 3 ? `; and ${reasons.length - 3} more` : '');
-        return finish('needs-review', `the old tests pass on the new code, but the change does more than add lines to existing tests (${shown}); without planted bugs (guard.mutants is 0) POCP can't check it, so a person must review it`);
+        return finish('needs-review', `${oldPass}, but the change does more than add lines to existing tests (${shown}); without planted bugs (guard.mutants is 0) POCP can't check it, so a person must review it`);
       }
-      return finish('passed', 'the old tests pass on the new code, and the change only adds lines to existing tests, none of which matches the risky patterns (skips, exits, early returns, patched assertions, mocks, exit-code resets, test hooks, globals, empty catch); guard.mutants is 0: no planted bugs');
+      return finish('passed', `${oldPass}, and the change only adds lines to existing tests, none of which matches the risky patterns (skips, exits, early returns, patched assertions, mocks, exit-code resets, test hooks, globals, empty catch); guard.mutants is 0: no planted bugs`);
     }
 
     // Part 2: the same seeded sample was planted on both sides (above).
@@ -561,4 +614,161 @@ export function mutationPlan({ root, base, rev, dir, changes, sourceGlobs, exclu
     };
   });
   return { files, sites: focus.length + rest.length, focusSites: focus.length, picked };
+}
+
+/** One argument for `sh -c`: safe characters as they are, anything else single-quoted. */
+export const shellQuote = (a) => (/^[A-Za-z0-9_@%+=:,./-]+$/.test(a) ? a : `'${String(a).replace(/'/g, `'\\''`)}'`);
+
+/** Files that configure test runners or load setup, checked for mentions of an edited test file. */
+const SETUP_FILES = ['package.json', '**/package.json', '*.config.*', '**/*.config.*', '.mocharc*', '**/.mocharc*', 'pytest.ini', '**/pytest.ini', 'pyproject.toml', '**/pyproject.toml', 'setup.cfg', '**/setup.cfg', 'tox.ini', '**/tox.ini', 'conftest.py', '**/conftest.py', '.rspec', 'spec/spec_helper.rb', 'Makefile'];
+
+/**
+ * Whether the old-tests run can use `changed_test_command`, and with what. Only when every
+ * guarded change is an ordinary, existing test file that was modified (an added, deleted or
+ * renamed one, or any test setup, means the whole check), and every check is a rule's check
+ * with a `changed_test_command`. Returns
+ * { files, commands: [{ ob, argv, files }] } or { skip: reason }.
+ */
+export function changedTestPlan(changes, checks) {
+  if (!changes.length) return { skip: 'no test files changed' };
+  const other = changes.find((c) => c.kind !== 'test' || c.status !== 'M');
+  if (other) return { skip: `${other.path} is ${other.kind !== 'test' ? `test setup (${other.kind})` : `a test file that was ${{ A: 'added', D: 'deleted', R: 'renamed' }[other.status] || `changed (${other.status})`}`}` };
+  const files = [...new Set(changes.map((c) => c.path))].sort();
+  const commands = [];
+  const seen = new Set();
+  for (const ob of checks) {
+    if (!String(ob.source || '').startsWith('rule:')) return { skip: `check ${ob.id} doesn't come from a rule` };
+    if (!ob.changed_test_command) return { skip: `check ${ob.id} has no changed_test_command` };
+    // A path starting with "-" would read as an option; "./" keeps it a path.
+    const rel = files.map((f) => (ob.cwd ? path.posix.relative(ob.cwd, f) : f)).map((f) => (f.startsWith('-') ? `./${f}` : f));
+    if (rel.some((f) => f.startsWith('../'))) return { skip: `an edited test file is outside check ${ob.id}'s cwd` };
+    const key = JSON.stringify([ob.changed_test_command, ob.cwd || '', ob.timeout_ms || 0]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    commands.push({ ob, argv: ob.changed_test_command, files: rel });
+  }
+  // Nothing to run is never a pass.
+  if (!commands.length) return { skip: 'no check to run the edited tests with' };
+  return { files, commands };
+}
+
+/**
+ * Test counts from a run's summary: node --test (TAP "# pass N" or spec "ℹ pass N"), Jest
+ * ("Tests: 2 passed, 3 total"), Vitest ("Tests  2 passed (2)"), pytest ("== 2 passed in 0.1s =="
+ * or "no tests ran"), RSpec ("3 examples, 0 failures"), Mocha ("2 passing"). null when none
+ * is recognized: the caller treats that as unknown, never as a pass.
+ */
+export function countTests(output) {
+  const s = String(output || '');
+  const last = (re) => {
+    let m;
+    let v = null;
+    const gre = new RegExp(re.source, 'gm');
+    while ((m = gre.exec(s))) v = m;
+    return v;
+  };
+  const parts = (text) => {
+    const out = { passed: 0, failed: 0, skipped: 0 };
+    for (const [, n, what] of String(text).matchAll(/(\d+) (passed|passing|failed|failing|failures?|errors?|skipped|pending|todo)\b/g)) {
+      if (/^pass/.test(what)) out.passed += Number(n);
+      else if (/^(fail|error)/.test(what)) out.failed += Number(n);
+      else out.skipped += Number(n);
+    }
+    return out;
+  };
+  const node = last(/^(?:# |\u2139 )pass (\d+)\s*$/);
+  if (node) {
+    const fail = last(/^(?:# |\u2139 )fail (\d+)\s*$/);
+    const skip = last(/^(?:# |\u2139 )skipped (\d+)\s*$/);
+    const todo = last(/^(?:# |\u2139 )todo (\d+)\s*$/);
+    return { passed: Number(node[1]), failed: fail ? Number(fail[1]) : 0, skipped: (skip ? Number(skip[1]) : 0) + (todo ? Number(todo[1]) : 0) };
+  }
+  if (/^=+ no tests ran\b/m.test(s)) return { passed: 0, failed: 0, skipped: 0 };
+  const jest = last(/^Tests:\s+(.*\btotal)\s*$/);
+  if (jest) return parts(jest[1]);
+  const vitest = last(/^\s*Tests\s+(.*\(\d+\))\s*$/);
+  if (vitest) return parts(vitest[1]);
+  const pytest = last(/^=+ (.*\b(?:passed|failed|skipped|errors?)\b.*) in [\d.]+m?s\b.*=+\s*$/);
+  if (pytest) return parts(pytest[1]);
+  const rspec = last(/^(\d+) examples?, (\d+) failures?(?:, (\d+) pending)?/);
+  if (rspec) return { passed: Number(rspec[1]) - Number(rspec[2]) - Number(rspec[3] || 0), failed: Number(rspec[2]), skipped: Number(rspec[3] || 0) };
+  const mocha = last(/^\s+(\d+) passing \(/);
+  if (mocha) {
+    const fail = last(/^\s+(\d+) failing\s*$/);
+    const pend = last(/^\s+(\d+) pending\s*$/);
+    return { passed: Number(mocha[1]), failed: fail ? Number(fail[1]) : 0, skipped: pend ? Number(pend[1]) : 0 };
+  }
+  return null;
+}
+
+/**
+ * True when every passing top-level result in TAP or node's spec output is a file name from
+ * `files`: node --test lists a file that ran no test as one passing entry named after it.
+ */
+export function fileLevelOnly(output, files) {
+  const names = [];
+  for (const line of String(output || '').split('\n')) {
+    if (/#\s*(SKIP|TODO)\b/i.test(line)) continue;
+    const m = /^ok \d+ - (.+?)\s*$/.exec(line) || /^\u2714 (.+?)(?: \([\d.]+m?s\))?\s*$/.exec(line);
+    if (m) names.push(m[1]);
+  }
+  if (!names.length) return false;
+  const isFile = (n) => files.some((f) => n === f || n.endsWith(`/${f}`) || f.endsWith(`/${n}`));
+  return names.every(isFile);
+}
+
+/**
+ * Whether any of `files` may be test setup: mentioned by name (without extension) in another
+ * test file or in runner config (`runnerGlobs`: jest/vitest/mocha/pytest config, package.json
+ * and the like). Any mention counts, imports split over lines and setup files a config loads
+ * included; a false match only means the whole check runs. Returns { file, by } for a
+ * mention, { unknown: why } when the scan couldn't finish (too many files, a file too large
+ * or unreadable), or null when it ruled setup out.
+ */
+export function importedByOtherTests(dir, files, testGlobs, runnerGlobs = []) {
+  const MAX_FILES = 5000;
+  const MAX_BYTES = 1_000_000;
+  const globs = [...testGlobs, ...runnerGlobs];
+  const others = [];
+  let incomplete = null;
+  const walk = (rel) => {
+    if (incomplete) return;
+    let entries = [];
+    try {
+      entries = fs.readdirSync(path.join(dir, rel), { withFileTypes: true });
+    } catch {
+      incomplete = `couldn't list ${rel || 'the tree'}`;
+      return;
+    }
+    for (const e of entries) {
+      if (e.name === '.git' || e.name === 'node_modules') continue;
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(r);
+      else if (!files.includes(r) && globs.some((gl) => matchGlob(r, gl))) {
+        others.push(r);
+        if (others.length > MAX_FILES) {
+          incomplete = `more than ${MAX_FILES} test and config files to check`;
+          return;
+        }
+      }
+    }
+  };
+  walk('');
+  if (incomplete) return { unknown: incomplete };
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const texts = new Map();
+  for (const o of others) {
+    try {
+      if (fs.statSync(path.join(dir, o)).size > MAX_BYTES) return { unknown: `${o} is too large to check` };
+      texts.set(o, fs.readFileSync(path.join(dir, o), 'utf8'));
+    } catch {
+      return { unknown: `couldn't read ${o}` };
+    }
+  }
+  for (const f of files) {
+    const stem = path.posix.basename(f).replace(/\.[^.]+$/, '');
+    const re = new RegExp(`(^|[^A-Za-z0-9_])${esc(stem)}([^A-Za-z0-9_]|$)`);
+    for (const [o, text] of texts) if (re.test(text)) return { file: f, by: o };
+  }
+  return null;
 }
