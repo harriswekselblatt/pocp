@@ -150,12 +150,12 @@ test('block mode: fix hands a failed test-change check to CI, never signs off, a
   assert.equal(p.attestations.length, 0, 'fix never signs off');
   assert.equal(p.deferrals.length, 1);
   const human = pocp(dir, ['fix']);
-  assert.match(human.stdout, /CI will need a person/);
+  assert.match(human.stdout, /CI requires human approval/);
   assert.match(human.stdout, /the one action: a maintainer adds the `pocp-approve-tests` label/);
 
   const g = pocp(dir, ['gate']);
   assert.equal(g.code, 0);
-  assert.match(g.stdout, /CI will need a person/);
+  assert.match(g.stdout, /CI requires human approval/);
   assert.equal(commit(dir, 'inclusive add').status, 0);
 
   const v = pocp(dir, ['verify', `${base}..HEAD`, '--rerun', '--require-coverage']);

@@ -2,9 +2,15 @@
 
 POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it runs the old tests on the new code, and sends any test edit it can't vouch for to a person. An optional deep mode also compares the old and new tests against a sample of planted bugs. It works with any test command and any language, and needs only Node 20 or later and git.
 
-If you build with coding agents, POCP helps you trust that the checks a change needed actually ran on the code being merged, and it sends the changes it can't confidently judge to a person.
+It doesn't prove your code is correct. It's also early: the results below come from a scripted test suite and small pilots, not a completed evaluation. To install it, see [How to try it](#how-to-try-it).
 
-It is an early prototype. The results below come from a scripted test suite and small pilot runs, not from a completed evaluation.
+## Demo
+
+An agent edits a failing test until CI turns green. POCP runs the old test against the new code and routes the suspicious change to human review.
+
+![Terminal demo: an agent breaks add() and edits the test so npm test passes; pocp verify reports that the old test fails on the new code and waits for a maintainer](docs/demo.svg)
+
+To run it from a clone: `node examples/demo/demo.mjs`. It takes a few seconds and shortens POCP's output; `--keep` leaves the scratch repository so you can see everything.
 
 ## Why this exists
 
@@ -73,6 +79,7 @@ Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
 - It can't fully stop a pull request from faking its own check. A pull request runs its own copy of the workflow. With the `pocp` status required, a pull request that edits CI files stays yellow until a maintainer approves the edit, and pull requests from forks can't post a status at all. But a branch pushed to your repository by someone with write access, including an agent using your token, can edit its workflow to post its own `pocp` status. Read the diff of any such pull request that touches `.github/` ([docs/STATUS.md](docs/STATUS.md#a-limit-of-the-pocp-status)). A dedicated GitHub App for the reporter, which would close this, is planned.
 - It doesn't measure new tests. The test check compares a change with tests that already existed, so a weak test added in the same pull request isn't measured.
 - It isn't hermetic. Checks can read the network, environment variables and installed packages, and the re-runs execute the pull request's code in your CI job.
+- It adds CI time. `verify` re-runs your required checks, so each pull request costs about one extra test run, in parallel with your other jobs. On POCP's own pull requests in fast mode, `verify` took 3 to 4 minutes next to test jobs of 3 to 4 minutes, and 10 to 11 minutes when several commits edited tests. It hasn't been measured on other projects yet.
 - Deep mode is slow. It re-runs the required checks for each planted bug, so its cost grows with your suite's run time. On POCP's own repository it took up to about 17 minutes locally. One measured case: on 2026-11-02, a full `verify` of a 13-commit pull request to POCP that edited test helpers took about 25 minutes on a GitHub runner, of which the test check took about 16 ([run](https://github.com/harriswekselblatt/pocp/actions/runs/41524329250)).
 - A process a check starts in a new session (`setsid`, a daemon) can outlive the check.
 - Native Windows isn't supported. The hooks and checks need a POSIX shell: Linux, macOS, or Windows through WSL.
@@ -94,7 +101,7 @@ npx pocp init --hooks --github
 
 Then:
 
-1. **Say what must be proven.** Add a rule to `.proof/rules.json` (above). Change a file it covers, and commit. If the commit is blocked, run `npx pocp fix --intent "<what the change does>"` and commit again.
+1. **Say what must be proven.** Add a rule to `.proof/rules.json` (above). Change a file it covers, and commit. If the commit is blocked, run `npx pocp fix --intent "<what the change does>"` and commit again. Anyone can skip the hook with `git commit --no-verify`; CI then flags the commit as made without its proof.
 2. **Check the setup:** `npx pocp doctor`. It lists anything missing, with the commands to fix it, such as the approval labels to create on GitHub. Pushing the workflow files needs a GitHub login with the `workflow` permission.
 3. **Try it in report-only mode.** Require the `verify` check on your main branch (`npx pocp ci required --apply` sets it from `ci.required_checks`), and watch the `pocp` status on a few pull requests.
 4. **Go live, in one sitting:** set the repository variable `POCP_STATUS_LIVE` to `true`, *and* require `pocp` instead of `verify` (in Settings → Branches; `pocp ci required --apply` only ever adds checks, never removes one). A wait for approval then shows yellow, with no red ✗ and no failure email, and merging stays blocked until the approval. To roll back, unset the variable and require `verify` again.

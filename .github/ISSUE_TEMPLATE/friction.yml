@@ -1,0 +1,18 @@
+name: Friction or a confusing message
+description: POCP got in the way of honest work, was slow, or a message didn't say what to do.
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What got in the way
+      description: What you were doing, what POCP printed, and how long it took if speed is the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What would have helped
+  - type: input
+    id: version
+    attributes:
+      label: POCP version and CI host

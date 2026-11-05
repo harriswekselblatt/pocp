@@ -1,0 +1,354 @@
+{
+  "pocp": 1,
+  "id": "p-67177079",
+  "intent": "First five minutes: demo, FAQ, README opening, issue templates",
+  "touches": [
+    "src/cli.js",
+    "src/fix.js",
+    "test/demo.test.js",
+    "test/e2e-fix-wording.test.js",
+    "test/e2e-fix.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/e2e-fix-wording.test.js",
+        "test/e2e-fix.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/e2e-fix-wording.test.js, test/e2e-fix.test.js): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-05T05:53:40.162Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:25c0e9a8aa1b1dd672b098a284f1b1f2fed81fbefae02d9717356f25fdf9c7ef",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T05:53:40.607Z",
+      "duration_ms": 2750,
+      "stdout_sha256": "03594713bc93c127bb310fe92c1bc7b758b6f18a0b9740f52e2165d21aa39826",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-4ae71210",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:25c0e9a8aa1b1dd672b098a284f1b1f2fed81fbefae02d9717356f25fdf9c7ef",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T05:53:43.438Z",
+      "duration_ms": 65816,
+      "stdout_sha256": "197f5bffb5deeac73e86228ffcbef8f0a8abc3d4c665bc634e649e58162eaad3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-797961f2",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:3a3f4581d9422dca39974044b2441252c912d7c2f22531bf4b2e12375eababde",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T06:04:10.249Z",
+      "duration_ms": 2843,
+      "stdout_sha256": "e731addcb954dd62995dea181b826d60c0f104d48ed6c340ab782e102a964666",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-d36dea68",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:3a3f4581d9422dca39974044b2441252c912d7c2f22531bf4b2e12375eababde",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T06:04:13.171Z",
+      "duration_ms": 68080,
+      "stdout_sha256": "8af625a59481af4aa5e8cf3e5f5c26db900e603ac8ea87436e0706fcafd43c4b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-dcbe99b6",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:3a3f4581d9422dca39974044b2441252c912d7c2f22531bf4b2e12375eababde",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T06:05:21.334Z",
+      "duration_ms": 264820,
+      "stdout_sha256": "a3b0c0278c494b07747817ffa642b6bccd9fc115bb605bdbd44e72f37f9c37dd",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b5695985",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:99d120eaf6e3634c95d815bb838d2e07d16fe2a945102d4277dce91390fa6891",
+      "subject": "sha256:3a3f4581d9422dca39974044b2441252c912d7c2f22531bf4b2e12375eababde",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-05T06:09:46.339Z",
+      "duration_ms": 666072,
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: block mode: a failed test-change check handed to CI is reported as handed over, not proved and not \"fix the code\"; block mode: fix hands a failed test-change check to CI, never signs off, and CI needs the label: behavior changed, so a person must approve it",
+        "base": "b0b637a5ca1dcd9c18a7a2ca97d047afe1ee5435",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/e2e-fix-wording.test.js",
+            "test/e2e-fix.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2947
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 64395
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 350082,
+              "failed_tests": [
+                "block mode: a failed test-change check handed to CI is reported as handed over, not proved and not \"fix the code\"",
+                "block mode: fix hands a failed test-change check to CI, never signs off, and CI needs the label"
+              ]
+            }
+          ],
+          "left_out": [
+            "test/demo.test.js"
+          ]
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 245865
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 666072,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-05T05:53:40.162Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-05T05:53:40.162Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-05T05:58:53.476Z",
+      "event": "proof_discarded",
+      "obligation": "o3",
+      "reasons": [
+        "the command changed files in the working folder"
+      ]
+    },
+    {
+      "at": "2026-11-05T06:04:09.806Z",
+      "event": "touches_widened",
+      "added": [
+        "src/cli.js",
+        "src/fix.js",
+        "test/e2e-fix-wording.test.js",
+        "test/e2e-fix.test.js"
+      ],
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-05T06:04:09.806Z",
+      "event": "requirements_synced",
+      "added": [
+        "o4"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-05T06:20:52.826Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:3a3f4581d9422dca39974044b2441252c912d7c2f22531bf4b2e12375eababde"
+    },
+    {
+      "at": "2026-11-05T06:20:53.225Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:3a3f4581d9422dca39974044b2441252c912d7c2f22531bf4b2e12375eababde"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:99d120eaf6e3634c95d815bb838d2e07d16fe2a945102d4277dce91390fa6891",
+      "subject": "sha256:3a3f4581d9422dca39974044b2441252c912d7c2f22531bf4b2e12375eababde",
+      "by": "harriswekselblatt",
+      "at": "2026-11-05T06:20:53.225Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: block mode: a failed test-change check handed to CI is reported as handed over, not proved and not \"fix the code\"; block mode: fix hands a failed test-change check to CI, never signs off, and CI needs the label: behavior changed, so a person must approve it"
+    }
+  ]
+}

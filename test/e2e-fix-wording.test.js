@@ -26,7 +26,7 @@ test('block mode: a failed test-change check handed to CI is reported as handed 
   const f = pocp(dir, ['fix', '--intent', 'drop a case']);
   assert.equal(f.code, 0, f.stdout + f.stderr);
   const lines = f.stdout.split('\n');
-  assert.equal(lines[0], 'pocp fix: committable now; CI will need a person (a maintainer) to approve the test change');
+  assert.equal(lines[0], 'pocp fix: committable now; CI requires human approval of the test change');
   assert.match(f.stdout, /did: proved 1 of 2 check\(s\) for p-[0-9a-f]+ \([^)]*\); o2 handed to CI/);
   assert.doesNotMatch(f.stdout, /ready to commit/);
   assert.doesNotMatch(f.stdout, /needs you: o2/, 'the author is not told to fix what a maintainer decides');
