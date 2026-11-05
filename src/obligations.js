@@ -60,12 +60,35 @@ export function normalizeObligation(spec, { id, source } = {}) {
       if (kind !== 'probe') throw new ValidationError('"target" is only allowed on probe obligations');
       ob.target = String(spec.target);
     }
+    if (spec.changed_test_command !== undefined && spec.changed_test_command !== null) {
+      if (kind !== 'test') throw new ValidationError('"changed_test_command" is only allowed on test obligations');
+      ob.changed_test_command = normalizeChangedTestCommand(spec.changed_test_command);
+    }
   } else {
     if (typeof spec.text !== 'string' || !spec.text.trim()) throw new ValidationError('manual obligation needs "text"');
     ob.text = spec.text.trim();
   }
   ob.source = spec.source || source || 'author';
   return ob;
+}
+
+/** The placeholder in `changed_test_command` that becomes the changed test files, one argument each. */
+export const TESTS_PLACEHOLDER = '{tests}';
+
+/**
+ * How to run specific test files, as an argument array: ["node", "--test", "{tests}"]. The
+ * test guard uses it to run only the old versions of edited test files (src/guard-check.js).
+ * Each element is one argument; "{tests}" must be a whole element and appear once.
+ */
+function normalizeChangedTestCommand(cmd) {
+  const bad = (why) => new ValidationError(`"changed_test_command" ${why}, e.g. ["node", "--test", "{tests}"]`);
+  if (!Array.isArray(cmd) || !cmd.length) throw bad('must be a non-empty array of arguments');
+  if (cmd.some((a) => typeof a !== 'string' || !a.length)) throw bad('must contain only non-empty strings');
+  const at = cmd.filter((a) => a === TESTS_PLACEHOLDER).length;
+  if (at !== 1) throw bad(`must contain "${TESTS_PLACEHOLDER}" exactly once, as its own element`);
+  if (cmd[0] === TESTS_PLACEHOLDER) throw bad('must start with the program to run');
+  if (cmd.some((a) => a !== TESTS_PLACEHOLDER && a.includes(TESTS_PLACEHOLDER))) throw bad(`must use "${TESTS_PLACEHOLDER}" as a whole element, not inside another argument`);
+  return [...cmd];
 }
 
 function normalizeGuard(spec, { id, source }) {
@@ -96,6 +119,9 @@ export function obligationDigest(ob) {
     };
     // Only present when set, so digests of checks without a cwd never change.
     if (ob.cwd) fields.cwd = ob.cwd;
+    // Also only when set. It decides how the test guard runs edited tests, so changing it is a
+    // rule change, judged and approved like one.
+    if (ob.changed_test_command) fields.changed_test_command = ob.changed_test_command;
     return digestJson(fields);
   }
   return digestJson({ kind: ob.kind, text: ob.text });
