@@ -33,7 +33,9 @@ const emit = (text, pause = 0) => {
 const shim = fs.mkdtempSync(path.join(os.tmpdir(), 'pocp-demo-bin-'));
 fs.writeFileSync(path.join(shim, 'pocp'), `#!/bin/sh\nexec ${BIN} "$@"\n`, { mode: 0o755 });
 const env = { ...process.env, PATH: `${shim}${path.delimiter}${process.env.PATH}`, POCP_BIN: BIN, GIT_AUTHOR_NAME: 'agent', GIT_AUTHOR_EMAIL: 'agent@example.invalid', GIT_COMMITTER_NAME: 'agent', GIT_COMMITTER_EMAIL: 'agent@example.invalid', NO_COLOR: '1' };
-delete env.NODE_TEST_CONTEXT; // when run under node --test, let the demo's own tests report normally
+// Run as a plain terminal would, even under node --test or in CI: no test-runner context, and
+// no CI variables (in GitHub Actions, POCP also prints ::error annotations).
+for (const k of Object.keys(env)) if (k === 'NODE_TEST_CONTEXT' || k === 'CI' || k.startsWith('GITHUB_') || k.startsWith('RUNNER_')) delete env[k];
 function sh(cmd) {
   return spawnSync('sh', ['-c', cmd], { cwd: dir, env, encoding: 'utf8' });
 }
@@ -48,7 +50,7 @@ function step(shown, { run = shown, filter = (s) => s, after = 1.2 } = {}) {
   for (const ch of shown) emit(ch, 0.035);
   emit('\n', 0.3);
   const r = sh(run);
-  const out = filter(`${r.stdout}${r.stderr}`).replace(/\s+$/, '');
+  const out = filter(`${r.stdout}${r.stderr}`, r).replace(/\s+$/, '');
   // A \u0000 line is a pause: the line before it gets time to sink in.
   for (const [i, chunk] of out.split('\n\u0000\n').entries()) {
     if (i) clock += 2.2;
@@ -77,8 +79,8 @@ for (const c of ['git init -q -b main', `${BIN} init --hooks >/dev/null`]) sh(c)
 write('.proof/rules.json', `${JSON.stringify({ pocp: 1, requirements: [{ id: 'tests', globs: ['src/**', 'test/**'], obligation: { kind: 'test', run: 'npm test --silent' } }] }, null, 2)}\n`);
 sh('git add -A && git commit -qm "start" --no-verify && git switch -qc agent-change');
 
-const quietTest = (s) => {
-  const fail = /# fail [1-9]/.test(s);
+const quietTest = (s, r) => {
+  const fail = r.status !== 0;
   const line = s.split('\n').find((l) => /!==/.test(l));
   return fail ? `✗ 1 test failed${line ? `: ${line.trim()}` : ''}` : '✓ 1 test passed';
 };
