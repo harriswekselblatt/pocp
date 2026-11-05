@@ -1,0 +1,133 @@
+{
+  "pocp": 1,
+  "id": "p-d4e6deae",
+  "intent": "Release v1.0.0",
+  "touches": [
+    "package.json",
+    "src/engine.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "policy_repo": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+  "opened_at": "2026-11-05T01:48:37.075Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:bf3fd227016c01c8f2b9ab43e670b60f33df9fc453a323263a410b334828da81",
+      "subject": "sha256:3c19f3d8f2a5204b4259bbfff3a546e825aee8bd94e1a6ba9d3163f026c93d62",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T01:48:37.739Z",
+      "duration_ms": 2508,
+      "stdout_sha256": "81eb60d58c2ef5f789267ba007784d6b317b0335fd7cbe4a6ddee5a39c136265",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-777dc52f",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:6afd51abe746ca9cff635b441c9432287c23917f7ac5d6f1d9ddf8f9aaaa763e",
+      "subject": "sha256:3c19f3d8f2a5204b4259bbfff3a546e825aee8bd94e1a6ba9d3163f026c93d62",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T01:48:40.314Z",
+      "duration_ms": 52911,
+      "stdout_sha256": "d35fcc761bc2003371033accc217fdaf7a5ecfb6bcde08b56edcab459b8d20cd",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-0ed67dab",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:3c19f3d8f2a5204b4259bbfff3a546e825aee8bd94e1a6ba9d3163f026c93d62",
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-05T01:49:33.303Z",
+      "duration_ms": 187316,
+      "stdout_sha256": "e3bee1bcc61b7ac2bc0dab9f67d2fe5de42ae1c0b0ab4f31b3d539785094eefe",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-df006c3d",
+      "runner": {
+        "pocp": "1.0.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-05T01:48:37.075Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-05T01:48:37.075Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:9cac41378c215cb2368b21a56f45ba5eae38e476488b09a9cd8d4f5ff8e8339a"
+    },
+    {
+      "at": "2026-11-05T01:52:40.768Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:3c19f3d8f2a5204b4259bbfff3a546e825aee8bd94e1a6ba9d3163f026c93d62"
+    }
+  ]
+}
