@@ -159,7 +159,7 @@ draft ─► open ─► proven ─► landed
   "stdout_sha256": "…",
   "stderr_sha256": "…",
   "runner": {
-    "pocp": "0.1.0",
+    "pocp": "1.0.0",
     "node": "22.11.0",
     "platform": "darwin-arm64",
     "ci": false,
