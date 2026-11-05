@@ -2,7 +2,7 @@
 // Turn the demo's asciicast into an animated SVG that loops (SMIL; GitHub plays it in a README):
 //   node examples/demo/demo.mjs --cast /tmp/demo.cast
 //   node examples/demo/render-svg.mjs /tmp/demo.cast docs/demo.svg
-// Lines appear when the demo printed them; typed commands are revealed as they were typed.
+// Lines appear when the demo printed them; typed commands appear character by character.
 import fs from 'node:fs';
 
 const [castFile, outFile] = process.argv.slice(2);
@@ -51,14 +51,16 @@ const body = lines.map((l, i) => {
   const y = TOP + i * LH;
   const show = `<animate attributeName="opacity" values="0;0;1;1" keyTimes="0;${kt(l.start)};${kt(l.start)};1" dur="${total}s" repeatCount="indefinite" calcMode="discrete"/>`;
   if (l.text.startsWith('$ ')) {
-    // A typed command: reveal it left to right over the time it took to type.
-    const full = (l.text.length * CW + 4).toFixed(1);
-    const id = `c${i}`;
-    return [
-      `<clipPath id="${id}"><rect x="${PADX}" y="${y - LH + 5}" height="${LH}" width="0">`,
-      `<animate attributeName="width" values="0;0;${full};${full}" keyTimes="0;${kt(l.start)};${kt(l.end)};1" dur="${total}s" repeatCount="indefinite"/></rect></clipPath>`,
-      `<text x="${PADX}" y="${y}" clip-path="url(#${id})"><tspan fill="#7ee787" font-weight="bold">$</tspan><tspan fill="#e6edf3">${esc(l.text.slice(1))}</tspan></text>`,
-    ].join('');
+    // A typed command: each character fades in when it was typed. (Opacity, like every other
+    // line: some browsers ignore animated clip paths in an <img> SVG.)
+    const chars = [...l.text];
+    const step = chars.length > 1 ? (l.end - l.start) / (chars.length - 1) : 0;
+    const spans = chars.map((ch, j) => {
+      const at = kt(l.start + j * step);
+      const fill = j === 0 ? ' fill="#7ee787" font-weight="bold"' : '';
+      return `<tspan${fill} opacity="0"><animate attributeName="opacity" values="0;0;1;1" keyTimes="0;${at};${at};1" dur="${total}s" repeatCount="indefinite" calcMode="discrete"/>${esc(ch)}</tspan>`;
+    }).join('');
+    return `<text x="${PADX}" y="${y}" fill="#e6edf3" xml:space="preserve">${spans}</text>`;
   }
   const italic = l.text.startsWith('# ') ? ' font-style="italic"' : '';
   return `<text x="${PADX}" y="${y}" fill="${color(l.text)}"${italic} opacity="0" xml:space="preserve">${show}${esc(l.text)}</text>`;
