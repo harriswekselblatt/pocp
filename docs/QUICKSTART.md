@@ -6,7 +6,7 @@ POCP itself needs Node ≥ 20, git and a POSIX shell; your project can be anythi
 ## 1. Install and initialise
 
 ```bash
-npm install -g "github:harriswekselblatt/pocp#COMMIT_SHA"   # not on npm yet; replace COMMIT_SHA with a commit to pin
+npm install -g "github:harriswekselblatt/pocp#v1.0.0"
 cd your-repo
 pocp init --hooks
 ```
@@ -71,6 +71,8 @@ for any check. See [the threat model](THREAT-MODEL.md) before choosing it.
 ```bash
 pocp init --github        # .github/workflows/pocp.yml, pocp-status.yml, pocp-labels.yml
 ```
+
+Pushing workflow files needs a GitHub login with the `workflow` permission (for the GitHub CLI: `gh auth refresh -s workflow`).
 
 - **`pocp.yml`** runs verify on every pull request.
 - **`pocp-status.yml`** is the trusted reporter: it sets one commit status, **`pocp`**. It's green when verified, yellow while waiting for a maintainer or when a check didn't finish, and red on a real failure. It never runs pull request code.
