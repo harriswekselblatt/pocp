@@ -192,13 +192,23 @@ check isn't required, pull requests aren't required, or admins can merge past th
 that a job with the required check's name reports success without running `pocp verify`, for
 example a `verify` job that only runs `exit 0`. Branch protection matches a required check by
 its name and, at most, by the app that reported it, which is GitHub Actions for both, so it
-accepts the fake, and `verify`, which would flag the edited workflow, never runs. This is a
-known gap in v0.1.0: nothing in POCP or in the example workflows prevents it. Until it's
-closed, a pull request that touches `.github/` (or the files your workflow
-runs before `verify`) gets no protection from POCP's check: read its diff before merging. On
-GitHub, a `CODEOWNERS` entry for `.github/` with "Require review from Code Owners" makes that a
-rule, when someone other than the author can review. The planned fix is a status reported by a
-separate, trusted workflow that never trusts a run whose workflow the pull request changed.
+accepts the fake, and `verify`, which would flag the edited workflow, never runs.
+
+Since v1.0.0 the required check can instead be the `pocp` status, set by a separate, trusted
+workflow (`pocp-status.yml`, [docs/STATUS.md](STATUS.md)). That workflow runs from the default
+branch, never runs pull request code, and doesn't trust a run whose workflow files the pull
+request changed: such a pull request stays yellow until a maintainer adds
+`pocp-approve-workflow` (by default someone other than its author). A pull request from a fork
+gets a read-only token and can't post a status at all.
+
+One gap remains. The reporter and every workflow in the repository post as the same app,
+GitHub Actions, so a branch pushed to **this** repository by someone with write access
+(including an agent using a maintainer's token) can edit its workflow to post its own
+`pocp: success`. Until the reporter has its own GitHub App identity, with the required check
+pinned to that app, read the diff of any same-repository pull request that touches `.github/`
+(or the files your workflow runs before `verify`) before merging. On GitHub, a `CODEOWNERS`
+entry for `.github/` with "Require review from Code Owners" makes that a rule, when someone
+other than the author can review.
 
 ## Out of scope
 
