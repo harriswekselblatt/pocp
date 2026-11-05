@@ -97,7 +97,7 @@ Then:
 1. **Say what must be proven.** Add a rule to `.proof/rules.json` (above). Change a file it covers, and commit. If the commit is blocked, run `npx pocp fix --intent "<what the change does>"` and commit again.
 2. **Check the setup:** `npx pocp doctor`. It lists anything missing, with the commands to fix it, such as the approval labels to create on GitHub. Pushing the workflow files needs a GitHub login with the `workflow` permission.
 3. **Try it in report-only mode.** Require the `verify` check on your main branch (`npx pocp ci required --apply` sets it from `ci.required_checks`), and watch the `pocp` status on a few pull requests.
-4. **Go live, in one sitting:** set the repository variable `POCP_STATUS_LIVE` to `true`, *and* require `pocp` instead of `verify`. A wait for approval then shows yellow, with no red ✗ and no failure email, and merging stays blocked until the approval. To roll back, unset the variable and require `verify` again.
+4. **Go live, in one sitting:** set the repository variable `POCP_STATUS_LIVE` to `true`, *and* require `pocp` instead of `verify` (in Settings → Branches; `pocp ci required --apply` only ever adds checks, never removes one). A wait for approval then shows yellow, with no red ✗ and no failure email, and merging stays blocked until the approval. To roll back, unset the variable and require `verify` again.
 
 [docs/QUICKSTART.md](docs/QUICKSTART.md) walks through this on a non-JavaScript project. [docs/STATUS.md](docs/STATUS.md) covers the status, the approval labels, who may approve, and its limits.
 
