@@ -137,35 +137,73 @@ export async function runGuardCheck({
       }
       const rec = { result: 'running', files: plan.files, runs: [] };
       result.old_tests.changed_tests = rec;
+      // One command on one tree: 'pass' (exit 0, a real test passed, none failed), 'fail'
+      // (it ran to the end and the runner reported failing tests), or 'unclear' (anything else).
+      const runOne = async (c, dir, side) => {
+        const args = c.argv.flatMap((a) => (a === TESTS_PLACEHOLDER ? c.files : [a]));
+        const ob = { id: c.ob.id, kind: 'test', run: args.map(shellQuote).join(' ') };
+        if (c.ob.cwd) ob.cwd = c.ob.cwd;
+        if (c.ob.timeout_ms) ob.timeout_ms = c.ob.timeout_ms;
+        const r = await runObligation(ob, dir, { logName: `${logPrefix}-${side}-changed-${c.ob.id}` });
+        const tests = countTests(r.output);
+        // Node's runner reports a file that ran no test as one passing "test" named after the
+        // file (a helper, or a filter that matched nothing). Those aren't tests that ran.
+        const real = tests && fileLevelOnly(r.output, c.files) ? { ...tests, passed: 0, file_level: true } : tests;
+        let outcome = 'unclear';
+        let why = null;
+        if (!r.passed) {
+          if (!ranAndFailed(r)) why = 'did not finish';
+          else if (real?.failed > 0) outcome = 'fail';
+          else why = 'failed without reporting failing tests';
+        } else if (!real) why = 'no test counts in its output';
+        else if (real.failed) why = 'reported failing tests';
+        else if (!real.passed) why = 'no test passed (none ran, or all were skipped)';
+        else outcome = 'pass';
+        const names = outcome === 'fail' ? failingTests(r.output) : [];
+        rec.runs.push({ side, check: c.ob.id, args, outcome, exit: r.exit, timed_out: r.timed_out || undefined, duration_ms: r.duration_ms, ...(real ? { tests: real } : {}), ...(why ? { why } : {}), ...(names.length ? { failed_tests: names } : {}) });
+        return { outcome, args, why, names, duration_ms: r.duration_ms };
+      };
+      const notUsed = (reason) => {
+        rec.result = 'not-used';
+        rec.reason = `${reason}; running the whole check instead`;
+        return null;
+      };
+      // The base versions of the edited files on the new code.
+      const failed = [];
       const copy = copySnapshot(oldTpl.dir);
       try {
         for (const c of plan.commands) {
-          const args = c.argv.flatMap((a) => (a === TESTS_PLACEHOLDER ? c.files : [a]));
-          const ob = { id: c.ob.id, kind: 'test', run: args.map(shellQuote).join(' ') };
-          if (c.ob.cwd) ob.cwd = c.ob.cwd;
-          if (c.ob.timeout_ms) ob.timeout_ms = c.ob.timeout_ms;
-          const r = await runObligation(ob, copy.dir, { logName: `${logPrefix}-old-changed-${c.ob.id}` });
-          const tests = countTests(r.output);
-          // Node's runner reports a file that ran no test as one passing "test" named after the
-          // file (a helper, or a filter that matched nothing). Those aren't tests that ran.
-          const real = tests && fileLevelOnly(r.output, c.files) ? { ...tests, passed: 0, file_level: true } : tests;
-          const why = !r.passed
-            ? (ranAndFailed(r) ? 'failed' : 'did not finish')
-            : !real ? 'no test counts in its output' : real.failed ? 'reported failing tests' : !real.passed ? 'no test passed (none ran, or all were skipped)' : null;
-          rec.runs.push({ check: c.ob.id, args, passed: !why, exit: r.exit, timed_out: r.timed_out || undefined, duration_ms: r.duration_ms, ...(real ? { tests: real } : {}), ...(why ? { why } : {}) });
-          if (why) {
-            rec.result = 'not-used';
-            rec.reason = `"${args.join(' ')}" ${why}; running the whole check instead`;
-            return null;
-          }
+          const o = await runOne(c, copy.dir, 'new-code');
+          if (o.outcome === 'unclear') return notUsed(`"${o.args.join(' ')}" ${o.why}`);
+          if (o.outcome === 'fail') failed.push({ c, o });
         }
       } finally {
         copy.cleanup();
       }
-      rec.result = 'pass';
+      if (!failed.length) {
+        rec.result = 'pass';
+        result.old_tests.scope = 'changed-tests';
+        for (const r of rec.runs) result.old_tests.runs.push({ check: r.check, passed: true, scope: 'changed-tests', duration_ms: r.duration_ms });
+        return 'pass';
+      }
+      // They fail on the new code. The same files on the base code: if they pass there,
+      // behavior changed, and a person decides (this can only escalate, never pass). If they
+      // fail there too, or a run is unclear, the whole check decides.
+      const baseTree = createTreeSnapshot(root, base, { links });
+      try {
+        for (const { c } of failed) {
+          const b = await runOne(c, baseTree.dir, 'base');
+          if (b.outcome !== 'pass') return notUsed(`the old versions of the edited tests fail on the new code, and on the base "${b.args.join(' ')}" ${b.outcome === 'fail' ? 'fails too' : b.why}`);
+        }
+      } finally {
+        baseTree.cleanup();
+      }
+      rec.result = 'escalated';
       result.old_tests.scope = 'changed-tests';
-      for (const r of rec.runs) result.old_tests.runs.push({ check: r.check, passed: true, scope: 'changed-tests', duration_ms: r.duration_ms });
-      return 'pass';
+      for (const { c, o } of failed) result.old_tests.runs.push({ check: c.ob.id, passed: false, exit: 1, scope: 'changed-tests', duration_ms: o.duration_ms, ...(o.names.length ? { failed_tests: o.names } : {}) });
+      result.baseline.result = 'pass';
+      result.baseline.scope = 'changed-tests';
+      return 'escalate';
     };
     result.new_tests.result = await runAll(newTpl.dir, 'new', result.new_tests.runs);
 
@@ -249,7 +287,10 @@ export async function runGuardCheck({
       try {
         // Fast mode: when a rule says how to run specific test files, run only the old versions
         // of the edited ones. Only a clean pass counts; anything else runs the whole check below.
-        if (mutants === 0 && (await runChangedTests()) === 'pass') return 'pass';
+        if (mutants === 0) {
+          const shortcut = await runChangedTests();
+          if (shortcut) return shortcut;
+        }
         return await runAll(oldTpl.dir, 'old', result.old_tests.runs);
       } finally {
         slots.release();
@@ -288,11 +329,16 @@ export async function runGuardCheck({
     if (old.err || old.r !== 'pass') abandon = true;
     const poolError = await pool;
     if (old.err) throw old.err;
-    result.old_tests.result = old.r;
+    result.old_tests.result = old.r === 'escalate' ? 'fail' : old.r;
     if (result.new_tests.result === 'fail') {
       const failedNew = result.new_tests.runs.filter((r) => !r.passed);
       const done = failedNew.length && failedNew.every((r) => !ranAndFailed(r)) ? finishUnfinished : (sum) => finish('inconclusive', sum);
       return done(`the checks fail on the new code (${failedList(result.new_tests.runs, checks)}), so there is nothing to compare`);
+    }
+    if (old.r === 'escalate') {
+      const ct = result.old_tests.changed_tests;
+      const names = testNames(result.old_tests.runs);
+      return finish('behavior-changed', `the old tests fail on the new code (the old versions of ${ct.files.join(', ')}, run alone, fail on the new code and pass on the base)${names.length ? `; failing: ${names.join('; ')}` : ''}: behavior changed, so a person must approve it`);
     }
     if (result.old_tests.result === 'fail') {
       // Were these checks already failing before the change? Run the ones that failed on the

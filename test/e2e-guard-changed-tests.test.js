@@ -83,10 +83,31 @@ test('the edited test is never what runs: a weakened test on broken code is stil
   write(dir, 'src/math.js', 'export const add = (a, b) => Math.abs(a) + b;\nexport const isPositive = (n) => n > 0;\n');
   write(dir, 'test/add.test.js', ADD_TEST.replace('add(-1, 1), 0)', 'add(-1, 1), 2)'));
   const guard = guardFor(dir, ['src/math.js', 'test/add.test.js']);
-  assert.equal(guard.old_tests.changed_tests.result, 'not-used');
-  assert.match(guard.old_tests.changed_tests.reason, /failed; running the whole check instead/);
-  assert.equal(guard.old_tests.scope, undefined, 'the decision came from the whole check');
+  const ct = guard.old_tests.changed_tests;
+  assert.equal(ct.result, 'escalated', JSON.stringify(ct));
+  assert.deepEqual(ct.runs.map((r) => [r.side, r.outcome]), [['new-code', 'fail'], ['base', 'pass']], 'old file fails on the new code, passes on the base');
+  assert.deepEqual(ct.runs[0].args, ['node', '--test', 'test/add.test.js']);
+  assert.equal(guard.old_tests.scope, 'changed-tests');
+  assert.ok(guard.old_tests.runs.every((r) => r.scope === 'changed-tests'), 'no whole-suite run');
+  assert.equal(guard.baseline.runs.length, 0, 'no whole-suite run on the base either');
   assert.equal(guard.verdict, 'behavior-changed', guard.summary);
+  assert.match(guard.summary, /the old tests fail on the new code \(the old versions of test\/add\.test\.js, run alone, fail on the new code and pass on the base\); failing: adds/);
+});
+
+test('old edited tests failing on the base too: the shortcut never decides, the whole check does (baseline-red)', () => {
+  const dir = project();
+  // The base is already red: add() is wrong and its test says so.
+  write(dir, 'src/math.js', 'export const add = (a, b) => a * b;\nexport const isPositive = (n) => n > 0;\n');
+  git(dir, 'add', '-A');
+  git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'broken base');
+  // The change rewrites the test to match the wrong behavior.
+  write(dir, 'test/add.test.js', ADD_TEST.replace('add(2, 3), 5)', 'add(2, 3), 6)').replace('add(-1, 1), 0)', 'add(-1, 1), -1)'));
+  const guard = guardFor(dir, ['test/add.test.js']);
+  const ct = guard.old_tests.changed_tests;
+  assert.equal(ct.result, 'not-used');
+  assert.match(ct.reason, /fail on the new code, and on the base .* fails too; running the whole check instead/);
+  assert.equal(guard.old_tests.scope, undefined);
+  assert.equal(guard.verdict, 'baseline-red', guard.summary);
 });
 
 test('a test helper edit runs the whole check', () => {

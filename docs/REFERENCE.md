@@ -64,7 +64,13 @@ In fast mode (`guard.mutants: 0`), the guard uses it only when:
 - no edited file is named in another test file or in runner config (`package.json`, `jest.config.js`, `pytest.ini` and the like), where it may be setup; if POCP can't finish that scan, it assumes it is;
 - every check involved comes from a rule (in CI, the base branch's rules) and has a `changed_test_command`.
 
-It runs the **base versions** of the edited files, never the pull request's. The shortcut can only **pass**: the command exited 0, and the runner's summary (node `--test`, Jest, Vitest, pytest, RSpec, Mocha) shows at least one test passed and none failed. It never decides that behavior changed. Anything else (a failure, a timeout, no tests run, all skipped, or a summary POCP doesn't recognize) runs the whole check, which decides as before. The guard's result records which ran (`old_tests.scope`, `old_tests.changed_tests`).
+It runs the **base versions** of the edited files, never the pull request's, on the new code:
+
+- **They pass** (the command exited 0, and the runner's summary shows at least one test passed and none failed): the old-tests check passes, without running the whole check.
+- **They fail** (the runner reports failing tests): the guard runs the same files on the base code. If they pass there, behavior changed, and the change goes to a person. This path can only escalate to review; it never passes a change.
+- **Anything else** (a timeout, a crash, no tests run, all skipped, a summary POCP doesn't recognize, or the files failing on the base too): the whole check runs and decides as before.
+
+Supported summaries: node `--test`, Jest, Vitest, pytest, RSpec, Mocha. The guard's result records which ran (`old_tests.scope`, `old_tests.changed_tests`).
 
 Each element is passed to the program as one argument, quoted; the command itself is policy and trusted as written, like `run`.
 
