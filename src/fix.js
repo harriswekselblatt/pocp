@@ -187,7 +187,7 @@ export function formatFix(r) {
   const onlyTests = r.needs_person.length && r.needs_person.every((x) => x.code === 'test_change');
   const head = r.ok
     ? r.needs_person.length
-      ? onlyTests ? 'pocp fix: committable now; CI will need a person (a maintainer) to approve the test change' : 'pocp fix: committable now; CI will need a person (see below)'
+      ? onlyTests ? 'pocp fix: committable now; CI requires human approval of the test change' : 'pocp fix: committable now; CI requires human approval (see below)'
       : 'pocp fix: ready to commit (git commit)'
     : r.needs_person.length && !r.needs_agent.length ? 'pocp fix: needs a person' : 'pocp fix: needs you';
   lines.push(head);

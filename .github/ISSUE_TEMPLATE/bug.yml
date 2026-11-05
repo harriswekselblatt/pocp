@@ -1,0 +1,35 @@
+name: Bug or wrong verdict
+description: POCP crashed, blocked an honest change, or passed one it shouldn't have (for a bypass, report privately instead).
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: POCP version
+      description: The output of `npx pocp version`, or the tag or commit you installed.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran and what POCP printed. `--json` output helps.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Your CI host, Node version, OS, fast or deep mode (`guard.mutants` in .proof/config.json), and the rule involved if you can share it.
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A script or short list of steps in a fresh repository is ideal.
