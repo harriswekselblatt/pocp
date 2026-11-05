@@ -108,7 +108,7 @@ test('bench edits: POCP steps are removed from both shipped workflows', () => {
     assert.ok(out, `${f} has a POCP step`);
     const code = out.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
     assert.ok(!/pocp-command|accept-test-change|\bci-run\b|pocp@/.test(code), `${f}: POCP steps gone`);
-    assert.ok(out.includes('actions/checkout@v4'), `${f}: other steps kept`);
+    assert.ok(out.includes('actions/checkout@v5'), `${f}: other steps kept`);
   }
   assert.equal(removePocpSteps('steps:\n  - run: npm test\n'), null);
   assert.deepEqual(pocpJobs(fs.readFileSync(new URL('../.github/workflows/pocp.yml', import.meta.url), 'utf8')), ['verify']);
