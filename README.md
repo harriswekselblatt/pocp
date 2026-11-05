@@ -1,6 +1,6 @@
 # POCP: Proof of Change Protocol
 
-POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it runs the old tests on the new code, and sends any test edit it can't vouch for to a person. An optional deep mode also compares the old and new tests against a sample of planted bugs. It works with any test command and any language, and needs only Node 20 or later and git.
+POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it runs the old tests on the new code, and holds risky test edits for human review. An optional deep mode also compares the old and new tests against a sample of planted bugs. It works with any test command and any language, and needs only Node 20 or later and git.
 
 It doesn't prove your code is correct. It's also early: the results below come from a scripted test suite and small pilots, not a completed evaluation. To install it, see [How to try it](#how-to-try-it).
 
