@@ -234,7 +234,8 @@ other than the author can review.
   shared state set by an added test that runs first. Everything else goes to a person, so fast mode trades the planted-bug
   check for more reviews.
 - **Limits of `changed_test_command`** (docs/REFERENCE.md). When a rule sets it, fast mode
-  runs only the old versions of the edited test files. A test that passes alone but fails
+  runs only the old versions of the edited test files (and, when they fail, the same files on
+  the base, which can only send the change to a person). A test that passes alone but fails
   when the whole suite runs (order or shared state) passes the shortcut. The command is
   trusted as the rule's author wrote it: one that ignores the files it's given makes the
   old-tests check meaningless, which is why it's part of the rule, judged by the base
