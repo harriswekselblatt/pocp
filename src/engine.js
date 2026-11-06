@@ -1298,7 +1298,7 @@ export function createPocp(opts = {}) {
    * obligation again in a clean checkout of that commit. With `requireCoverage`,
    * also require that files the commit changed are covered when the rules say so.
    */
-  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, acceptInconclusive = false, acceptUncovered = false, uncoveredExceptions, testGuardOnNet = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
+  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, acceptInconclusive = false, acceptUncovered = false, uncoveredExceptions, testGuardOnNet = false, rulesGuardFallback = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
     if (rerun === true) rerun = 'all';
     // The test guard's check compares a commit with its parent, so in a range it re-runs per
     // commit (verifyRange passes guardRerun) rather than once at the head.
@@ -1485,7 +1485,18 @@ export function createPocp(opts = {}) {
     if (testGuardOnNet && commitGuard.files.length) {
       commitGuard.mechanical = [];
       out.notes.push(`test change (${commitGuard.files.join(', ')}) is judged once, on the pull request's net change`);
-    } else await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed });
+    } else {
+      // A one-commit range: test files no packet's guard covers are checked from the base
+      // branch's rules, as a range of several commits checks them on its net change.
+      const rulesRequired = rulesGuardFallback
+        ? async () => {
+          const hostReqs = useHost ? await hostRequirements(commitFiles, { rev: commit }) : [];
+          const req = requirementsFor(commitFiles, { rules: rulesAt, hostRequirements: hostReqs, hostName });
+          return useHost ? req.merged : req.repoOnly;
+        }
+        : null;
+      await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed, rulesRequired });
+    }
 
     // Required CI results (verify.require_ci). Fails closed: with no results supplied at all,
     // every required command counts as missing. A passing re-run by this verify also counts.
@@ -1510,7 +1521,7 @@ export function createPocp(opts = {}) {
    * passes only on an independent mechanical pass (this re-run, or a proof signed by a
    * trusted key); anything else needs --accept-test-change, which is meant for a person.
    */
-  async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive = false, cfgAt, commitFinding, blocks, signed, memo, ciResults, seed }) {
+  async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive = false, cfgAt, commitFinding, blocks, signed, memo, ciResults, seed, rulesRequired = null }) {
     if (!commitGuard.files.length) return;
     const base = g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true });
     const results = [];
@@ -1544,7 +1555,24 @@ export function createPocp(opts = {}) {
       }
       results.push(r);
     }
+    // The rules' check for test files no packet's guard covers (one-commit ranges only, see
+    // verify's rulesGuardFallback): the same check a range of several commits runs on its net
+    // change. Packets keep their own path; a bad packet's findings are unaffected.
+    const notInJobs = commitGuard.files.filter((f) => !guardJobs.some((j) => j.files.includes(f)));
+    let rulesRun = null;
+    if (rulesRequired && guardRerun && notInJobs.length && (commitGuard.mode === 'block' || commitGuard.mode === 'attest')) {
+      const ob = { id: 'rules', kind: 'guard', files: notInJobs, ...guardBudget(cfgAt) };
+      const res = await guardCheckFor(ob, { packet: { id: 'rules', touches: [], obligations: [] }, required: await rulesRequired(), guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, seed, known: (o) => memo.known(out.subject, o, ciResults), onPass: (o, x) => memo.record(out.subject, o, x) });
+      rulesRun = { packet: null, obligation: 'rules', files: notInJobs, evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, unfinished: Boolean(res.unfinished), result: res };
+      results.push(rulesRun);
+      out.reruns.push({ run: `test guard (rules, ${ob.mutants} mutants${seed !== undefined ? `, seed ${seed}` : ''})`, kind: 'guard', packets: [], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
+    }
     commitGuard.mechanical = results;
+    // Attest mode with no packet: nothing can carry a sign-off, so a rules check that didn't
+    // pass needs the approval, as on a range's net change.
+    if (commitGuard.mode === 'attest' && rulesRun && !(rulesRun.passed && rulesRun.checks_from !== 'packet') && !acceptTestChange) {
+      commitFinding('test_change', `existing tests or test setup changed (${notInJobs.join(', ')}); ${rulesRun.checks_from === 'packet' ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)' : `the mechanical check did not pass: ${rulesRun.summary}`}. Re-run with --accept-test-change once a person approves`);
+    }
     if (commitGuard.mode !== 'block') return;
     // Independent: re-run here or signed by a trusted key, with checks the rules chose.
     const independentPass = (f) => results.some((r) => r.files.includes(f) && r.passed && (r.evidence === 'rerun' || r.evidence === 'signed') && r.checks_from !== 'packet');
@@ -1564,7 +1592,9 @@ export function createPocp(opts = {}) {
     const toReview = missing.filter((f) => !unfinishedFor(f));
     if (!toReview.length || acceptTestChange) return;
     const failed = results.find((r) => r.verdict && r.verdict !== 'passed' && r.summary);
-    const why = failed
+    const why = rulesRun?.checks_from === 'packet' && !results.some((r) => r !== rulesRun && r.passed)
+      ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)'
+      : failed
       ? `the mechanical check did not pass: ${failed.summary}`
       : results.some((r) => r.passed && r.checks_from === 'packet')
         ? 'the mechanical check ran checks the packet chose, not ones a rule requires (add a requirement covering these tests)'
@@ -1797,7 +1827,7 @@ export function createPocp(opts = {}) {
       // With a net change, a test change is judged once, on the whole pull request (old tests
       // from the merge base, new code from the tip): that check alone decides, so running it
       // again on each commit only multiplied the cost (the slowest part of verify).
-      results.push(await verify(c, { ...options, uncoveredExceptions, policyFrom, rerun: false, guardRerun: synth ? false : (options.rerun || false), testGuardOnNet: Boolean(synth), checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
+      results.push(await verify(c, { ...options, uncoveredExceptions, policyFrom, rerun: false, guardRerun: synth ? false : (options.rerun || false), testGuardOnNet: Boolean(synth), rulesGuardFallback: single, checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
     }
     const result = { range, ok: results.every((r) => r.ok), commits: results, reruns: [], findings: [] };
     for (const p of uncoveredExceptions?.problems || []) {
