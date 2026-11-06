@@ -30,7 +30,12 @@
       ],
       "obligation": {
         "kind": "test",
-        "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+        "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+        "changed_test_command": [
+          "node",
+          "--test",
+          "{tests}"
+        ]
       },
       "source": "author"
     },
@@ -44,7 +49,12 @@
       ],
       "obligation": {
         "kind": "test",
-        "run": "node --test test/engine.test.js"
+        "run": "node --test test/engine.test.js",
+        "changed_test_command": [
+          "node",
+          "--test",
+          "{tests}"
+        ]
       },
       "source": "author"
     },
@@ -58,7 +68,12 @@
       ],
       "obligation": {
         "kind": "test",
-        "run": "npm test --silent"
+        "run": "npm test --silent",
+        "changed_test_command": [
+          "node",
+          "--test",
+          "{tests}"
+        ]
       },
       "source": "author"
     },
