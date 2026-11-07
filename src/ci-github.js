@@ -41,6 +41,9 @@ export function requiredChecksPlan(root, config) {
     required_checks: [...new Set(ci.required_checks || [])],
     require_pull_request: ci.require_pull_request !== false,
     enforce_admins: ci.enforce_admins !== false,
+    // Branches must be up to date with the base before merging (GitHub's "strict"): otherwise
+    // what merges is the pull request combined with base commits nobody verified with it.
+    require_up_to_date: ci.require_up_to_date === true,
   };
 }
 
@@ -82,7 +85,7 @@ export function protectionPayload(existing, plan) {
   const payload = {
     // GitHub's schema requires `strict` and `contexts` (deprecated, but still required);
     // `checks` adds the app ids. Both name the same checks.
-    required_status_checks: { strict: Boolean(ex.required_status_checks?.strict), contexts: checks.map((c) => c.context), checks },
+    required_status_checks: { strict: Boolean(ex.required_status_checks?.strict) || Boolean(plan.require_up_to_date), contexts: checks.map((c) => c.context), checks },
     enforce_admins: enabled(ex.enforce_admins) || plan.enforce_admins,
     required_pull_request_reviews: reviews,
     restrictions: ex.restrictions ? actors(ex.restrictions) : null,
@@ -131,6 +134,7 @@ export function protectionGaps(existing, plan) {
   const gaps = plan.required_checks.filter((c) => !have.has(c)).map((c) => `check "${c}" is not required`);
   if (plan.require_pull_request && !existing.required_pull_request_reviews) gaps.push('changes can be pushed without a pull request');
   if (plan.enforce_admins && !existing.enforce_admins?.enabled) gaps.push('admins can merge past the required checks');
+  if (plan.require_up_to_date && !ex?.strict) gaps.push('pull requests can merge without being up to date with the base, so the merged code is not the code that was verified');
   return gaps;
 }
 

@@ -439,13 +439,14 @@ test('runner: env modes, expect-able output capture, log cap', async () => {
 // ---------------------------------------------------------------- cli args
 
 test('cli args: separators, booleans, missing values', () => {
-  assert.deepEqual(parseArgs(['a', '--', '--json', 'b']).positional, ['a', '--json', 'b']);
+  assert.deepEqual(parseArgs(['ci-run', '--', '--json', 'b']).positional, ['ci-run', '--json', 'b']);
   assert.equal(parseArgs(['--json=false']).flags.json, false);
   assert.equal(parseArgs(['--json=true']).flags.json, true);
-  assert.throws(() => parseArgs(['--intent']), /needs a value/);
-  const { obligations } = parseArgs(['--probe', 'curl x', '--target', 'u', '--input', 'a', '--input', 'b']);
+  assert.throws(() => parseArgs(['open', '--intent']), /needs a value/);
+  const { obligations } = parseArgs(['add', 'p-1', '--probe', 'curl x', '--target', 'u', '--input', 'a', '--input', 'b']);
   assert.deepEqual(obligations, [{ kind: 'probe', run: 'curl x', target: 'u', inputs: ['a', 'b'] }]);
-  assert.deepEqual(parseArgs(['--by=me', '--by', 'you']).flags.by, ['me', 'you']);
+  // An option that takes one value is refused when repeated, rather than turned into a list.
+  assert.throws(() => parseArgs(['open', '--by=me', '--by', 'you']), /--by is given more than once/);
 });
 
 test('interrupted runs remove their temporary snapshots', async () => {

@@ -395,10 +395,15 @@ export function hooksHealth(cwd) {
 export const GITHUB_WORKFLOWS = Object.freeze(['pocp.yml', 'pocp-status.yml', 'pocp-labels.yml']);
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** This POCP's release tag, e.g. "v1.0.0": what the workflows pin by default. */
+// The newest POCP release that has a tag on GitHub. A development or pre-release build (a
+// version like 1.1.0-dev.0, as on main between releases) has no tag of its own, so the
+// workflows it writes pin this instead of a ref that doesn't exist. Update it with each release.
+export const RELEASED_ACTION_REF = 'v1.0.0';
+
+/** The release tag the workflows pin by default: "v<version>" for a release, else RELEASED_ACTION_REF. */
 export function releaseRef() {
   const { version } = JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'package.json'), 'utf8'));
-  return `v${version}`;
+  return /^\d+\.\d+\.\d+$/.test(version) ? `v${version}` : RELEASED_ACTION_REF;
 }
 
 /**

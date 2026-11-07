@@ -1,6 +1,7 @@
 // The fast test guard (guard.mutants 0, what `pocp init` writes for new projects): no planted
-// bugs. A test edit passes on its own only when it adds lines to existing tests and none of
-// them is risky; everything else goes to a person. Deep mode (planted bugs) stays opt-in, and
+// bugs, so no test edit passes on its own; the review names what changed and flags risky added
+// lines. (Before 2026-11 an edit that only added non-risky lines passed; added lines can still
+// disable existing assertions, so that rule was dropped.) Deep mode (planted bugs) stays opt-in, and
 // projects set up before this keep it, since the built-in default is still 10.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -87,15 +88,17 @@ test('turning planted bugs off, explicitly or by dropping the key from 10, is a 
   assert.match(JSON.stringify(gate.json), /guard\.mutants lowered from 10/);
 });
 
-test('fast: an honest added test passes, without planted bugs', () => {
+test('fast: an honest added test still goes to a person (no planted bugs to show it is safe)', () => {
   const dir = fastRepo();
   write(dir, 'test/math.check.mjs', MATH_TEST.replace("console.log('math ok');", "if (add(0, 0) !== 0) { console.error('add zero'); process.exitCode = 1; }\nconsole.log('math ok');"));
   const { ob, guard } = guardOf(dir, ['test/math.check.mjs']);
   assert.equal(ob.mutants, 0);
-  assert.match(ob.text, /only adds lines/);
-  assert.equal(guard.verdict, 'passed', guard.summary);
+  assert.match(ob.text, /a person reviews the change/);
+  assert.equal(guard.old_tests.result, 'pass');
+  assert.equal(guard.verdict, 'needs-review', guard.summary);
   assert.equal(guard.detection.result, 'off');
-  assert.deepEqual(guard.structural, { result: 'passed', reasons: [] });
+  assert.deepEqual(guard.structural.reasons, [{ file: 'test/math.check.mjs', why: 'lines were added to an existing test' }]);
+  assert.match(guard.summary, /deep mode/);
 });
 
 const NEEDS_REVIEW = [
@@ -159,20 +162,21 @@ for (const [name, change, why] of NEEDS_REVIEW) {
   });
 }
 
-test('structuralReview only passes added, non-risky lines in existing test files', () => {
+test('structuralReview never passes a change: every guarded change gets a reason', () => {
   const dir = fastRepo();
   write(dir, 'test/math.check.mjs', `${MATH_TEST}// a comment\n`);
   git(dir, 'add', '-A');
-  assert.deepEqual(structuralReview(dir, { base: 'HEAD', changes: [{ status: 'M', path: 'test/math.check.mjs', kind: 'test' }] }), []);
+  assert.deepEqual(structuralReview(dir, { base: 'HEAD', changes: [{ status: 'M', path: 'test/math.check.mjs', kind: 'test' }] }), [{ file: 'test/math.check.mjs', why: 'lines were added to an existing test' }]);
+  assert.match(structuralReview(dir, { base: 'HEAD', changes: [{ status: 'A', path: 'test/new.check.mjs', kind: 'test' }] })[0].why, /a test file was added/);
   assert.match(structuralReview(dir, { base: 'HEAD', changes: [{ status: 'M', path: 'jest.config.js', kind: 'runner-config' }] })[0].why, /test setup/);
   assert.match(structuralReview(dir, { base: 'HEAD', changes: [{ status: 'M', path: 'package.json', kind: 'package-json' }] })[0].why, /test settings/);
 });
 
-test('a known limit: patching through an alias is not recognized (documented, not claimed)', () => {
+test('patching through an alias is not flagged as risky, but still goes to a person', () => {
   const dir = fastRepo();
   write(dir, 'test/math.check.mjs', `import assert from 'node:assert';\nconst a = assert;\na.equal = () => {};\n${MATH_TEST}`);
   git(dir, 'add', '-A');
-  // structuralReview sees only added lines; `a.equal = ...` doesn't match its patterns. The
-  // threat model lists this; the test pins it so a future fix changes this on purpose.
-  assert.deepEqual(structuralReview(dir, { base: 'HEAD', changes: [{ status: 'M', path: 'test/math.check.mjs', kind: 'test' }] }), []);
+  // The risky-pattern hint misses `a.equal = ...`; since no edit passes on its own, the miss
+  // only means the reviewer gets no pointer to that line.
+  assert.deepEqual(structuralReview(dir, { base: 'HEAD', changes: [{ status: 'M', path: 'test/math.check.mjs', kind: 'test' }] }), [{ file: 'test/math.check.mjs', why: 'lines were added to an existing test' }]);
 });

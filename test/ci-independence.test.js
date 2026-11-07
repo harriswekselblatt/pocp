@@ -151,9 +151,12 @@ test('forged CI result: the trusting ci-run mode accepts it, as documented', () 
   // the test process, this test should flip.
   const { dir, base } = attackRepo('forgeCiResult');
   assert.equal(pocp(dir, ['ci-run', '--results', 'ci.jsonl', '--', A], { env: CI_ENV }).code, 0);
+  // The forged results are still trusted: the re-runs are skipped on their word. The run is
+  // now held anyway, because the attack adds a test file and new test files are guarded.
   const v = pocp(dir, ['verify', `${base}..HEAD`, '--require-coverage', '--rerun', '--ci-results', 'ci.jsonl'], { env: CI_ENV });
-  assert.equal(v.code, 0, v.stdout + v.stderr);
   assert.match(v.stdout, /skipped: passing CI result/);
+  assert.notEqual(v.code, 0, v.stdout + v.stderr);
+  assert.match(v.stdout + v.stderr, /test_change/);
 });
 
 test('every CI recipe users copy re-runs the checks and trusts no results file', () => {

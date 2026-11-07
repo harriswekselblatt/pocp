@@ -18,78 +18,19 @@ import { formatFix, runFix } from './fix.js';
 import { formatDoctor, runDoctor } from './doctor.js';
 import { githubClient, reportStatus, STATUS_CONTEXT } from './status-report.js';
 import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatApprovals, listApprovals, VERIFY_EXIT } from './approvals.js';
+import { COMMANDS, commandHelp, parseArgs, UsageError } from './cli-args.js';
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
-const BOOLEAN_FLAGS = new Set(['dry-run', 'github', 'offline', 'apply', 'check', 'accept-test-change', 'accept-policy-change', 'accept-inconclusive', 'accept-uncovered', 'exit-detail', 'rerun-unsigned', 'missed', 'json', 'hooks', 'force', 'prove', 'draft', 'rerun', 'require-coverage', 'quiet', 'all', 'no-stage', 'help', 'no-host', 'deep']);
-const APPROVAL_FLAGS = new Set(['accept-test-change', 'accept-policy-change', 'accept-uncovered', 'accept-inconclusive']);
-const OBLIGATION_FLAGS = new Set(['test', 'command', 'probe', 'manual']);
-const OBLIGATION_MODIFIERS = new Set(['expect', 'timeout', 'input', 'target', 'cwd']);
-
-class UsageError extends Error {}
-
-export function parseArgs(argv) {
-  const positional = [];
-  const flags = {};
-  const obligations = [];
-  const push = (k, v) => {
-    if (flags[k] === undefined) flags[k] = v;
-    else flags[k] = [].concat(flags[k], v);
-  };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === '--') {
-      positional.push(...argv.slice(i + 1));
-      break;
-    }
-    if (!a.startsWith('--')) {
-      positional.push(a);
-      continue;
-    }
-    let key = a.slice(2);
-    let val;
-    const eq = key.indexOf('=');
-    if (eq !== -1) {
-      val = key.slice(eq + 1);
-      key = key.slice(0, eq);
-    }
-    // An approval this version doesn't know must not be dropped silently: the caller would
-    // believe something was approved (or waived) when nothing was.
-    if (key.startsWith('accept-') && !BOOLEAN_FLAGS.has(key)) {
-      throw new UsageError(`unknown approval --${key}: this pocp supports ${[...APPROVAL_FLAGS].map((f) => `--${f}`).join(', ')}`);
-    }
-    if (BOOLEAN_FLAGS.has(key)) {
-      // An approval may name the commit it was given for: --accept-test-change=<sha>.
-      if (APPROVAL_FLAGS.has(key) && val !== undefined && val !== 'true' && val !== 'false') push(key, val);
-      else push(key, val === undefined ? true : val !== 'false');
-      continue;
-    }
-    if (val === undefined) {
-      if (i + 1 >= argv.length) throw new UsageError(`--${key} needs a value`);
-      val = argv[++i];
-    }
-    if (OBLIGATION_FLAGS.has(key)) {
-      obligations.push(key === 'manual' ? { kind: 'manual', text: val } : { kind: key, run: val });
-    } else if (OBLIGATION_MODIFIERS.has(key)) {
-      const last = obligations[obligations.length - 1];
-      if (!last) throw new UsageError(`--${key} must follow --test, --command, --probe or --manual`);
-      if (key === 'expect') last.expect = val;
-      else if (key === 'timeout') last.timeout_ms = Number(val);
-      else if (key === 'input') last.inputs = [...(last.inputs || []), val];
-      else if (key === 'target') last.target = val;
-      else if (key === 'cwd') last.cwd = val;
-    } else {
-      push(key, val);
-    }
-  }
-  return { positional, flags, obligations };
-}
+export { parseArgs };
 
 const list = (v) => (v === undefined ? [] : [].concat(v));
 
 const HELP = `pocp ${VERSION}: Proof of Change Protocol
 
 Usage: pocp <command> [options]   (every command accepts --json)
+       pocp help <command>         one command's options (or: pocp <command> --help)
+       pocp --version              print the version (also -v, -V, pocp version)
 
 Setup
   init [--hooks] [--github] [--force] create .proof/; --hooks installs git hooks; --github writes the
@@ -336,20 +277,40 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     parsed = parseArgs(argv);
   } catch (err) {
-    errWrite(`pocp: ${err.message}\n`);
+    if (!(err instanceof UsageError)) throw err;
+    // --json asks for machine-readable errors too, even when the command line itself is wrong.
+    const before = argv.includes('--') ? argv.slice(0, argv.indexOf('--')) : argv;
+    if (err.json || before.includes('--json') || before.includes('--json=true')) out(true, { ok: false, error: err.message });
+    else errWrite(`pocp: ${err.message}\n`);
     return EXIT.usage;
   }
   const { positional, flags, obligations } = parsed;
   const json = Boolean(flags.json);
   const [cmd, ...rest] = positional;
 
+  // Help and version need no repository: they run before anything looks for one.
+  if (flags.version || cmd === 'version') {
+    out(json, { version: VERSION }, `pocp ${VERSION}`);
+    return EXIT.ok;
+  }
+  if (cmd === 'help' && rest[0] && rest[0] !== 'help') {
+    if (!COMMANDS[rest[0]]) {
+      const message = `unknown command "${rest[0]}" (try "pocp help")`;
+      if (json) out(true, { ok: false, error: message });
+      else errWrite(`pocp: ${message}\n`);
+      return EXIT.usage;
+    }
+    process.stdout.write(commandHelp(rest[0], VERSION));
+    return EXIT.ok;
+  }
+  if (flags.help && cmd && cmd !== 'help') {
+    process.stdout.write(commandHelp(cmd, VERSION));
+    return EXIT.ok;
+  }
   if (!cmd || cmd === 'help' || flags.help) {
     process.stdout.write(HELP);
+    // No command at all is a usage error (exit 2); asking for help is not.
     return cmd || flags.help ? EXIT.ok : EXIT.usage;
-  }
-  if (cmd === 'version' || cmd === '--version') {
-    out(json, { version: VERSION }, VERSION);
-    return EXIT.ok;
   }
 
   // verify judges the repository it runs in, never one GIT_DIR or GIT_WORK_TREE points to.
@@ -366,7 +327,7 @@ export async function main(argv = process.argv.slice(2)) {
           r.created.length ? `created ${r.created.join(', ')}` : '.proof/ already set up',
           ...(r.config_created ? [flags.deep
             ? 'test guard: deep (guard.mutants 10): test edits are also checked with 10 planted bugs; slower'
-            : 'test guard: fast (guard.mutants 0): a test edit passes on its own only if it adds lines to existing tests; anything else goes to a person. "pocp init --deep" or guard.mutants 10 adds planted bugs'] : []),
+            : 'test guard: fast (guard.mutants 0): every test edit, new test files included, goes to a person. "pocp init --deep" or guard.mutants 10 adds planted bugs, which can pass a test edit without one'] : []),
           // The layout on a first init, or when it needs something done; quiet otherwise.
           ...(r.config_created || r.layout.extra.length || r.layout.uncovered.length ? formatLayout(r.layout, { written: r.layout_written }) : []),
           hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : Object.values(hooksHealth(process.cwd()).hooks).some((v) => v === 'ok') ? 'hooks: already installed' : 'hooks not installed (run "pocp hooks install")',
@@ -695,11 +656,11 @@ export async function main(argv = process.argv.slice(2)) {
         const rerunLines = (reruns) => reruns.map((x) => `  rerun ${x.status.padEnd(8)} ${x.run}${x.duration_ms !== undefined ? ` (${x.duration_ms}ms)` : ''}${x.kind === 'guard' && x.summary ? `: ${x.summary}` : ''}`);
         const nextSteps = (rows2) => {
           const seen = new Map();
-          for (const c of rows2) for (const f of (c.findings || []).filter((x) => x.blocking)) if (!seen.has(f.code)) seen.set(f.code, { code: f.code, ...verifyRemedy(f.code, f.detail) });
+          for (const c of rows2) for (const f of (c.findings || []).filter((x) => x.blocking)) if (!seen.has(f.code)) seen.set(f.code, { code: f.code, ...verifyRemedy(f.code, f.detail, f) });
           // A re-run that ran and failed outranks one that only timed out, for what to do next.
           const reruns = (result?.rerun_failures || []).filter((x) => x.blocking !== false);
           const worst = reruns.find((x) => !x.unfinished) || reruns[0];
-          if (worst && !seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed', worst.detail || worst.problem) });
+          if (worst && !seen.has('rerun_failed')) seen.set('rerun_failed', { code: 'rerun_failed', ...verifyRemedy('rerun_failed', worst.detail || worst.problem, worst) });
           const list2 = [...seen.values()];
           if (!list2.length) return [];
           const out2 = ['  what to do:', ...list2.map((x) => `    ${x.code}: ${x.why ? `${x.why} ` : ''}next: ${x.next}${x.by === 'person' ? '   (needs a person)' : ''}`)];

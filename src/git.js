@@ -63,7 +63,12 @@ export function hardenedArgs(args) {
   const pre = ['-c', 'core.fsmonitor=false'];
   if (!KEEPS_HOOKS_PATH.has(sub)) pre.push('-c', `core.hooksPath=${os.devNull}`);
   if (isolation) for (const d of isolation.safeDirs) pre.push('-c', `safe.directory=${d}`);
-  const rest = DIFFS.has(sub) ? [sub, '--no-ext-diff', '--no-textconv', ...args.slice(1)] : args;
+  // Diff output must not depend on the repository's own settings: .gitattributes `-diff` or a
+  // NUL byte would print "Binary files differ" (hiding every changed line), `ignore = all` in
+  // .gitmodules would hide a submodule bump, and diff.noprefix would move the paths in headers.
+  if (DIFFS.has(sub)) pre.push('-c', 'diff.noprefix=false', '-c', 'diff.mnemonicPrefix=false', '-c', 'diff.ignoreSubmodules=none');
+  const diffOnly = sub === 'diff' ? ['--text', '--ignore-submodules=none'] : [];
+  const rest = DIFFS.has(sub) ? [sub, '--no-ext-diff', '--no-textconv', ...diffOnly, ...args.slice(1)] : args;
   return [...pre, ...rest];
 }
 
@@ -339,6 +344,11 @@ export function trustObjects() {
 function describeChange(before, after) {
   const changed = after.filter(([f, h], i) => before[i][1] !== h).map(([f]) => path.relative(isolation.root, f) || f);
   return changed.length ? `${changed.join(', ')} changed` : null;
+}
+
+/** For the rare git call made outside exec(): fail if verify's isolation saw tampering. */
+export function checkIntact() {
+  if (isolation) assertIntact();
 }
 
 function assertIntact() {
@@ -675,22 +685,21 @@ export function checkoutRevTo(cwd, rev, prefixDir, indexFile) {
  */
 export function changedLines(cwd, from, to, paths) {
   if (!paths.length) return new Map();
-  const args = to ? ['diff', '-U0', '--no-color', '--no-ext-diff', from, to, '--', ...paths] : ['diff', '--cached', '-U0', '--no-color', '--no-ext-diff', from, '--', ...paths];
-  const out = git(cwd, args, { allowFail: true, trim: false }) || '';
+  // One diff per path, so the file is known without parsing (and unquoting) the `+++` header,
+  // which spaces, tabs, quotes and non-ASCII names would otherwise break.
   const map = new Map();
-  let file = null;
-  for (const line of out.split('\n')) {
-    if (line.startsWith('+++ ')) {
-      file = line === '+++ /dev/null' ? null : line.slice(6);
-      if (file && !map.has(file)) map.set(file, new Set());
-      continue;
-    }
-    const m = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
-    if (m && file) {
+  for (const p of new Set(paths)) {
+    const args = to ? ['diff', '-U0', '--no-color', from, to, '--', p] : ['diff', '--cached', '-U0', '--no-color', from, '--', p];
+    const out = git(cwd, args, { allowFail: true, trim: false }) || '';
+    const lines = new Set();
+    for (const line of out.split('\n')) {
+      const m = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
+      if (!m) continue;
       const start = Number(m[1]);
       const count = m[2] === undefined ? 1 : Number(m[2]);
-      for (let i = 0; i < count; i++) map.get(file).add(start + i);
+      for (let i = 0; i < count; i++) lines.add(start + i);
     }
+    if (lines.size || /^\+\+\+ (?!\/dev\/null$)/m.test(out)) map.set(p, lines);
   }
   return map;
 }

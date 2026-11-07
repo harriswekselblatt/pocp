@@ -71,10 +71,11 @@ function runVerify({ exit = 0, helpFlags = ['--exit-detail', '--accept-inconclus
   return res;
 }
 
-test('the verify step records verify\'s exit code and itself always passes', () => {
+test('the verify step exits with verify\'s exit code and records it (continue-on-error lets the result steps run)', () => {
+  assert.equal(stepKey(read('.github/workflows/pocp.yml'), 'verify', 'continue-on-error'), 'true');
   for (const exit of [0, 1, 2, 3, 4, 5]) {
     const r = runVerify({ exit });
-    assert.equal(r.code, 0, r.out);
+    assert.equal(r.code, exit, r.out);
     assert.equal(r.output, `code=${exit}\n`);
     assert.ok(r.args.includes('--exit-detail'));
   }
@@ -83,6 +84,7 @@ test('the verify step records verify\'s exit code and itself always passes', () 
 test('the verify step passes --exit-detail and --accept-inconclusive only to a verifier that has them', () => {
   const old = runVerify({ helpFlags: [] });
   assert.equal(old.code, 0, old.out);
+  assert.equal(runVerify({ helpFlags: [], exit: 1 }).code, 1, 'an old verifier\'s failure fails the step');
   assert.ok(!old.args.includes('--exit-detail'));
   const withApproval = runVerify({ env: { APPROVE_INCONCLUSIVE: 'abc123' } });
   assert.ok(withApproval.args.includes('--accept-inconclusive=abc123'));
@@ -92,17 +94,26 @@ test('the verify step passes --exit-detail and --accept-inconclusive only to a v
   assert.match(unsupported.out, /pocp-approve-inconclusive is set, but the base branch's verifier does not support --accept-inconclusive/);
 });
 
-test('exactly one of waiting / inconclusive / failed runs for each code, and a missing code is a failure', () => {
+test('exactly one of verified / waiting / inconclusive / failed runs, and only the step\'s own success is green', () => {
   const wf = read('.github/workflows/pocp.yml');
-  // Evaluate each step's `if` the way Actions would for steps.verify.outputs.code.
-  const runs = (code) => ['waiting', 'inconclusive', 'failed'].filter((name) => {
-    const expr = stepIf(wf, name).replace(/steps\.verify\.outputs\.code/g, JSON.stringify(code)).replace(/==/g, '===').replace(/!=/g, '!==');
+  // Evaluate each step's `if` the way Actions would for the verify step's outcome and code.
+  const runs = (outcome, code) => ['verified', 'waiting', 'inconclusive', 'failed'].filter((name) => {
+    const expr = stepIf(wf, name)
+      .replace(/steps\.verify\.outputs\.code/g, JSON.stringify(code))
+      .replace(/steps\.verify\.outcome/g, JSON.stringify(outcome))
+      .replace(/==/g, '===').replace(/!=/g, '!==');
     return Function(`return (${expr});`)();
   });
-  assert.deepEqual(runs('0'), []);
-  assert.deepEqual(runs('4'), ['waiting']);
-  assert.deepEqual(runs('5'), ['inconclusive']);
-  for (const code of ['1', '2', '3', '', '137']) assert.deepEqual(runs(code), ['failed'], `code ${JSON.stringify(code)}`);
+  assert.deepEqual(runs('success', '0'), ['verified']);
+  assert.deepEqual(runs('failure', '4'), ['waiting']);
+  assert.deepEqual(runs('failure', '5'), ['inconclusive']);
+  for (const code of ['1', '2', '3', '', '137']) assert.deepEqual(runs('failure', code), ['failed'], `code ${JSON.stringify(code)}`);
+  // A forged code (the checks could append to the output file) never makes a failed step green
+  // and never leaves no result step at all: at worst a failure reads as a wait.
+  for (const code of ['0', '', 'x', '0\n', '1']) assert.deepEqual(runs('failure', code), ['failed'], `forged ${JSON.stringify(code)}`);
+  for (const outcome of ['success', 'failure']) {
+    for (const code of ['0', '1', '4', '5', '', 'x']) assert.equal(runs(outcome, code).length, 1, `${outcome} ${JSON.stringify(code)}`);
+  }
   assert.equal(stepKey(wf, 'failed', 'run'), 'exit 1');
   // Waiting and inconclusive fail the job until POCP_STATUS_LIVE is on (verify is still required).
   assert.match(wf, /WAIT_EXIT: \$\{\{ vars\.POCP_STATUS_LIVE == 'true' && '0' \|\| '1' \}\}/);

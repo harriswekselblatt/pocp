@@ -29,7 +29,9 @@ export function globToRegExp(glob) {
     }
   }
   if (glob.endsWith('/')) re += '.*';
-  const compiled = new RegExp(`^${re}$`);
+  // `s`: a path may contain a newline, and `**` must still cross it (without the flag `.`
+  // stops there, so such a file would escape every `**` rule).
+  const compiled = new RegExp(`^${re}$`, 's');
   cache.set(glob, compiled);
   return compiled;
 }

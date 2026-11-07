@@ -74,13 +74,16 @@ const weaken = (dir) => {
 };
 
 test('an added test case, no packet: verified as one commit and as two, the test check running once from the rules', () => {
+  // Fast mode: an added test case goes to a person, the same way as one commit or two.
   const { one, two } = both(addCase);
-  assert.equal(one.ok, true, JSON.stringify(one.codes));
+  assert.deepEqual(one.codes, ['test_change']);
   assert.equal(one.guards.length, 1, 'one check, not two');
   assert.match(one.guards[0].run, /^test guard \(rules,/);
-  assert.equal(one.guards[0].verdict, 'passed');
+  assert.equal(one.guards[0].verdict, 'needs-review');
   assert.equal(two.guards.length, 1);
   assert.match(two.guards[0].run, /^test guard \(net change/);
+  const approved = both(addCase, { extra: ['--accept-test-change'] });
+  assert.equal(approved.one.ok, true, JSON.stringify(approved.one.codes));
 });
 
 test('a weakened test on broken code, no packet: a behavior change either way, and the approval accepts it either way', () => {
@@ -103,8 +106,8 @@ test('test edits with no rule covering the tests go to a person either way, with
 
 test('coverage still applies: no packet is uncovered either way, and the test check still runs', () => {
   const { one } = both(addCase, { extra: ['--require-coverage'] });
-  assert.deepEqual(one.codes, ['uncovered']);
-  assert.equal(one.guards[0].verdict, 'passed');
+  assert.ok(one.codes.includes('uncovered'), JSON.stringify(one.codes));
+  assert.equal(one.guards[0].verdict, 'needs-review');
 });
 
 test('a commit linked to a malformed packet still blocks, either way, and the test check still runs from the rules', () => {
@@ -118,9 +121,9 @@ test('a commit linked to a malformed packet still blocks, either way, and the te
   };
   const { one, two } = both(addCase, { hooks: true, after: corrupt });
   assert.equal(one.ok, false);
-  assert.ok(one.codes.length && !one.codes.includes('test_change'), `the bad packet blocks; the test edit itself passes: ${JSON.stringify(one.codes)}`);
-  assert.equal(one.guards.at(-1).verdict, 'passed');
-  assert.equal(two.guards.at(-1).verdict, 'passed');
+  assert.ok(one.codes.some((c) => c !== 'test_change'), `the bad packet blocks on its own: ${JSON.stringify(one.codes)}`);
+  assert.equal(one.guards.at(-1).verdict, 'needs-review');
+  assert.equal(two.guards.at(-1).verdict, 'needs-review');
 });
 
 test('attest mode, no packet: a test check that does not pass needs the approval either way', () => {
@@ -130,7 +133,7 @@ test('attest mode, no packet: a test check that does not pass needs the approval
 
 test('a commit with a valid packet keeps its own path: no extra rules check, same verdict as two commits', () => {
   const { one } = both(addCase, { hooks: true });
-  assert.equal(one.ok, true, JSON.stringify(one.codes));
+  assert.deepEqual(one.codes, ['test_change'], 'fast mode: the test edit waits for a person');
   assert.equal(one.guards.length, 1, JSON.stringify(one.guards.map((x) => x.run)));
   assert.doesNotMatch(one.guards[0].run, /\(rules,/, "the packet's guard, not the fallback");
 });

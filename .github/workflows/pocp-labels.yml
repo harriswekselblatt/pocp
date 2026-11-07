@@ -14,16 +14,18 @@ permissions:
 jobs:
   drop-approvals:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Remove approval labels
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, '\n') }}
+          # A JSON array, read with jq: a label's name is data, never shell or printf escapes.
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           for label in pocp-approve-tests pocp-approve-policy pocp-approve-coverage pocp-approve-inconclusive pocp-approve-workflow; do
-            if printf '%b\n' "$LABELS" | grep -qx "$label"; then
+            if jq -e --arg l "$label" 'any(.[]; . == $l)' <<<"$LABELS" >/dev/null; then
               gh api -X DELETE "repos/$REPO/issues/$PR/labels/$label" --silent
               echo "removed $label: approve again after reviewing the new commits"
             fi
