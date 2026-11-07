@@ -1,0 +1,353 @@
+{
+  "pocp": 1,
+  "id": "p-bf5c883a",
+  "intent": "Tests: stage the submodule bump directly (newer git's add skips ignore=all submodules); E1b eval now expects new test files to be guarded",
+  "touches": [
+    "eval/e1/test/e1b-e2.test.js",
+    "test/security-bypasses.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o5",
+      "kind": "guard",
+      "files": [
+        "eval/e1/test/e1b-e2.test.js",
+        "test/security-bypasses.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/e1/test/e1b-e2.test.js, test/security-bypasses.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae",
+  "policy_repo": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae",
+  "opened_at": "2026-11-07T16:01:20.902Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c",
+      "policy": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-07T16:01:21.445Z",
+      "duration_ms": 4228,
+      "stdout_sha256": "4e08a32f360ae6eb466510df56e2c8c665399f826e54a26ddae9590e9d974036",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-1a78fcbb",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c",
+      "policy": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-07T16:01:25.858Z",
+      "duration_ms": 118848,
+      "stdout_sha256": "7b4de1437e3c439fab5e5291e4114cad6d68035be99047d55982e0f1c46710da",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-72502cb9",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c",
+      "policy": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-07T16:03:24.798Z",
+      "duration_ms": 463060,
+      "stdout_sha256": "d63ef3aa83430a8ccc5192bb0ef2b7fff4bd6e0beabfa2761663ba7924a70b72",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-ff72ce85",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c",
+      "policy": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-07T16:11:07.967Z",
+      "duration_ms": 58499,
+      "stdout_sha256": "97c5cf5a18c025d15cee8f59a636e5bf22c9565170c7e23d30071f5665e58e28",
+      "stderr_sha256": "5ad572c01b7f1cc0ee497859c3c92bd1d3895b233ffcd012f1f4645d5339e226",
+      "run_id": "r-5cba1650",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o5",
+      "obligation_digest": "sha256:747957af2248df49333285d31a6b74eaa8718987792ac922549cee2d7c5a9990",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c",
+      "policy": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-07T16:12:06.658Z",
+      "duration_ms": 512439,
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "baseline-red",
+        "passed": false,
+        "summary": "the old tests already fail at the base (\"./eval/run-tests.sh\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it. The same tests fail on both sides (E1b: a weakened new test file is outside the guard; POCP accepts it (the expected miss))",
+        "base": "26b44f5530f3e261f88a567e071d7003bd97f1ad",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          },
+          {
+            "id": "eval-tests",
+            "run": "./eval/run-tests.sh"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "eval/e1/test/e1b-e2.test.js",
+            "test/security-bypasses.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2795
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 80045
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 321380
+            },
+            {
+              "check": "eval-tests",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 41476,
+              "failed_tests": [
+                "E1b: a weakened new test file is outside the guard; POCP accepts it (the expected miss)"
+              ]
+            }
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "check eval-tests has no changed_test_command"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "fail",
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 62379,
+              "failed_tests": [
+                "E1b: a weakened new test file is outside the guard; POCP accepts it (the expected miss)"
+              ]
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "adjudication": {
+          "automatic": false,
+          "reason": "baseline-red",
+          "failing_on_new_code": [
+            "E1b: a weakened new test file is outside the guard; POCP accepts it (the expected miss)"
+          ],
+          "failing_at_base": [
+            "E1b: a weakened new test file is outside the guard; POCP accepts it (the expected miss)"
+          ],
+          "same_tests": true
+        },
+        "duration_ms": 512439,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-07T16:01:20.902Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-07T16:01:20.902Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4",
+        "o5"
+      ],
+      "policy": "sha256:61caf05e32990201ed5207ac3873f6d4e3b513299513eb47680b12727d2ea1ae"
+    },
+    {
+      "at": "2026-11-07T16:20:39.617Z",
+      "event": "proof_failed",
+      "obligation": "o5",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c"
+    },
+    {
+      "at": "2026-11-07T16:20:40.235Z",
+      "event": "deferred",
+      "obligation": "o5",
+      "by": "harriswekselblatt",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o5",
+      "obligation_digest": "sha256:747957af2248df49333285d31a6b74eaa8718987792ac922549cee2d7c5a9990",
+      "subject": "sha256:bac990a32b423a82d32a8cde05410da86cacf13a90dc09b8be16f5abc5623a2c",
+      "by": "harriswekselblatt",
+      "at": "2026-11-07T16:20:40.235Z",
+      "to": "ci-approval",
+      "reason": "the old tests already fail at the base (\"./eval/run-tests.sh\" exit 1), so the guard can't tell whether this change altered behavior: a person must approve it. The same tests fail on both sides (E1b: a weakened new test file is outside the guard; POCP accepts it (the expected miss))"
+    }
+  ]
+}

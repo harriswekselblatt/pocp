@@ -91,8 +91,11 @@ test('a submodule bump stays visible when .gitmodules says ignore = all', () => 
   git(dir, 'commit', '-qm', 'add submodule');
   write(sub, 'x.txt', '2\n');
   git(sub, 'commit', '-qam', 'two');
-  git(`${dir}/lib`, 'pull', '-q');
-  git(dir, 'add', 'lib');
+  // Stage the new gitlink directly: newer git's `add` skips a submodule marked ignore = all,
+  // but a commit can still carry the bump (update-index, another client), and POCP must see it.
+  const bumped = git(sub, 'rev-parse', 'HEAD');
+  git(dir, 'update-index', '--cacheinfo', `160000,${bumped},lib`);
+  assert.match(git(dir, 'diff', '--cached', '--ignore-submodules=none', '--name-only'), /^lib$/m, 'precondition: the bump is staged');
   assert.ok(g.stagedChanges(dir).some((c) => c.path === 'lib'), 'the staged gitlink is a change');
 });
 
