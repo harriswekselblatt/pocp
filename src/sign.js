@@ -56,8 +56,12 @@ export function signProof(proof, { key, principal }) {
 /**
  * Check a proof's signature against allowed_signers text.
  * Returns "valid", "invalid", or "unsigned" (also "untrusted" when no allowed signers exist).
+ * "unavailable" when ssh-keygen couldn't give an answer (missing, killed, timed out, or an
+ * error that isn't a verdict): nothing is known, so it is never valid, and it isn't evidence
+ * that the record was edited either.
+ * `spawn` is for tests.
  */
-export function verifyProofSignature(proof, allowedSigners) {
+export function verifyProofSignature(proof, allowedSigners, { spawn = spawnSync } = {}) {
   const s = proof.signature;
   if (!s?.sig || !s?.principal) return 'unsigned';
   if (!allowedSigners || !allowedSigners.trim()) return 'untrusted';
@@ -67,15 +71,26 @@ export function verifyProofSignature(proof, allowedSigners) {
     const sig = path.join(dir, 'proof.sig');
     fs.writeFileSync(allowed, allowedSigners);
     fs.writeFileSync(sig, s.sig);
-    const r = spawnSync('ssh-keygen', ['-Y', 'verify', '-f', allowed, '-I', s.principal, '-n', NAMESPACE, '-s', sig], {
+    const r = spawn('ssh-keygen', ['-Y', 'verify', '-f', allowed, '-I', s.principal, '-n', NAMESPACE, '-s', sig], {
       input: signedPayload(proof),
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 15_000,
     });
-    return r.status === 0 ? 'valid' : 'invalid';
+    return signatureState(r);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * Read an `ssh-keygen -Y verify` result. Exit 0 is valid; any other exit status is its verdict
+ * that the signature doesn't verify or its signer isn't allowed (OpenSSH exits 255 for all of
+ * these): invalid. No exit status (it didn't start, was killed or timed out) is no verdict at
+ * all: unavailable.
+ */
+export function signatureState(r) {
+  if (!r || r.error || r.signal || !Number.isInteger(r.status)) return 'unavailable';
+  return r.status === 0 ? 'valid' : 'invalid';
 }
 
 export function sshKeygenAvailable() {

@@ -2,6 +2,7 @@ import { randomId } from './hash.js';
 import { matchGlob } from './glob.js';
 import { isGuard, isRunnable, normalizeObligation, obligationDigest, ValidationError } from './obligations.js';
 import { policyDigest } from './rules.js';
+import { runOutcome } from './run-result.js';
 
 export const ACTIVE_STATES = Object.freeze(new Set(['draft', 'open', 'failed', 'proven']));
 // landed, merged and expired are derived from git and the clock on read; abandoned is written.
@@ -146,6 +147,7 @@ export function evaluatePacket(packet, { subject, required = [] }) {
   const missing_required = required.filter((r) => !have.has(r.digest)).map((r) => ({ id: r.id, source: r.source, obligation: r.obligation }));
   const unproven = [];
   const failed = [];
+  const unfinished = [];
   const unattested = [];
   const proven = [];
   const guard = [];
@@ -164,8 +166,14 @@ export function evaluatePacket(packet, { subject, required = [] }) {
     } else if (isRunnable(ob)) {
       const p = currentProof(packet, ob, subject);
       if (!p) unproven.push(ob.id);
-      else if (!p.passed) failed.push(ob.id);
-      else proven.push(ob.id);
+      else if (!p.passed) {
+        // `failed` keeps every proof that didn't pass (so `ok`, the packet state and exit codes
+        // are unchanged); `unfinished` names the ones among them that never finished (timed
+        // out, killed, didn't start), which say nothing about the code and are reported as
+        // "re-run", not "fix the code".
+        failed.push(ob.id);
+        if (runOutcome(p) === 'unfinished') unfinished.push(ob.id);
+      } else proven.push(ob.id);
     } else if (!currentAttestation(packet, ob, subject)) {
       unattested.push(ob.id);
     }
@@ -180,6 +188,7 @@ export function evaluatePacket(packet, { subject, required = [] }) {
     missing_required,
     unproven,
     failed,
+    unfinished,
     unattested,
     counts: { runnable, manual, proven: proven.length, attested: manual - unattested.filter((id) => !guard.some((x) => x.id === id)).length },
     guard,

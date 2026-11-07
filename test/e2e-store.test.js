@@ -16,13 +16,14 @@ test('breaking a stale lock never removes a live one that replaced it', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pocp-lock-'));
   const lock = path.join(dir, 'pocp.lock');
   fs.writeFileSync(lock, String(DEAD));
-  assert.equal(breakStaleLock(lock, DEAD), true);
+  // breakStaleLock takes the lock content it read, not just a pid.
+  assert.equal(breakStaleLock(lock, String(DEAD)), true);
   assert.equal(fs.existsSync(lock), false, 'the dead holder\'s lock is gone');
   // Race: we read the dead pid, but meanwhile a live process (us, here) took the lock.
   fs.writeFileSync(lock, String(process.pid));
-  assert.equal(breakStaleLock(lock, DEAD), false);
-  assert.equal(fs.readFileSync(lock, 'utf8'), String(process.pid), 'the live lock is put back');
-  assert.deepEqual(fs.readdirSync(dir), ['pocp.lock'], 'no tombstones left behind');
+  assert.equal(breakStaleLock(lock, String(DEAD)), false);
+  assert.equal(fs.readFileSync(lock, 'utf8'), String(process.pid), 'the live lock is untouched');
+  assert.deepEqual(fs.readdirSync(dir), ['pocp.lock'], 'no break lock or temporary files left behind');
   fs.rmSync(lock);
   fs.writeFileSync(lock, String(DEAD));
   assert.equal(withLock(lock, () => 'ran'), 'ran', 'a stale lock does not block');

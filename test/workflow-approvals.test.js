@@ -100,7 +100,7 @@ test('every push and reopen removes every approval label, and nothing else', () 
   fs.writeFileSync(path.join(dir, 'bin', 'gh'), `#!/bin/sh\necho "$@" >> "${path.join(dir, 'calls')}"\n`, { mode: 0o755 });
   const r = spawnSync('bash', ['-e', '-c', runBlock(wf, 'gh api')], {
     encoding: 'utf8',
-    env: { PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`, REPO: 'o/r', PR: '7', GH_TOKEN: 'x', LABELS: [...LABELS, 'bug'].join('\\n') },
+    env: { PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`, REPO: 'o/r', PR: '7', GH_TOKEN: 'x', LABELS: JSON.stringify([...LABELS, 'bug', 'odd \\c label']) },
   });
   assert.equal(r.status, 0, r.stderr);
   const calls = fs.readFileSync(path.join(dir, 'calls'), 'utf8').trim().split('\n');

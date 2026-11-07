@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PROOF_DIR } from './git.js';
@@ -136,84 +137,147 @@ function pidAlive(pid) {
   }
 }
 
-function tryAcquire(lockFile) {
+// A lock whose owner can't be read (empty, garbage: written by an older pocp between creating
+// the file and writing its pid, or left by a crash in that moment) is treated as held, unless
+// it is older than this. Conservative: no pocp writes its pid more than an instant after
+// creating the file, and stealing a live lock is far worse than waiting.
+export const UNKNOWN_OWNER_STALE_MS = 60_000;
+
+/**
+ * A lock file holds "<pid> <token>": the owner's pid, and a random token for this one
+ * acquisition (a pid alone can be reused). Older versions wrote the pid only.
+ */
+function lockOwner(text) {
+  const m = /^(\d+)(?: ([0-9a-f]+))?$/.exec(String(text ?? '').trim());
+  if (!m) return null;
+  const pid = Number(m[1]);
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : null;
+}
+
+/** Is the file at `file` older than `ms`? */
+function olderThan(file, ms) {
   try {
-    const fd = fs.openSync(lockFile, 'wx');
-    fs.writeSync(fd, String(process.pid));
-    fs.closeSync(fd);
-    return true;
-  } catch (err) {
-    if (err.code !== 'EEXIST') throw err;
-    // Break the lock if the process that holds it is gone.
-    let holder = null;
-    try {
-      holder = Number(fs.readFileSync(lockFile, 'utf8').trim());
-    } catch { /* vanished */ }
-    if (holder !== null && !pidAlive(holder)) breakStaleLock(lockFile, holder);
+    return Date.now() - fs.statSync(file).mtimeMs > ms;
+  } catch {
     return false;
   }
 }
 
-/**
- * Remove a lock left by `deadPid`. Between reading the holder and removing the file, another
- * process may have broken it and taken a fresh lock, so the file is moved aside atomically and
- * checked: if it now belongs to a live process, it is put back.
- */
-export function breakStaleLock(lockFile, deadPid) {
-  const tomb = `${lockFile}.stale-${process.pid}-${Date.now()}`;
+/** Create `file` holding `content`, only if it doesn't exist: never visible empty. */
+function publishExclusive(file, content) {
+  const tmp = `${file}.new-${process.pid}-${randomBytes(6).toString('hex')}`;
+  fs.writeFileSync(tmp, content, { flag: 'wx' });
   try {
-    fs.renameSync(lockFile, tomb);
-  } catch {
-    return false; // someone else got there first
+    fs.linkSync(tmp, file);
+    return true;
+  } catch (err) {
+    if (err.code !== 'EEXIST') throw err;
+    return false;
+  } finally {
+    fs.rmSync(tmp, { force: true });
   }
-  let moved = null;
-  try {
-    moved = Number(fs.readFileSync(tomb, 'utf8').trim());
-  } catch { /* unreadable */ }
-  let restored = false;
-  if (moved !== deadPid && pidAlive(moved)) {
-    try {
-      fs.linkSync(tomb, lockFile); // fails if the slot was taken meanwhile
-      restored = true;
-    } catch { /* taken */ }
-  }
-  fs.rmSync(tomb, { force: true });
-  return !restored;
 }
 
-function release(lockFile) {
+/** A lock's content is abandoned: its owner is gone, or none can be read and the file is old. */
+function abandoned(lockFile, text, unknownOwnerStaleMs) {
+  const holder = lockOwner(text);
+  return holder === null ? olderThan(lockFile, unknownOwnerStaleMs) : !pidAlive(holder);
+}
+
+/**
+ * Take the lock if it is free; returns this acquisition's content (for release), or null. The
+ * lock file appears with its owner already in it (publishExclusive), so no other process can
+ * see an empty lock of ours and take it for a dead one.
+ */
+function tryAcquire(lockFile, { unknownOwnerStaleMs = UNKNOWN_OWNER_STALE_MS } = {}) {
+  const mine = `${process.pid} ${randomBytes(8).toString('hex')}`;
+  if (publishExclusive(lockFile, mine)) return mine;
+  let text;
   try {
-    if (Number(fs.readFileSync(lockFile, 'utf8').trim()) === process.pid) fs.rmSync(lockFile, { force: true });
+    text = fs.readFileSync(lockFile, 'utf8');
+  } catch {
+    return null; // vanished: try again
+  }
+  if (abandoned(lockFile, text, unknownOwnerStaleMs)) breakStaleLock(lockFile, text, { unknownOwnerStaleMs });
+  return null;
+}
+
+/**
+ * Remove an abandoned lock whose content was `observed`. Removing it must never free the slot
+ * while someone holds it, so breaking is serialized on a second lock (`<lock>.break`, held for
+ * a few system calls): inside it, the lock is removed only if it still has exactly the content
+ * seen and is still abandoned. Nobody else can replace an abandoned lock meanwhile: taking the
+ * slot needs it free, freeing it needs the break lock, and its owner is gone. The lock file is
+ * never moved aside, so there is no moment when a live owner's lock is missing.
+ *
+ * A break lock left by a crash in those few calls is not reclaimed automatically (which would
+ * reopen the race this prevents): withLock's error names it, for removal once no pocp runs.
+ * `hooks.inside` runs while the break lock is held (tests use it as a barrier).
+ */
+export function breakStaleLock(lockFile, observed, { unknownOwnerStaleMs = UNKNOWN_OWNER_STALE_MS, hooks = {} } = {}) {
+  const breaker = `${lockFile}.break`;
+  const mine = `${process.pid} ${randomBytes(8).toString('hex')}`;
+  if (!publishExclusive(breaker, mine)) return false; // someone else is breaking it
+  try {
+    let text;
+    try {
+      text = fs.readFileSync(lockFile, 'utf8');
+    } catch {
+      return false; // already gone
+    }
+    if (text !== observed || !abandoned(lockFile, text, unknownOwnerStaleMs)) return false;
+    hooks.inside?.();
+    fs.rmSync(lockFile, { force: true });
+    return true;
+  } finally {
+    try {
+      if (fs.readFileSync(breaker, 'utf8') === mine) fs.rmSync(breaker, { force: true });
+    } catch { /* gone */ }
+  }
+}
+
+/** Release only this acquisition's lock (its token), never a lock someone else now holds. */
+function release(lockFile, mine) {
+  try {
+    if (fs.readFileSync(lockFile, 'utf8') === mine) fs.rmSync(lockFile, { force: true });
   } catch { /* already gone */ }
 }
 
+function heldError(lockFile) {
+  const breaker = `${lockFile}.break`;
+  const stuck = fs.existsSync(breaker) && olderThan(breaker, 60_000);
+  return new StoreError(`another pocp process holds ${lockFile}${stuck ? ` (and ${breaker} was left by a crash: remove it once no pocp process is running)` : ''}`);
+}
+
 /** Run `fn` while holding an exclusive lock file (sync). Locks held by dead processes are broken. */
-export function withLock(lockFile, fn, { waitMs = 10_000 } = {}) {
+export function withLock(lockFile, fn, { waitMs = 10_000, unknownOwnerStaleMs } = {}) {
   fs.mkdirSync(path.dirname(lockFile), { recursive: true });
   const deadline = Date.now() + waitMs;
-  while (!tryAcquire(lockFile)) {
-    if (Date.now() > deadline) throw new StoreError(`another pocp process holds ${lockFile}`);
+  let mine;
+  while (!(mine = tryAcquire(lockFile, { unknownOwnerStaleMs }))) {
+    if (Date.now() > deadline) throw heldError(lockFile);
     Atomics.wait(SLEEP, 0, 0, 25);
   }
   try {
     return fn();
   } finally {
-    release(lockFile);
+    release(lockFile, mine);
   }
 }
 
 /** Async version for long operations such as proving. */
-export async function withLockAsync(lockFile, fn, { waitMs = 15 * 60_000 } = {}) {
+export async function withLockAsync(lockFile, fn, { waitMs = 15 * 60_000, unknownOwnerStaleMs } = {}) {
   fs.mkdirSync(path.dirname(lockFile), { recursive: true });
   const deadline = Date.now() + waitMs;
-  while (!tryAcquire(lockFile)) {
-    if (Date.now() > deadline) throw new StoreError(`another pocp process holds ${lockFile}`);
+  let mine;
+  while (!(mine = tryAcquire(lockFile, { unknownOwnerStaleMs }))) {
+    if (Date.now() > deadline) throw heldError(lockFile);
     await new Promise((r) => setTimeout(r, 100));
   }
   try {
     return await fn();
   } finally {
-    release(lockFile);
+    release(lockFile, mine);
   }
 }
 
@@ -324,6 +388,7 @@ export function validateConfig(config) {
   if (ci.branch !== null && typeof ci.branch !== 'string') problems.push('ci.branch must be a branch name or null');
   if (!isStrArray(ci.required_checks)) problems.push('ci.required_checks must be an array of check names');
   for (const k of ['require_pull_request', 'enforce_admins']) if (typeof ci[k] !== 'boolean') problems.push(`ci.${k} must be true or false`);
+  if (ci.require_up_to_date !== undefined && typeof ci.require_up_to_date !== 'boolean') problems.push('ci.require_up_to_date must be true or false');
   if (!['independent', 'any-writer'].includes(ci.workflow_approver)) problems.push('ci.workflow_approver must be "independent" or "any-writer"');
   const globLists = { 'guard.test_globs': guard.test_globs, 'guard.runner_globs': guard.runner_globs, 'guard.extra_test_globs': guard.extra_test_globs, 'guard.extra_runner_globs': guard.extra_runner_globs, 'ci.files': ci.files, 'eval.exclude': c.eval?.exclude };
   for (const [k, list] of Object.entries(globLists)) {
@@ -353,6 +418,7 @@ export function configWeakening(base, head) {
   }
   if (base.ci?.require_pull_request === true && head.ci?.require_pull_request !== true) out.push('ci.require_pull_request turned off');
   if (base.ci?.enforce_admins === true && head.ci?.enforce_admins !== true) out.push('ci.enforce_admins turned off');
+  if (base.ci?.require_up_to_date === true && head.ci?.require_up_to_date !== true) out.push('ci.require_up_to_date turned off');
   if ((base.ci?.workflow_approver ?? 'independent') === 'independent' && (head.ci?.workflow_approver ?? 'independent') !== 'independent') out.push('ci.workflow_approver no longer requires an approver other than the author');
   if (base.ci?.branch && head.ci?.branch !== base.ci.branch) out.push(`ci.branch changed from "${base.ci.branch}"`);
   // What the test guard watches: replacing or trimming its globs can hide a gutted test.

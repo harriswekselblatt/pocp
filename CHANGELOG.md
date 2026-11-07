@@ -1,0 +1,54 @@
+# Changelog
+
+## Unreleased (1.1.0)
+
+Security and reliability fixes from an audit on 2026-11-07. Upgrade from 1.0.0: some changes
+that verified before are now held for review, on purpose.
+
+### Security
+
+- **Fast mode no longer passes any test edit on its own.** Every change to tests or test setup,
+  including added lines and new test files, goes to a person. Text rules couldn't show that an
+  edit still tests what it did. Deep mode (`guard.mutants` above 0) is the automatic path.
+- **New test files are guarded.** They run with the old tests and can change their outcome; deep
+  mode now requires the suite with them to still catch every sampled bug.
+- **Repository settings can't hide changes from POCP's diffs** (attributes that mark files as
+  binary, submodule ignore settings, diff prefix settings).
+- **`verify` refuses shallow clones** and ranges whose sides share no history, instead of
+  guessing a base.
+- **The `pocp` status needs complete data and a run tied to this pull request and base.** An
+  incomplete file list, another open pull request on the same head, a newer unfinished run, or a
+  moved head or base keeps it pending.
+- **Green comes only from verify's exit status.** In `pocp.yml` the verify step's output now only
+  chooses between waiting, inconclusive and failed. Update your `pocp.yml` (`pocp init --github
+  --force`): the reporter needs its `pocp-run` and `verified` steps, and keeps a run from an older
+  workflow pending. This closes one channel, not the whole gap: the pull request's checks still
+  run as the same user as the verifier (docs/THREAT-MODEL.md).
+- **Approval labels count only when a writer applied them**, last, after the head's first run.
+- **The reporter never leaves or revives a stale green.** A newer run that doesn't say which pull
+  request it checked holds the status; a base, label or shared-head change seen right before
+  writing writes pending over any older green; retargeting re-runs verify.
+- `ci.require_up_to_date` asks for GitHub's "up to date before merging", so the merged code is
+  the code that was verified; `pocp ci required --check` reports it when missing.
+- `**` globs match paths containing a newline.
+- Checks no longer inherit git's repository variables (`GIT_DIR`, `GIT_INDEX_FILE`, …) from hooks.
+- Workflows pin actions by commit SHA, set job timeouts, and drop checkout credentials.
+
+### Fixed
+
+- Committing the files `pocp init` creates no longer fails as a policy loosening.
+- `pocp --version`, `-v`, `-h`, `pocp help <command>`; unknown options are reported instead of
+  taking the next argument as their value.
+- A check that exits in time is never recorded as timed out, and a leftover background process
+  can't hold a run open.
+- A check that didn't finish (timeout, signal, can't start) is reported as unfinished, not as
+  "fails on this code"; unfinished test-guard results are not cached.
+- A missing or failing `ssh-keygen` is reported as unavailable, not as an edited record.
+- The store lock can no longer be taken by two processes at once, including while an abandoned
+  lock is being broken; each acquisition has its own token.
+
+### Packaging
+
+- Version `1.1.0-dev.0` on `main`; `init --github` pins the last released Action until 1.1.0 ships.
+- `package.json` has repository, bugs and homepage; a tag-triggered release workflow publishes
+  with npm provenance.

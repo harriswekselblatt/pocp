@@ -64,9 +64,9 @@ test('help and version', () => {
   assert.match(h.stdout, /Exit codes: 0 ok, 1 blocked/);
   assert.equal(pocp(dir, []).code, 2, 'no command is a usage error');
   assert.equal(pocp(dir, ['--help']).code, 0);
-  // Semantic versioning, pre-releases included (1.0.0-rc.1).
-  assert.match(pocp(dir, ['version']).stdout, /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?\n$/);
-  assert.equal(pocp(dir, ['version', '--json']).json.version, pocp(dir, ['version']).stdout.trim());
+  // "pocp <version>", semantic versioning, pre-releases included (1.0.0-rc.1).
+  assert.match(pocp(dir, ['version']).stdout, /^pocp \d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?\n$/);
+  assert.equal(`pocp ${pocp(dir, ['version', '--json']).json.version}`, pocp(dir, ['version']).stdout.trim());
 });
 
 test('a full session in plain text', () => {

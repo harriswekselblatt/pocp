@@ -5,7 +5,7 @@ branding:
   color: green
 inputs:
   range:
-    description: Commit range to verify. Defaults to the pull request's base..head.
+    description: "Commit range to verify. Defaults to the pull request's base..head. Required on any event that isn't a pull request (for a push, for example: the event's before..after shas)."
     required: false
     default: ''
   rerun:
@@ -33,7 +33,7 @@ inputs:
     required: false
     default: 'false'
   exit-detail:
-    description: "'true' to report verify's result as the `code` output and let the step pass, so the workflow decides what's red: 0 verified, 4 only an approval is missing, 5 something didn't finish, anything else a failure. Use with the waiting / inconclusive / failed steps in examples/github/pocp.yml. 'false' (the default): the step fails on anything but verified, as before."
+    description: "'true' to also report verify's result as the `code` output: 0 verified, 4 only an approval is missing, 5 something didn't finish, anything else a failure. The step still fails on anything but verified, so give it `continue-on-error: true` and use the verified / waiting / inconclusive / failed steps in examples/github/pocp.yml. Only the step's outcome means verified: the checks verify runs share the job's user and disk and could write to the output file, so the code may only choose between waiting, inconclusive and failed. (Up to v1.0.0 the step passed with exit-detail; a workflow written for that still never turns a failure green, but shows a wait as a failure until it is updated.) 'false' (the default): no code output."
     required: false
     default: 'false'
   require-coverage:
@@ -41,12 +41,12 @@ inputs:
     required: false
     default: 'true'
   pocp-command:
-    description: "Command to run pocp with, instead of the copy bundled with this action (for example: node verifier/bin/pocp.js). The bundled copy is pinned by the ref you use the action at (uses: harriswekselblatt/pocp@<commit>)."
+    description: "Command to run pocp with, instead of the copy bundled with this action (for example: node verifier/bin/pocp.js). It is split into words on whitespace, without shell expansion (no quotes, globs or variables). The bundled copy is pinned by the ref you use the action at (uses: harriswekselblatt/pocp@<commit>)."
     required: false
     default: ''
 outputs:
   code:
-    description: "verify's exit code, with exit-detail: 0 verified, 4 waiting for approval, 5 inconclusive, anything else failed."
+    description: "verify's exit code, with exit-detail: 4 waiting for approval, 5 inconclusive, anything else failed. Not proof of verified: only the step's outcome is."
     value: ${{ steps.verify.outputs.code }}
 runs:
   using: composite
@@ -55,7 +55,10 @@ runs:
       id: verify
       shell: bash
       env:
-        RANGE: ${{ inputs.range != '' && inputs.range || format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) }}
+        RANGE_INPUT: ${{ inputs.range }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        EVENT_NAME: ${{ github.event_name }}
         RERUN: ${{ inputs.rerun }}
         CI_RESULTS: ${{ inputs.ci-results }}
         ACCEPT_POLICY: ${{ inputs.accept-policy-change }}
@@ -66,6 +69,12 @@ runs:
         COVERAGE: ${{ inputs.require-coverage }}
         POCP_CMD: ${{ inputs.pocp-command }}
       run: |
+        if [ -n "$RANGE_INPUT" ]; then RANGE=$RANGE_INPUT
+        elif [ -n "$PR_BASE" ] && [ -n "$PR_HEAD" ]; then RANGE="$PR_BASE..$PR_HEAD"
+        else
+          echo "::error title=POCP verify::no commit range: this ${EVENT_NAME:-} event isn't a pull request, so set the action's range input (for a push: the event's before..after shas)"
+          exit 2
+        fi
         args=(verify "$RANGE")
         [ "$RERUN" = "all" ] && args+=(--rerun)
         [ "$RERUN" = "unsigned" ] && args+=(--rerun-unsigned)
@@ -75,18 +84,23 @@ runs:
         [ -n "$ACCEPT_INCONCLUSIVE" ] && [ "$ACCEPT_INCONCLUSIVE" != "false" ] && args+=("--accept-inconclusive=$ACCEPT_INCONCLUSIVE")
         [ -n "$ACCEPT_UNCOVERED" ] && [ "$ACCEPT_UNCOVERED" != "false" ] && args+=("--accept-uncovered=$ACCEPT_UNCOVERED")
         [ "$COVERAGE" = "true" ] && args+=(--require-coverage)
+        # pocp-command is split into words, without globbing or any other shell expansion.
+        cmd=()
+        if [ -n "$POCP_CMD" ]; then read -r -a cmd <<< "$POCP_CMD"; fi
         run_verify() {
-          if [ -n "$POCP_CMD" ]; then $POCP_CMD "$@"
+          if [ "${#cmd[@]}" -gt 0 ]; then "${cmd[@]}" "$@"
           else node "$GITHUB_ACTION_PATH/bin/pocp.js" "$@"; fi
         }
         if [ "$EXIT_DETAIL" = "true" ]; then
-          # Record verify's exit code after it returns (the checks it runs don't get
-          # GITHUB_OUTPUT, so they can't set it) and pass: the workflow's own steps decide.
+          # The step's outcome is verify's own exit status: the one result the checks it runs
+          # can't write. The code output (which they could append to) only tells the workflow
+          # which kind of not-verified this was.
           set +e
           run_verify "${args[@]}" --exit-detail
           code=$?
           set -e
           echo "code=$code" >> "${GITHUB_OUTPUT:-/dev/null}"
+          exit "$code"
         else
           run_verify "${args[@]}"
         fi

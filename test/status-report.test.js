@@ -3,14 +3,18 @@
 // takes the newest run, re-checks approvals, and shows only generic text.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decideStatus, readRun, reportStatus, TEXT, workflowFiles } from '../src/status-report.js';
+import { decideStatus, readRun, reportStatus, runMarker, TEXT, workflowFiles } from '../src/status-report.js';
 
 const SHA = 'a'.repeat(40);
+const BASE = 'e'.repeat(40);
 const WF = { id: 11, path: '.github/workflows/pocp.yml' };
 
 const steps = (pattern) => [
   { name: 'Set up job', conclusion: 'success' },
+  { name: runMarker(7, BASE), conclusion: 'success' },
   { name: 'verify', conclusion: 'success' },
+  // `verified` runs only when verify exited 0: when no result step ran (unless a test says).
+  { name: 'verified', conclusion: pattern.verified || (['waiting', 'inconclusive', 'failed'].some((n) => pattern[n]) ? 'skipped' : 'success') },
   ...['waiting', 'inconclusive', 'failed'].map((n) => ({ name: n, conclusion: pattern[n] || 'skipped' })),
   ...['approval-tests', 'approval-policy', 'approval-inconclusive', 'approval-coverage'].map((n) => ({ name: n, conclusion: (pattern.approvals || []).includes(n) ? 'success' : 'skipped' })),
 ];
@@ -21,11 +25,18 @@ const run = (pattern = {}, over = {}) => ({
   status: 'completed', conclusion: 'success', created_at: `2026-11-04T10:00:${String(nextId % 60).padStart(2, '0')}Z`, run_attempt: 1,
   html_url: 'https://github.com/o/r/actions/runs/1', job: job(pattern), ...over,
 });
-const facts = (over = {}) => ({
-  event_sha: SHA, repository: 'o/r', workflow: WF, ci_globs: workflowFiles(null),
-  pr: { number: 7, state: 'open', head_sha: SHA, labels: [], author: 'author' },
-  files: [{ filename: 'src/a.js' }], runs: [run()], label_events: [], ...over,
-});
+const facts = (over = {}) => {
+  const f = {
+    event_sha: SHA, repository: 'o/r', workflow: WF, ci_globs: workflowFiles(null),
+    pr: { number: 7, state: 'open', head_sha: SHA, labels: [], author: 'author' },
+    files: [{ filename: 'src/a.js' }], runs: [run()], label_events: [], ...over,
+  };
+  // Complete data by default (test/status-report-integrity.test.js covers when it isn't).
+  return { base_sha: BASE, changed_files: f.files.length, head_prs: [7], incomplete: [], label_events_complete: true, ...f };
+};
+// What the API returns for the pull request and the open pull requests list.
+const apiPr = (sha = SHA) => ({ number: 7, state: 'open', head: { sha }, base: { sha: BASE }, changed_files: 1, labels: [] });
+const openPrs = [{ number: 7, state: 'open', head: { sha: SHA } }];
 
 test('a verified run on an unchanged workflow is green', () => {
   const d = decideStatus(facts());
@@ -84,7 +95,10 @@ const ciChanged = (pattern, { labels = ['pocp-approve-workflow'], actor = 'maint
   files: [{ filename: '.github/workflows/pocp.yml' }],
   runs: [run(pattern, { created_at: '2026-11-04T10:00:00Z' })],
   pr: { number: 7, state: 'open', head_sha: SHA, labels, author: 'author' },
-  label_events: [{ label: 'pocp-approve-workflow', actor, permission: 'write', created_at: '2026-11-04T11:00:00Z' }],
+  label_events: [
+    { label: 'pocp-approve-workflow', actor, permission: 'write', created_at: '2026-11-04T11:00:00Z' },
+    { label: 'pocp-approve-tests', actor: 'maintainer', permission: 'write', created_at: '2026-11-04T11:00:00Z' },
+  ],
   ...(approver ? { workflow_approver: approver } : {}),
 });
 
@@ -133,9 +147,10 @@ test('head moved or PR closed: nothing is written for the old head', () => {
 });
 
 test('approval gone: a verified run that relied on a label now removed is pending', () => {
-  const approved = run({ approvals: ['approval-tests'] });
-  assert.equal(decideStatus(facts({ runs: [approved], pr: { number: 7, state: 'open', head_sha: SHA, labels: ['pocp-approve-tests'] } })).state, 'success');
-  const d = decideStatus(facts({ runs: [approved], pr: { number: 7, state: 'open', head_sha: SHA, labels: [] } }));
+  const approved = run({ approvals: ['approval-tests'] }, { created_at: '2026-11-04T10:00:00Z' });
+  const byWriter = [{ label: 'pocp-approve-tests', actor: 'maintainer', permission: 'write', created_at: '2026-11-04T11:00:00Z' }];
+  assert.equal(decideStatus(facts({ runs: [approved], label_events: byWriter, pr: { number: 7, state: 'open', head_sha: SHA, labels: ['pocp-approve-tests'] } })).state, 'success');
+  const d = decideStatus(facts({ runs: [approved], label_events: byWriter, pr: { number: 7, state: 'open', head_sha: SHA, labels: [] } }));
   assert.equal(d.state, 'pending');
   assert.equal(d.description, TEXT.approvalGone);
 });
@@ -151,11 +166,16 @@ test('out of order: the newest run decides, whatever order they finished or arri
   assert.equal(decideStatus(facts({ runs: [a2, a1] })).state, 'success');
 });
 
-test('cancelled, skipped and in-progress runs never decide', () => {
+test('skipped runs never decide; a later cancelled or in-progress run holds an older success at pending', () => {
   const good = run({}, { created_at: '2026-11-04T10:00:00Z' });
-  for (const over of [{ conclusion: 'cancelled' }, { conclusion: 'skipped' }, { status: 'in_progress', conclusion: null }, { job: { conclusion: 'skipped', steps: [] } }]) {
+  for (const over of [{ conclusion: 'skipped' }, { job: { conclusion: 'skipped', steps: [] } }]) {
     const later = run({ failed: 'failure' }, { created_at: '2026-11-04T11:00:00Z', ...over });
     assert.equal(decideStatus(facts({ runs: [good, later] })).state, 'success', JSON.stringify(over));
+  }
+  // The newest evaluation isn't finished (or never will be): the older success isn't the latest word.
+  for (const over of [{ conclusion: 'cancelled' }, { status: 'in_progress', conclusion: null }]) {
+    const later = run({ failed: 'failure' }, { created_at: '2026-11-04T11:00:00Z', ...over });
+    assert.equal(decideStatus(facts({ runs: [good, later] })).state, 'pending', JSON.stringify(over));
   }
 });
 
@@ -166,8 +186,16 @@ test('readRun: incomplete data is unreadable (a wait); complete but unexpected d
   assert.equal(readRun({ ...job(), status: 'in_progress' }).outcome, 'unreadable');
   assert.equal(readRun({ ...job(), conclusion: null }).outcome, 'unreadable');
   assert.equal(readRun({ ...job(), steps: job().steps.map((st) => (st.name === 'failed' ? { ...st, conclusion: null } : st)) }).outcome, 'unreadable');
+  // A workflow without the `verified` step (older than this reporter): outdated, never green,
+  // whatever its other steps say.
+  const old = [{ name: 'verify', conclusion: 'success' }, { name: 'waiting', conclusion: 'skipped' }, { name: 'inconclusive', conclusion: 'skipped' }, { name: 'failed', conclusion: 'skipped' }];
+  assert.equal(readRun({ status: 'completed', conclusion: 'success', steps: old }).outcome, 'outdated');
+  // Each required step missing on its own: outdated.
+  for (const name of ['verify', 'verified', 'waiting', 'inconclusive', 'failed']) {
+    assert.equal(readRun({ status: 'completed', ...job(), steps: job().steps.filter((st) => st.name !== name) }).outcome, 'outdated', name);
+  }
   // Complete but unexpected: failure.
-  assert.equal(readRun({ conclusion: 'success', steps: [{ name: 'verify', conclusion: 'failure' }, { name: 'waiting', conclusion: 'skipped' }, { name: 'inconclusive', conclusion: 'skipped' }, { name: 'failed', conclusion: 'skipped' }] }).outcome, 'failed');
+  assert.equal(readRun(job({ verified: 'skipped' })).outcome, 'failed', 'verify failed and no result step ran');
   assert.equal(readRun(job({ waiting: 'success', inconclusive: 'success' })).outcome, 'failed', 'both waits at once');
   assert.equal(readRun({ ...job(), conclusion: 'failure' }).outcome, 'failed', 'job failed with no wait step');
 });
@@ -188,11 +216,11 @@ test('reportStatus re-checks the head right before writing', async () => {
       if (url.endsWith('/pulls/7')) {
         calls++;
         // The head moves between deciding and writing.
-        return { number: 7, state: 'open', head: { sha: calls === 1 ? SHA : 'd'.repeat(40) }, labels: [] };
+        return apiPr(calls === 1 ? SHA : 'd'.repeat(40));
       }
       throw new Error(`unexpected GET ${url}`);
     },
-    all: async (url) => (url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', ...job() }] : []),
+    all: async (url) => (url.includes('/pulls?state=open') ? openPrs : url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', ...job() }] : []),
     post: async (url, body) => posted.push({ url, body }),
   };
   const r = await reportStatus(gh, { repository: 'o/r', sha: SHA, prNumber: 7, baseConfig: null });
@@ -204,8 +232,8 @@ test('reportStatus re-checks the head right before writing', async () => {
 test('reportStatus writes one pocp status on the head', async () => {
   const posted = [];
   const gh = {
-    get: async (url) => (url.includes('/actions/workflows/') ? WF : { number: 7, state: 'open', head: { sha: SHA }, labels: [] }),
-    all: async (url) => (url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', ...job() }] : []),
+    get: async (url) => (url.includes('/actions/workflows/') ? WF : apiPr()),
+    all: async (url) => (url.includes('/pulls?state=open') ? openPrs : url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', ...job() }] : []),
     post: async (url, body) => posted.push({ url, body }),
   };
   const r = await reportStatus(gh, { repository: 'o/r', sha: SHA, prNumber: 7, baseConfig: null });
@@ -239,8 +267,9 @@ test('reportStatus fetches again while the steps are unreadable, then writes the
   let jobFetches = 0;
   const slept = [];
   const gh = {
-    get: async (url) => (url.includes('/actions/workflows/') ? WF : { number: 7, state: 'open', head: { sha: SHA }, labels: [] }),
+    get: async (url) => (url.includes('/actions/workflows/') ? WF : apiPr()),
     all: async (url) => {
+      if (url.includes('/pulls?state=open')) return openPrs;
       if (url.includes('/files')) return [{ filename: 'src/a.js' }];
       if (url.includes('/runs?')) return [{ ...run(), repository: { full_name: 'o/r' } }];
       if (url.includes('/jobs')) return [{ name: 'verify', ...(++jobFetches < 3 ? { conclusion: 'success', steps: [] } : job()) }];
@@ -258,8 +287,8 @@ test('reportStatus fetches again while the steps are unreadable, then writes the
 test('reportStatus settles on pending when the steps stay unreadable', async () => {
   const posted = [];
   const gh = {
-    get: async (url) => (url.includes('/actions/workflows/') ? WF : { number: 7, state: 'open', head: { sha: SHA }, labels: [] }),
-    all: async (url) => (url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', conclusion: 'success', steps: [] }] : []),
+    get: async (url) => (url.includes('/actions/workflows/') ? WF : apiPr()),
+    all: async (url) => (url.includes('/pulls?state=open') ? openPrs : url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', conclusion: 'success', steps: [] }] : []),
     post: async (url, body) => posted.push({ url, body }),
   };
   await reportStatus(gh, { repository: 'o/r', sha: SHA, prNumber: 7, baseConfig: null, sleep: async () => {}, waitMs: 1 });

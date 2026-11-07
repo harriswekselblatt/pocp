@@ -1,0 +1,12 @@
+# Keeps the commit-pinned actions in .github/workflows current: a weekly pull request updates
+# each pin and its version comment together. (examples/github is a template; its pins are
+# checked by test/workflows-hardening.test.js to match these.)
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

@@ -3,35 +3,57 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The full macOS matrix runs nightly (and on demand); pull requests and pushes get one macOS
+  # smoke cell. macOS runners are often queued for a long time, and the required checks are the
+  # Linux cells, whose names must stay "test (ubuntu-latest, <node>)" and "eval (ubuntu-latest)".
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
 permissions:
   contents: read
+# A new push to a pull request cancels its older runs. Every other run gets a group of its own,
+# so runs on main are never cancelled (a shared group would still drop a queued run).
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('test-pr-{0}', github.event.pull_request.number) || format('test-run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         node: [20, 22, 24]
+        include: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '[{"os":"macos-latest","node":20},{"os":"macos-latest","node":22},{"os":"macos-latest","node":24}]' || '[{"os":"macos-latest","node":22}]') }}
     runs-on: ${{ matrix.os }}
+    # The suite takes about 4 minutes on Linux and 9 on macOS.
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: ${{ matrix.node }}
+          package-manager-cache: false
       - run: node --version && git --version && ssh -V
       - run: npm test
   eval:
-    # The independent evaluation's own tests (eval/), on the platforms CI verifies on.
+    # The independent evaluation's own tests (eval/). macOS runs only in the nightly matrix.
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
+    # About 1 minute today.
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
+          package-manager-cache: false
       - run: node --version && python3 --version && git --version
       - run: ./eval/run-tests.sh
       - run: python3 eval/reference/canaries.py

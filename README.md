@@ -53,8 +53,8 @@ In CI, `pocp verify origin/main..HEAD --require-coverage --rerun` (the base bran
 
 Both modes first run the old versions of the edited tests on the new code. If they run to the end and fail, but pass on the base, behavior changed, and a person approves it. If they don't finish (a timeout, for example, under load), the result is inconclusive rather than a behavior change, and it still needs a re-run or a person.
 
-- **Fast** (`guard.mutants: 0`, what `pocp init` sets up). A test edit passes on its own only when it adds lines to existing test files, and none of the added lines matches a list of risky patterns: skipping or focusing tests, exiting, a bare early return, reassigning or patching an assertion object or a prototype, calling a common mocking or stubbing API (`jest.mock`, `vi.mock`, `mock.module`, `mock.method`, `sinon.stub`, `monkeypatch`, `patch(`), resetting the exit code or handling process exit, adding a test hook or fixture, assigning to `globalThis` or `global`, or an empty `catch`. The patterns are checked on each added line and on a file's added lines joined, so a call split over lines still matches; they are text patterns, not a parser. Everything else goes to a person: changed or removed test lines, deleted or renamed tests, test helpers, runner config, and the test settings in `package.json` and similar files. The fast mode doesn't judge what an edit means. It sends edits it can't classify to review, and an added line can still weaken a test in a way its patterns miss.
-- **Deep** (`guard.mutants: 10`, `pocp init --deep`). The fast mode's review is replaced by planted bugs: POCP plants a sample of small bugs (flipped comparisons, swapped operators, changed constants) and checks that the new tests catch every sampled bug the old tests caught. That can pass an edit the fast mode sends to a person, such as a rewritten assertion that still catches the same bugs, and it can catch some weakenings the fast mode's patterns miss. It samples: a weakening that matters only outside the sample passes, and only the bug types POCP can plant are tried. On POCP's own code, about 14% of StrykerJS's mutants are edits POCP's operators can make. It is much slower (below).
+- **Fast** (`guard.mutants: 0`, what `pocp init` sets up). No test edit passes on its own: every change to tests or test setup goes to a person, including added lines and new test files. Text rules can't tell whether an edit still tests what it did (added lines alone can disable existing assertions), so fast mode doesn't pretend to. Its review lists what changed and flags added lines that match common risky patterns (skipping or focusing tests, exiting, early returns, patched assertions, mocking APIs, exit-code resets, test hooks, globals, empty `catch`) so the reviewer knows where to look first.
+- **Deep** (`guard.mutants: 10`, `pocp init --deep`). The only mode where a test edit can pass without a person. POCP plants a sample of small bugs (flipped comparisons, swapped operators, changed constants) and checks that the new tests catch every sampled bug the old tests caught. New test files count too: they run with the old ones, so one that exits early or patches an assertion makes the suite miss bugs it caught. It samples: a weakening that matters only outside the sample passes, and only the bug types POCP can plant are tried. On POCP's own code, about 14% of StrykerJS's mutants are edits POCP's operators can make. It is much slower (below).
 
 A project set up before fast mode existed, with no `guard.mutants` in its config, keeps deep mode: the built-in default is still 10, and upgrading POCP never rewrites a config. To switch such a project to fast mode, set `"guard": { "mutants": 0 }` in `.proof/config.json` in a pull request of its own. Lowering `guard.mutants` is a policy change, so CI fails it until a maintainer approves it with the `pocp-approve-policy` label.
 
@@ -63,14 +63,15 @@ Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
 | Change | Plain CI | Fast mode | Deep mode |
 |---|---|---|---|
 | Deletes or weakens a failing assertion | passes | blocked if the old tests run to the end and fail on the new code; otherwise the edit goes to a person | blocked if the old tests run to the end and fail on the new code, or a sampled bug goes undetected |
-| Marks tests skipped or `.only` | passes | goes to a person (recognized forms) | blocked |
+| Marks tests skipped or `.only` | passes | goes to a person | blocked if a sampled bug goes undetected |
 | Hollows out the test script, runner config, or an assertion helper the tests import | passes | goes to a person, for helpers POCP finds by following imports | blocked, for helpers POCP finds by following imports |
+| Adds a test file, or lines to a test, that disable other tests | passes | goes to a person | blocked if a sampled bug goes undetected |
 | Removes or loosens the rule that requires a check | n/a | blocked: the base branch's rules apply | same |
 | Edits a packet so failing proofs read as passed | n/a | blocked: the checks are re-run | same |
 | Edits or removes POCP's CI workflow | passes | with `pocp` required: stays yellow until a maintainer approves the workflow change (`pocp-approve-workflow`); see the limit below | same |
 | Writes code that special-cases the test inputs | passes | not blocked | not blocked |
 
-"Goes to a person" means the change waits until a maintainer approves it with a label. With the `pocp` status that's a yellow wait, not a red ✗. Neither mode makes an agent's test edits safe without review: they decide which edits can pass without one.
+"Goes to a person" means the change waits until a maintainer approves it with a label. With the `pocp` status that's a yellow wait, not a red ✗. In fast mode every test edit is reviewed. In deep mode an edit passes without review only when the sampled bugs show no loss, which is evidence, not a proof that the tests are as strong as before.
 
 ## What it doesn't do
 
@@ -116,7 +117,7 @@ npx pocp verify origin/main..HEAD --require-coverage --rerun
 
 This needs the base branch fetched with its history. [`examples/`](examples/) has complete workflows for GitLab and plain shell.
 
-This repository uses POCP on itself: every pull request needs the `pocp` status, plus the test suite on Ubuntu with Node 20, 22 and 24 and the eval tests. The test suite also runs on macOS, which is temporarily not required while GitHub's macOS runners are unreliable.
+This repository uses POCP on itself: every pull request needs the `pocp` status, plus the test suite on Ubuntu with Node 20, 22 and 24 and the eval tests. The test suite also runs on macOS (one Node version on each pull request, all three nightly), which is not required while GitHub's macOS runners are unreliable.
 
 ## Results so far
 

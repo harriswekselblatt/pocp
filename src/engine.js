@@ -15,11 +15,12 @@ import { signProof, verifyProofSignature } from './sign.js';
 import { detectTestChanges, effectiveGuardGlobs, guardBudget, guardRequirement, isLegacyGuardObligation } from './guard.js';
 import { requirementCommands } from './test-setup.js';
 import { runGuardCheck } from './guard-check.js';
-import { ranAndFailed } from './run-result.js';
+import { ranAndFailed, runOutcome, unfinishedReason } from './run-result.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { gateRemedies, pendingApprovals } from './remedies.js';
 
-export const VERSION = '1.0.0';
+// One version source: package.json, read relative to this module so it is right wherever pocp is installed.
+export const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 export const STAGES = Object.freeze(['gate', 'commit', 'ci', 'review', 'production']);
 export const SEVERITIES = Object.freeze(['low', 'medium', 'high', 'critical']);
 export const POLICY_FILES = Object.freeze(['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers', '.proof/exceptions.json']);
@@ -219,14 +220,17 @@ export function createPocp(opts = {}) {
     if (!f) return null;
     try {
       const r = JSON.parse(fs.readFileSync(f, 'utf8'));
-      return r && typeof r.verdict === 'string' ? r : null;
+      // A result that didn't finish says nothing about the tests: never reused, including
+      // entries written before such results stopped being cached.
+      return r && typeof r.verdict === 'string' && !r.unfinished ? r : null;
     } catch {
       return null;
     }
   }
   function writeGuardCache(key, res) {
     const f = guardCacheFile(key);
-    if (!f) return;
+    // Under load a run times out; caching that would make it stick until the code changes.
+    if (!f || res?.unfinished) return;
     try {
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, JSON.stringify(res));
@@ -695,10 +699,11 @@ export function createPocp(opts = {}) {
     const guardRuns = new Map(); // guard digest + checks -> result (one check per prove)
 
     // The test guard's mechanical check. It is deterministic for a subject, so a recorded
-    // result (pass or fail) stands until the code changes or --force.
+    // result (pass or fail) stands until the code changes or --force. One that didn't finish
+    // (a timeout, a kill, a failed start) says nothing, so it is always run again.
     async function proveGuard(packet, ob, pr) {
       const existing = P.currentProof(packet, ob, subject);
-      if (existing && !force) {
+      if (existing && !force && !existing.guard?.unfinished) {
         pr.runs.push({ obligation: ob.id, skipped: `already checked for this subject (${existing.guard?.verdict || (existing.passed ? 'passed' : 'failed')})`, guard: existing.guard?.verdict });
         return;
       }
@@ -862,7 +867,7 @@ export function createPocp(opts = {}) {
           }
           P.recordProof(packet, proof, { now: nowFn(), keep: cfg.proofs_kept_per_obligation });
           emit('proof.recorded', { id: packet.id, obligation: ob.id, passed: res.passed, subject });
-          pr.runs.push({ obligation: ob.id, passed: res.passed, exit: res.exit, timed_out: res.timed_out, duration_ms: res.duration_ms, run_id: res.run_id });
+          pr.runs.push({ obligation: ob.id, passed: res.passed, exit: res.exit, timed_out: res.timed_out, ...(res.passed ? {} : { outcome: runOutcome(res) }), duration_ms: res.duration_ms, run_id: res.run_id });
         }
         const ev = await evaluate(packet, subject);
         P.applyEvaluation(packet, ev, { now: nowFn() });
@@ -910,13 +915,19 @@ export function createPocp(opts = {}) {
       config: cfg,
       hostName,
     });
-    const pc = policyChange(changes, rulesObj, readRulesAt('HEAD'));
+    // Adopting POCP (no policy at HEAD, or no HEAD yet) is not a policy change: there is no
+    // earlier policy to loosen, and no rule yet to say which check would prove the new one.
+    const basePolicy = g.hasHead(root) ? policyAt(g.resolveRev(root, 'HEAD')) : null;
+    const adopting = !basePolicy || basePolicy.unenrolled;
+    const pc = adopting ? null : policyChange(changes, rulesObj, readRulesAt('HEAD'));
+    if (adopting && changes.some((c) => POLICY_FILES.includes(c.path))) {
+      result.warnings.push({ code: 'adopting', detail: 'this commit adopts POCP (no earlier policy): the rules take effect for the commits after it' });
+    }
     if (pc) {
       trig.required_files = [...new Set([...trig.required_files, ...pc.files])].sort();
       trig.reasons.push(pc.reason);
       // What verify will call a loosening (base policy vs this one): CI needs a maintainer for it.
-      const basePolicy = g.hasHead(root) ? policyAt(g.resolveRev(root, 'HEAD')) : null;
-      const weakened = basePolicy ? [...policyWeakening(basePolicy.hasRules ? basePolicy.rules : null, rulesObj), ...configWeakening(basePolicy.config, cfg)] : [];
+      const weakened = [...policyWeakening(basePolicy.hasRules ? basePolicy.rules : null, rulesObj), ...configWeakening(basePolicy.config, cfg)];
       if (weakened.length) result.warnings.push({ code: 'awaiting_policy_approval', detail: `this loosens POCP policy (${weakened.slice(0, 3).join('; ')}${weakened.length > 3 ? '; …' : ''}); CI will ask a maintainer to approve it` });
     }
     const ciChanged = changedCiFiles(changes, cfg);
@@ -985,7 +996,12 @@ export function createPocp(opts = {}) {
       if (e.ev.ok && !e.fileOk) {
         result.problems.push({ code: 'packet_not_staged', detail: `stage ${store.packetRelPath(e.packet.id)} so its proofs ship with the commit`, packet: e.packet.id });
       } else if (e.ev.failed.length) {
-        result.problems.push({ code: 'failed_proof', detail: `packet ${e.packet.id} has failing checks: ${e.ev.failed.join(', ')}`, packet: e.packet.id });
+        // A check that didn't finish (timeout, signal, failed start) says nothing about the code:
+        // it blocks just the same, but as "re-run", never as "fails on this code".
+        const unfinished = e.ev.unfinished || [];
+        const ranAndFailedIds = e.ev.failed.filter((id) => !unfinished.includes(id));
+        if (ranAndFailedIds.length) result.problems.push({ code: 'failed_proof', detail: `packet ${e.packet.id} has failing checks: ${ranAndFailedIds.join(', ')}`, packet: e.packet.id });
+        if (unfinished.length) result.problems.push({ code: 'unfinished_proof', detail: `packet ${e.packet.id} has checks that didn't finish (timed out, killed or didn't start): ${unfinished.join(', ')}`, packet: e.packet.id });
       } else if (!e.ev.ok && !result.uncovered.some((f) => P.covers(e.packet, f))) {
         result.warnings.push({ code: 'open_packet', detail: `packet ${e.packet.id} also covers these files and isn't proven for this code`, packet: e.packet.id });
       }
@@ -1181,7 +1197,11 @@ export function createPocp(opts = {}) {
     const cfgObj = withDefaults(rawCfg && !rawCfg.__invalid ? rawCfg : {});
     if (rawRules && !rawRules.__invalid) for (const p of validateRules(rawRules)) problems.push(`rules at ${rev.slice(0, 12)}: ${p}`);
     if (rawCfg && !rawCfg.__invalid) for (const p of validateConfig(cfgObj)) problems.push(`config at ${rev.slice(0, 12)}: ${p}`);
-    return { rules: rulesObj, config: cfgObj, hasRules: Boolean(rawRules && !rawRules.__invalid), problems };
+    // Not yet enrolled: git itself lists no policy file at this commit. A read that failed is
+    // not this (ls-tree returns null on error, '' when the files are absent).
+    const unenrolled = rawRules === null && rawCfg === null
+      && g.git(root, ['ls-tree', '--name-only', rev, '--', ...POLICY_FILES], { allowFail: true }) === '';
+    return { rules: rulesObj, config: cfgObj, hasRules: Boolean(rawRules && !rawRules.__invalid), problems, unenrolled };
   }
 
   function readJsonAt(rev, rel) {
@@ -1203,7 +1223,11 @@ export function createPocp(opts = {}) {
   function policyInForce(commit, baseRev, { acceptPolicyChange = false, allowedSignersFile } = {}) {
     const headPolicy = policyAt(commit);
     const headRules = headPolicy.rules;
-    const basePolicy = baseRev ? policyAt(baseRev) : null;
+    // A base git shows with no policy at all is a repository adopting POCP: nothing to loosen,
+    // and the commit's own policy is the first one. (A base whose policy can't be read is not
+    // this: policyAt only reports `unenrolled` when git lists no policy file there.)
+    const atBase = baseRev ? policyAt(baseRev) : null;
+    const basePolicy = atBase && !atBase.unenrolled ? atBase : null;
     const baseRules = basePolicy?.hasRules ? basePolicy.rules : null;
     const policyProblems = [...headPolicy.problems, ...(basePolicy?.problems || [])];
     const weakened = [...policyWeakening(baseRules, headRules), ...(basePolicy ? configWeakening(basePolicy.config, headPolicy.config) : [])];
@@ -1221,7 +1245,7 @@ export function createPocp(opts = {}) {
     let rulesAt = headRules;
     let cfgAt = headPolicy.config;
     let allowedSigners = headSigners;
-    if (baseRev && !accepted) {
+    if (basePolicy && !accepted) {
       rulesAt = strictUnion(baseRules, headRules);
       cfgAt = strictConfig(basePolicy.config, headPolicy.config);
       allowedSigners = baseSigners;
@@ -1232,7 +1256,9 @@ export function createPocp(opts = {}) {
     // ci_unfinished a kind of ci_failed (a required CI check whose re-run didn't finish): each
     // blocks exactly when its parent does, so a config listing fail_on codes from before they
     // existed can't turn them into warnings.
-    const blocks = (code) => code === 'invalid_policy' || failOn.has({ test_inconclusive: 'test_change', ci_unfinished: 'ci_failed' }[code] || code);
+    // Likewise unfinished_proof (a recorded proof that didn't finish) blocks with failed_proof,
+    // and signature_unavailable (a signature ssh-keygen couldn't check) with invalid_signature.
+    const blocks = (code) => code === 'invalid_policy' || failOn.has({ test_inconclusive: 'test_change', ci_unfinished: 'ci_failed', unfinished_proof: 'failed_proof', signature_unavailable: 'invalid_signature' }[code] || code);
     return { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks };
   }
 
@@ -1393,16 +1419,25 @@ export function createPocp(opts = {}) {
       const ev = P.deferGuardApproval(packet, P.evaluatePacket(packet, { subject, required: [...(useHost ? req.merged : req.repoOnly), ...guardReqs] }), commitGuard.mode);
       for (const m of ev.missing_required) flag('missing_required', `required obligation missing: ${m.id}`);
       for (const id of ev.unproven) flag('unproven', `no proof for ${id} against this commit`);
-      for (const id of ev.failed) flag('failed_proof', `proof for ${id} failed`);
+      // A proof that didn't finish says nothing about the code: reported as such (it blocks
+      // exactly when failed_proof does), never as a failure of the code.
+      for (const id of ev.failed) {
+        if ((ev.unfinished || []).includes(id)) flag('unfinished_proof', `proof for ${id} didn't finish (timed out, killed or didn't start): re-run it`);
+        else flag('failed_proof', `proof for ${id} failed`);
+      }
       for (const id of ev.unattested) flag('unattested', `no attestation for ${id} against this commit`);
       if (t.proven && t.proven.done !== ev.counts.proven) flag('trailer_mismatch', `trailer says ${t.proven.done} proven, packet shows ${ev.counts.proven}`);
+      // `unavailable` is counted only when it happens, so the usual JSON shape doesn't change.
       const signatures = { valid: 0, invalid: 0, unsigned: 0, untrusted: 0 };
       for (const ob of packet.obligations.filter((o) => isRunnable(o) || isGuard(o))) {
         const proof = P.currentProof(packet, ob, subject);
         if (!proof) continue;
         const st = verifyProofSignature(proof, allowedSigners);
-        signatures[st]++;
+        signatures[st] = (signatures[st] || 0) + 1;
         if (st === 'invalid') flag('invalid_signature', `proof for ${ob.id} has an invalid signature (edited after signing, or signer not allowed)`);
+        // ssh-keygen missing, failing or timing out: nothing is known about the signature. Not
+        // valid, and not "edited" either.
+        if (st === 'unavailable') flag('signature_unavailable', `proof for ${ob.id} is signed, but the signature could not be checked here (ssh-keygen missing, failed or timed out)`);
         if (st === 'valid') sigOf.set(obligationDigest(ob), 'valid');
       }
       // What establishes each check, weakest to strongest: local (unsigned, not re-run),
@@ -1473,7 +1508,7 @@ export function createPocp(opts = {}) {
       for (const f of failures) {
         const entry = out.packets.find((x) => x.id === f.packet);
         const blocking = blocks('rerun_failed');
-        out.findings.push({ code: 'rerun_failed', detail: f.problem, blocking, packet: f.packet });
+        out.findings.push({ code: 'rerun_failed', detail: f.problem, blocking, packet: f.packet, unfinished: f.unfinished });
         if (entry) {
           if (blocking) {
             entry.ok = false;
@@ -1541,7 +1576,7 @@ export function createPocp(opts = {}) {
         if (!res.passed && job.proof?.passed && !job.attestation && entry) {
           const problem = `test guard re-run failed: ${res.summary}`;
           const blocking = blocks('rerun_failed');
-          out.findings.push({ code: 'rerun_failed', detail: problem, blocking, packet: entry.id });
+          out.findings.push({ code: 'rerun_failed', detail: problem, blocking, packet: entry.id, unfinished: Boolean(res.unfinished) });
           if (blocking) {
             entry.ok = false;
             entry.problems.push(problem);
@@ -1642,9 +1677,15 @@ export function createPocp(opts = {}) {
         co.cleanup();
       }
       if (r.passed) memo.record(subj, job.ob, r);
-      into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, duration_ms: r.duration_ms });
+      into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, ...(r.signal ? { signal: r.signal } : {}), ...(r.error ? { error: r.error } : {}), duration_ms: r.duration_ms });
       // unfinished: it timed out, was killed or didn't start, so it says nothing about the code.
-      if (!r.passed) for (const id of job.packets) failures.push({ packet: id, problem: `rerun of "${job.ob.run}" failed (exit ${r.exit}${r.timed_out ? ', timed out' : ''})`, unfinished: !ranAndFailed(r) });
+      if (!r.passed) {
+        const unfinished = runOutcome(r) === 'unfinished';
+        const problem = unfinished
+          ? `rerun of "${job.ob.run}" didn't finish (exit ${r.exit}, ${unfinishedReason(r)})`
+          : `rerun of "${job.ob.run}" failed (exit ${r.exit})`;
+        for (const id of job.packets) failures.push({ packet: id, problem, unfinished });
+      }
     }
     return failures;
   }
@@ -1683,7 +1724,7 @@ export function createPocp(opts = {}) {
       if (failedRuns.length) {
         // A re-run that timed out, was killed or didn't start says nothing about the code: it
         // waits for a re-run (ci_unfinished), it isn't a failure. One that ran and failed is.
-        if (failedRuns.every((r) => !ranAndFailed({ passed: false, exit: r.exit, timed_out: r.timed_out }))) {
+        if (failedRuns.every((r) => !ranAndFailed({ passed: false, exit: r.exit, timed_out: r.timed_out, signal: r.signal, error: r.error }))) {
           finding('ci_unfinished', `required CI check "${cmd}" didn't finish when re-run by this verify (${failedRuns.some((r) => r.timed_out) ? 'timed out' : 'no exit code'}): re-run verify`);
         } else finding('ci_failed', `required CI check "${cmd}" failed when re-run by this verify`);
         continue;
@@ -1809,7 +1850,10 @@ export function createPocp(opts = {}) {
     const policyBase = policyFrom ? g.resolveRev(root, policyFrom) : null;
     const pol = tip ? policyInForce(tip, policyBase, options) : null;
     const baseRev = isRange && rangeBase && tip ? g.resolveRev(root, rangeBase) : null;
-    const netBase = baseRev ? g.git(root, ['merge-base', baseRev, tip], { allowFail: true }) || baseRev : null;
+    const netBase = baseRev ? g.git(root, ['merge-base', baseRev, tip], { allowFail: true }) : null;
+    // No common history (an unrelated branch, missing objects): there is no pull request's net
+    // change to judge, so fail rather than compare against an arbitrary base.
+    if (baseRev && !netBase) throw new PocpError(`${rangeBase} and ${tipSpec || 'HEAD'} share no history here, so the net change can't be computed (fetch the full history of both)`, { code: 'no_merge_base' });
     // One plain commit on the base: its own check is the net change's check, so it isn't run twice.
     const single = merges.length === 0 && commits.length === 1 && tip === lastCommit && netBase
       && g.git(root, ['rev-parse', '--verify', '--quiet', `${lastCommit}^1`], { allowFail: true }) === netBase;
@@ -2183,6 +2227,11 @@ export function createPocp(opts = {}) {
   }
 
   function isolatedVerify(fn) {
+    // In a shallow clone a commit at the boundary looks like a root with no parent, so its own
+    // (possibly deleted) policy would be taken as the base's. Verify needs the whole history.
+    if (g.git(root, ['rev-parse', '--is-shallow-repository'], { allowFail: true }) === 'true') {
+      return Promise.reject(new PocpError('this is a shallow clone: verify needs the full history to read the base\'s rules (fetch with fetch-depth: 0 on GitHub Actions, GIT_DEPTH: 0 on GitLab, or run git fetch --unshallow)', { code: 'shallow_history' }));
+    }
     return g.withGitIsolation(root, fn).catch((err) => {
       throw err instanceof g.GitTamperError ? new PocpError(err.message, { code: 'git_tampered' }) : err;
     });

@@ -57,11 +57,13 @@ const RISKY_ADDED = [
 ];
 
 /**
- * The fast mode's check (guard.mutants 0), run after the old tests pass on the new code.
- * It lets a change through only when every guarded change is an existing test file that is
- * modified by adding lines, none of which match RISKY_ADDED. Anything else goes to a person:
- * changed or removed lines, deleted or renamed tests, helpers, runner config, test settings.
- * Returns the reasons a person must look, [] when none. `rev` null means the staged index.
+ * The fast mode's review (guard.mutants 0), run after the old tests pass on the new code.
+ * Without planted bugs POCP can't measure whether a test edit still catches what it caught,
+ * and no text rule can show it: added lines alone can disable existing assertions
+ * (`if (false) {` … `}`, an opened comment, a redefined test, a new file that exits first).
+ * So every guarded change goes to a person; the reasons say what changed, and RISKY_ADDED
+ * flags the added lines a reviewer should look at first. Never returns [] for a change.
+ * `rev` null means the staged index.
  */
 export function structuralReview(root, { base, rev = null, changes = [] }) {
   const reasons = [];
@@ -69,6 +71,10 @@ export function structuralReview(root, { base, rev = null, changes = [] }) {
     const file = c.status === 'R' ? `${c.oldPath} → ${c.path}` : c.path;
     if (c.kind !== 'test') {
       reasons.push({ file, why: c.kind === 'runner-config' ? 'test setup or a test helper changed' : 'test settings changed' });
+      continue;
+    }
+    if (c.status === 'A') {
+      reasons.push({ file, why: 'a test file was added (it runs with the others and can change their outcome)' });
       continue;
     }
     if (c.status === 'D') {
@@ -83,8 +89,14 @@ export function structuralReview(root, { base, rev = null, changes = [] }) {
       reasons.push({ file, why: `a test file changed (${c.status})` });
       continue;
     }
+    // --text (git.js) so a "binary" test file can't hide its lines; a failed diff is not an
+    // empty one.
     const args = rev ? ['diff', '-U0', base, rev, '--', c.path] : ['diff', '--cached', '-U0', base, '--', c.path];
-    const diff = g.git(root, args, { allowFail: true, trim: false }) || '';
+    const diff = g.git(root, args, { allowFail: true, trim: false });
+    if (diff === null || diff === undefined) {
+      reasons.push({ file, why: 'its diff could not be read' });
+      continue;
+    }
     const lines = diff.split('\n').filter((l) => !l.startsWith('---') && !l.startsWith('+++'));
     if (lines.some((l) => l.startsWith('-'))) {
       reasons.push({ file, why: 'existing test lines were changed or removed' });
@@ -95,7 +107,7 @@ export function structuralReview(root, { base, rev = null, changes = [] }) {
     const added = lines.filter((l) => l.startsWith('+')).map((l) => l.slice(1));
     const texts = [...added, added.map((l) => l.trim()).join(' ').replace(/\s*\.\s*/g, '.')];
     const hits = [...new Set(texts.flatMap((t) => RISKY_ADDED.filter(([re]) => re.test(t)).map(([, why]) => why)))];
-    if (hits.length) reasons.push({ file, why: `an added line ${hits.join(', ')}` });
+    reasons.push({ file, why: hits.length ? `an added line ${hits.join(', ')}` : 'lines were added to an existing test' });
   }
   return reasons;
 }
@@ -124,7 +136,7 @@ export function weakeningSignals(diffText) {
 /**
  * Changes that could weaken checks: existing test files modified/deleted/renamed, test
  * setup changed (runner config, files it or a required check names, the test settings in
- * package.json / pyproject.toml / setup.cfg). New test files are fine.
+ * package.json / pyproject.toml / setup.cfg), and new test files, which run alongside the old ones.
  *
  * `from` is the base revision; `to` is a commit, or null for the staged index. `commands`
  * are the required checks' commands ([{ run, cwd }]): files they name are test setup too.
@@ -169,9 +181,14 @@ export function detectTestChanges(root, { from, to = null, config = {}, commands
   for (const c of changes) {
     const old = c.status === 'R' ? c.oldPath : c.path;
     if (c.status === 'A') {
-      if (runnerGlobs.some((gl) => matchGlob(c.path, gl))) {
+      // A new test file runs alongside the old ones and can change their outcome (exit early,
+      // patch an assertion, redefine a test), so it is guarded too: the old tests run without
+      // it, and in deep mode the new suite must still catch every planted bug.
+      const kind = runnerGlobs.some((gl) => matchGlob(c.path, gl)) ? 'runner-config' : isTestPath(c.path) ? 'test' : null;
+      if (kind) {
         files.add(c.path);
-        detail.push({ status: 'A', path: c.path, kind: 'runner-config' });
+        detail.push({ status: 'A', path: c.path, kind });
+        if (kind === 'test') signals.push({ file: c.path, status: 'A', kind, removed_asserts: 0, added_skips: 0 });
       }
       continue;
     }
@@ -291,7 +308,7 @@ export function guardRequirement(files, config = {}) {
       files,
       ...guardBudget(config),
       text: guardBudget(config).mutants === 0
-        ? `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and the change only adds lines to existing tests (anything else goes to a person)`
+        ? `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)`
         : `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught`,
     },
   });

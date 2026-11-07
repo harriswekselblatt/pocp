@@ -108,7 +108,11 @@ export async function runGuardCheck({
             speed.set(ob, seen.duration_ms ?? 0);
             continue;
           }
-          copy = copy || copySnapshot(tplDir);
+          // A fresh copy for every check: one check's tests (the pull request's code) must not
+          // be able to rewrite the files another check then runs, since a pass here is shared
+          // with verify's re-runs (onPass).
+          copy?.cleanup();
+          copy = copySnapshot(tplDir);
           const r = await runObligation(ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
           const names = r.passed ? [] : failingTests(r.output);
           into.push({ check: ob.id, passed: r.passed, exit: r.exit, timed_out: r.timed_out || undefined, signal: r.signal || undefined, error: r.error || undefined, duration_ms: r.duration_ms, ...(names.length ? { failed_tests: names } : {}) });
@@ -383,8 +387,8 @@ export async function runGuardCheck({
       return finishUnfinished(`the old tests fail on the new code, and on the base the same checks didn't finish normally (${failedList(result.baseline.runs.filter((r) => !ranAndFailed(r)), checks)}), so it can't be told whether they were already failing: a person must approve it`);
     }
     if (mutants === 0) {
-      // Fast mode: no planted bugs. Only a change that adds lines to existing tests, none of
-      // them risky, passes on its own; anything else goes to a person (guard.js).
+      // Fast mode: no planted bugs, so no test change passes on its own; the review names
+      // what changed and flags risky added lines for the person (guard.js).
       result.detection = { result: 'off', budget: 0, seed };
       const reasons = structuralReview(root, { base, rev, changes });
       result.structural = { result: reasons.length ? 'needs-review' : 'passed', reasons };
@@ -393,7 +397,7 @@ export async function runGuardCheck({
         : 'the old tests pass on the new code';
       if (reasons.length) {
         const shown = reasons.slice(0, 3).map((r) => `${r.file}: ${r.why}`).join('; ') + (reasons.length > 3 ? `; and ${reasons.length - 3} more` : '');
-        return finish('needs-review', `${oldPass}, but the change does more than add lines to existing tests (${shown}); without planted bugs (guard.mutants is 0) POCP can't check it, so a person must review it`);
+        return finish('needs-review', `${oldPass}; a person must review the test change (${shown}): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)`);
       }
       return finish('passed', `${oldPass}, and the change only adds lines to existing tests, none of which matches the risky patterns (skips, exits, early returns, patched assertions, mocks, exit-code resets, test hooks, globals, empty catch); guard.mutants is 0: no planted bugs`);
     }

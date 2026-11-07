@@ -64,11 +64,12 @@ function guardFor(dir, touches) {
 
 const addLines = (dir) => write(dir, 'test/add.test.js', `${ADD_TEST}test('adds zero', () => {\n  assert.equal(add(0, 0), 0);\n});\n`);
 
-test('an added test case runs only the old version of the edited file, and passes', () => {
+test('an added test case runs only the old version of the edited file, which passes (fast mode: a person still reviews it)', () => {
   const dir = project();
   addLines(dir);
   const guard = guardFor(dir, ['test/add.test.js']);
-  assert.equal(guard.verdict, 'passed', guard.summary);
+  assert.equal(guard.old_tests.result, 'pass');
+  assert.equal(guard.verdict, 'needs-review', guard.summary);
   assert.equal(guard.old_tests.scope, 'changed-tests');
   const ct = guard.old_tests.changed_tests;
   assert.equal(ct.result, 'pass');
@@ -126,7 +127,8 @@ test('a rule without changed_test_command runs the whole check', () => {
   const guard = guardFor(dir, ['test/add.test.js']);
   assert.match(guard.old_tests.changed_tests.reason, /check \S+ has no changed_test_command/);
   assert.equal(guard.old_tests.scope, undefined);
-  assert.equal(guard.verdict, 'passed', guard.summary);
+  assert.equal(guard.old_tests.result, 'pass');
+  assert.equal(guard.verdict, 'needs-review', guard.summary);
 });
 
 test('a command that runs no tests is not a pass: the whole check decides', () => {
@@ -136,7 +138,8 @@ test('a command that runs no tests is not a pass: the whole check decides', () =
   assert.equal(guard.old_tests.changed_tests.result, 'not-used');
   assert.match(guard.old_tests.changed_tests.reason, /no test passed/);
   assert.equal(guard.old_tests.scope, undefined);
-  assert.equal(guard.verdict, 'passed', 'the whole check still ran and passed');
+  assert.equal(guard.old_tests.result, 'pass', 'the whole check still ran and passed');
+  assert.equal(guard.verdict, 'needs-review', guard.summary);
 });
 
 test('changedTestPlan: only modified ordinary test files, only rule checks that have a command', () => {
@@ -257,8 +260,10 @@ test('in CI the base branch decides: a pull request that adds changed_test_comma
     const ct = find(v.json, 'changed_tests');
     assert.ok(ct.length, v.stdout + v.stderr);
     if (baseHas) {
-      assert.equal(v.code, 0, v.stdout + v.stderr);
+      // The shortcut ran and passed; in fast mode the test edit still waits for a person.
       assert.ok(ct.every((x) => x.result === 'pass'));
+      assert.match(v.stdout + v.stderr, /test_change|pocp-approve-tests/, v.stdout + v.stderr);
+      assert.equal(pocp(dir, ['verify', 'base..HEAD', '--rerun', '--accept-test-change']).code, 0, 'approved, it verifies');
     } else {
       assert.ok(ct.every((x) => x.result === 'not-used' && /has no changed_test_command/.test(x.reason)), JSON.stringify(ct));
       assert.match(v.stdout + v.stderr, /pocp-approve-policy|policy/, 'adding the command is a rule change');

@@ -565,9 +565,18 @@ export function trackedBlobs(root, rev) {
 /** Text of many blobs in one git call: Map(sha → text, or null when binary, too large or missing). */
 export function readBlobs(root, shas, maxBytes = HELPER_LIMITS.bytes) {
   const out = new Map();
-  const list = [...new Set(shas)].filter(Boolean);
+  const all = [...new Set(shas)].filter(Boolean);
+  // `--batch` reads one name per line, so a path containing a newline would shift every answer
+  // after it. Those few are read one at a time instead.
+  const list = all.filter((n) => !/[\r\n]/.test(n));
+  for (const n of all.filter((x) => /[\r\n]/.test(x))) {
+    const body = g.git(root, ['cat-file', 'blob', n], { allowFail: true, trim: false });
+    out.set(n, body === null || body.length > maxBytes || body.includes('\0') ? null : body);
+  }
   if (!list.length) return out;
-  const r = spawnSync('git', ['cat-file', '--batch'], { cwd: root, input: `${list.join('\n')}\n`, maxBuffer: 1024 * 1024 * 1024 });
+  // Through git.js's hardening (no fsmonitor or hooks, the isolation's environment).
+  g.checkIntact();
+  const r = spawnSync('git', g.hardenedArgs(['cat-file', '--batch']), { cwd: root, env: g.gitEnv(), input: `${list.join('\n')}\n`, maxBuffer: 1024 * 1024 * 1024 });
   if (r.status !== 0 || !r.stdout) return out;
   const buf = r.stdout;
   let pos = 0;

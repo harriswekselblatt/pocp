@@ -19,16 +19,15 @@
   "ci": {
     "branch": "main",
     "required_checks": [
-      "verify",
+      "pocp",
       "test (ubuntu-latest, 20)",
       "test (ubuntu-latest, 22)",
       "test (ubuntu-latest, 24)",
-      "test (macos-latest, 20)",
-      "test (macos-latest, 22)",
-      "test (macos-latest, 24)"
+      "eval (ubuntu-latest)"
     ],
     "require_pull_request": true,
     "enforce_admins": true,
+    "require_up_to_date": true,
     "files": [
       ".github/workflows/**",
       ".github/actions/**",
