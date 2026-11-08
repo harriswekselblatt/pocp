@@ -43,6 +43,11 @@ that verified before are now held for review, on purpose.
 
 ### Fixed
 
+- Adding several approval labels at once no longer leaves the `pocp` status stuck on "Waiting
+  for verify." Each label starts a run and all but one are cancelled while queued; the reporter
+  took the newest of those step-less runs as the latest word. A run cancelled before its verify
+  job ran any POCP step now says nothing, like a skipped run. One cancelled after it started
+  evaluating still holds an older success at pending.
 - Committing the files `pocp init` creates no longer fails as a policy loosening.
 - `pocp --version`, `-v`, `-h`, `pocp help <command>`; unknown options are reported instead of
   taking the next argument as their value.

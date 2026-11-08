@@ -179,6 +179,57 @@ test('skipped runs never decide; a later cancelled or in-progress run holds an o
   }
 });
 
+test('regression (PR #41): runs cancelled before verify (several approval labels at once) say nothing; the passing sibling decides', () => {
+  // Three pocp-approve-* labels in one command started three runs on the same head. The
+  // concurrency group cancelled two while their verify job was still queued: job completed and
+  // cancelled, no steps. The newest by run_started_at was one of those, and the reporter said
+  // "Waiting for verify." although run 42467967802 had passed.
+  const approvals = ['approval-tests', 'approval-policy', 'approval-coverage'];
+  const labels = ['pocp-approve-tests', 'pocp-approve-policy', 'pocp-approve-coverage'];
+  const label_events = labels.map((label) => ({ label, actor: 'maintainer', permission: 'admin', created_at: '2026-11-07T09:59:00Z' }));
+  const queuedCancel = (id, at) => run({}, { id, conclusion: 'cancelled', created_at: at, run_started_at: at, job: { status: 'completed', conclusion: 'cancelled', steps: [] } });
+  const passed = run({ approvals }, { id: 42467967802, created_at: '2026-11-07T10:00:01Z', run_started_at: '2026-11-07T10:00:01Z' });
+  passed.job.status = 'completed';
+  const earlier = run({}, { id: 42467967000, created_at: '2026-11-07T09:00:00Z', run_started_at: '2026-11-07T09:00:00Z' });
+  const f = (runs) => facts({ pr: { number: 7, state: 'open', head_sha: SHA, labels, author: 'author' }, label_events, runs });
+  const exact = decideStatus(f([earlier, passed, queuedCancel(42467967872, '2026-11-07T10:00:02Z')]));
+  assert.equal(exact.state, 'success', exact.reason);
+  assert.match(exact.reason, /run 42467967802 verified/);
+  // Also silent: cancelled after "Set up job" but before any pocp step, or with every pocp step skipped.
+  const setupOnly = run({}, { id: 42467967900, conclusion: 'cancelled', created_at: '2026-11-07T10:00:03Z', run_started_at: '2026-11-07T10:00:03Z', job: { status: 'completed', conclusion: 'cancelled', steps: [{ name: 'Set up job', conclusion: 'cancelled' }] } });
+  const allSkipped = run({}, { id: 42467967901, conclusion: 'cancelled', created_at: '2026-11-07T10:00:04Z', run_started_at: '2026-11-07T10:00:04Z' });
+  allSkipped.job = { status: 'completed', conclusion: 'cancelled', steps: allSkipped.job.steps.map((st) => ({ ...st, conclusion: st.name === 'Set up job' ? 'success' : 'skipped' })) };
+  const both = decideStatus(f([earlier, passed, queuedCancel(42467967872, '2026-11-07T10:00:02Z'), setupOnly, allSkipped]));
+  assert.equal(both.state, 'success', both.reason);
+  // Only silent cancelled runs on the head: nothing has spoken yet.
+  const none = decideStatus(f([queuedCancel(42467967872, '2026-11-07T10:00:02Z')]));
+  assert.equal(none.state, 'pending', none.reason);
+  assert.equal(none.description, TEXT.pending);
+});
+
+test('fail-closed: a run cancelled after it started evaluating still holds an older success at pending', () => {
+  const passed = run({}, { created_at: '2026-11-07T10:00:00Z', run_started_at: '2026-11-07T10:00:00Z' });
+  passed.job.status = 'completed';
+  const cancelledJob = (steps, over = {}) => ({ status: 'completed', conclusion: 'cancelled', steps, ...over });
+  const marker = (conclusion) => ({ name: runMarker(7, BASE), conclusion });
+  for (const [label, job, over] of [
+    ['marker passed, verify cancelled', cancelledJob([marker('success'), { name: 'verify', conclusion: 'cancelled' }])],
+    ['marker passed, nothing after it', cancelledJob([marker('success')])],
+    ['marker cancelled', cancelledJob([marker('cancelled')])],
+    ['marker without a result', cancelledJob([marker(null)])],
+    ['verify cancelled, no marker', cancelledJob([{ name: 'verify', conclusion: 'cancelled' }])],
+    ['an approval marker ran', cancelledJob([{ name: 'approval-tests', conclusion: 'success' }])],
+    ['no verify job (list unreadable or not created)', null],
+    ['job not completed', cancelledJob([], { status: 'in_progress' })],
+    ['run cancelled, job not cancelled', cancelledJob([], { conclusion: 'failure' })],
+    ['job cancelled, run not cancelled', cancelledJob([]), { conclusion: 'failure' }],
+  ]) {
+    const later = run({}, { conclusion: 'cancelled', created_at: '2026-11-07T10:05:00Z', run_started_at: '2026-11-07T10:05:00Z', ...over, job });
+    const d = decideStatus(facts({ runs: [passed, later] }));
+    assert.equal(d.state, 'pending', `${label}: ${d.reason}`);
+  }
+});
+
 test('readRun: incomplete data is unreadable (a wait); complete but unexpected data is a failure; neither is a success', () => {
   // Incomplete: seen live, a run reported completed while its job's steps weren't readable yet.
   assert.equal(readRun(null).outcome, 'unreadable');
