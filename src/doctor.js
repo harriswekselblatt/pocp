@@ -4,7 +4,7 @@ import path from 'node:path';
 import * as g from './git.js';
 import { matchGlob } from './glob.js';
 import { hooksHealth, INSTALL_HINT, recordedBin } from './init.js';
-import { requiredChecksPlan } from './ci-github.js';
+import { protectionGaps, requiredChecksPlan } from './ci-github.js';
 import { validateRules } from './rules.js';
 import { validateConfig } from './store.js';
 import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL } from './remedies.js';
@@ -235,13 +235,15 @@ export async function runDoctor(engine, { base, offline = false } = {}) {
 
       const prot = gh(root, ['api', `repos/${repo}/branches/${plan.branch}/protection`]);
       if (prot.ok && prot.json) {
-        const contexts = new Set([...(prot.json.required_status_checks?.contexts || []), ...(prot.json.required_status_checks?.checks || []).map((c) => c.context)]);
-        const missing = plan.required_checks.filter((c) => !contexts.has(c));
-        add(missing.length
-          ? { id: 'branch-protection', status: 'problem', what: `${repo}@${plan.branch} does not require: ${missing.join(', ')}`, why: 'a failing check would not block the merge', fix: 'pocp ci required --apply' }
-          : { id: 'branch-protection', status: 'ok', what: `${repo}@${plan.branch} requires every check in ci.required_checks` });
+        // Everything the plan asks of the branch, as `pocp ci required --check` reports it:
+        // required checks, pull requests only, admins included, branches up to date.
+        const gaps = protectionGaps(prot.json, plan);
+        add(gaps.length
+          ? { id: 'branch-protection', status: 'problem', what: `${repo}@${plan.branch}: ${gaps.join('; ')}`, why: 'POCP can only block a merge GitHub enforces: each gap is a way for unverified code to merge', fix: 'pocp ci required --apply' }
+          : { id: 'branch-protection', status: 'ok', what: `${repo}@${plan.branch} enforces the plan: ${plan.required_checks.join(', ')} required, pull requests only, admins included${plan.require_up_to_date ? ', branches up to date' : ''}` });
+        if (!plan.require_up_to_date) add({ id: 'up-to-date', status: 'warning', what: 'ci.require_up_to_date is false', why: 'a pull request can merge without the latest base, so the merged code is not the code that was verified', fix: 'remove ci.require_up_to_date from .proof/config.json (or set it to true), then pocp ci required --apply' });
       } else if (/upgrade to github pro|make this repository public/i.test(prot.message || '')) {
-        add({ id: 'branch-protection', status: 'warning', what: `${repo} is private on a free plan, which has no branch protection`, why: 'verify still runs and reports, but GitHub will not block a merge on it: it is advisory' });
+        add({ id: 'branch-protection', status: 'warning', what: `${repo} is private on a free plan, which has no branch protection`, why: 'verify still runs and reports, but GitHub will not block a merge on it: POCP is advisory here, and anyone with write access can merge unverified code', fix: 'make the repository public, or move it to a plan with branch protection (GitHub Pro, Team or Enterprise)' });
       } else if (/not protected/i.test(prot.message || '')) {
         add({ id: 'branch-protection', status: 'problem', what: `${repo}@${plan.branch} is not protected`, why: 'a failing verify would not block the merge', fix: 'pocp ci required --apply' });
       } else add({ id: 'branch-protection', status: 'skipped', what: `could not read branch protection (${prot.message})` });

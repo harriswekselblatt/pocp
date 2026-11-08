@@ -126,14 +126,18 @@ Every repository decides for itself, in `.proof/config.json` (a policy file, so 
   "ci": {
     "branch": "main",
     "required_checks": ["verify", "tests"],
-    "require_pull_request": true
+    "require_pull_request": true,
+    "enforce_admins": true,
+    "require_up_to_date": true
   }
 }
 ```
 
 - **`verify.fail_on`**: which findings fail `verify`. Everything else is still reported, as a warning. The default is all of them; a repo adopting POCP gradually can start narrower. `invalid_policy` always fails.
 - **`verify.require_ci`**: CI commands that must pass on the exact code being merged, either as a `pocp ci-run` result or as a re-run by `verify` itself. Any CI system can produce those results. With neither, verification fails.
-- **`ci.required_checks`**: which CI checks must pass to merge. `pocp ci required` prints the plan; `pocp ci required --apply` adds them to GitHub branch protection, keeping every existing protection and never loosening one (it refuses an empty list). *Status: the request is validated against GitHub's published API schema in tests, but has not yet been run against the live API; treat it as optional.* On other hosts, configure the same checks in their branch or merge-request settings. Dropping a required check, or turning off required pull requests or admin enforcement, is a policy loosening that needs approval.
+- **`ci.required_checks`**: which CI checks must pass to merge. `pocp ci required` prints the plan; `pocp ci required --apply` adds them to GitHub branch protection, keeping every existing protection and never loosening one (it refuses an empty list). It has been run against the live API on POCP's own repository. `pocp ci required --check` (and `pocp doctor`) report every gap between the plan and what GitHub enforces. On other hosts, configure the same checks in their branch or merge-request settings. Dropping a required check, or turning off required pull requests or admin enforcement, is a policy loosening that needs approval.
+- **`ci.require_pull_request`, `ci.enforce_admins`, `ci.require_up_to_date`** (all on by default): every change goes through a pull request; admins can't merge past the required checks; and a pull request must include the latest base branch before it merges (GitHub's "require branches to be up to date"). The last one is what makes "the code being merged is the code that was verified" true: without it, a pull request verified against an older base merges into a newer one, and the combination was never checked. The cost: when the base moves, each open pull request needs "Update branch" and a fresh CI run before it can merge. Set any of them to `false` to opt out; doctor then reports it, and turning one off later is a policy loosening.
+- **Merge queues are not supported yet.** GitHub's merge queue and Graphite's run CI on a temporary commit the queue builds, not on the pull request's head. POCP's workflow runs on pull request events and reports on the pull request's head, so a queue that requires `pocp` would wait for a result that never comes. Until POCP supports them, use "require branches to be up to date" instead.
 - **CI definitions are protected.** Changing `.github/workflows/`, `.gitlab-ci.yml`, a `Jenkinsfile` and similar (`ci.files`) needs a packet and, in CI, the same approval as loosening the rules, since an edited workflow could switch POCP off. `ci.files` can protect any other path the same way, such as an evaluation's datasets, graders and results; verify reports those as "protected files changed". Setting `ci.files` replaces the default list, so include the defaults you want to keep (dropping one is reported as a loosening).
 - **Loosening includes narrowing.** Dropping a glob from a requirement (keeping its command), replacing the test guard's globs, lowering `area_depth`, or widening the environment checks see are loosenings too; until approved, the base's values stay in force.
 
@@ -141,7 +145,7 @@ Nothing here assumes GitHub Actions or a test matrix. [`examples/`](../examples/
 
 **POCP never changes merge settings on its own.** Its job is to report proof status and fail its CI check according to the repository's policy. Changing the host's branch protection happens only when someone runs `pocp ci required --apply` explicitly; no other command, hook or the GitHub Action ever does. The hosting platform stays in charge of whether a red check blocks a merge.
 
-**Verification vs. merge enforcement.** POCP verification works on any plan and any host: `pocp verify` runs in CI and fails its check on a bad change. Whether a failing check *blocks the merge button* is up to the hosting platform. On GitHub, branch protection needs a public repository or a paid plan for private ones. If `--apply` can't set it, POCP says the branch is unchanged and lists the checks to require by hand; verification keeps working either way.
+**Verification vs. merge enforcement.** POCP verification works on any plan and any host: `pocp verify` runs in CI and fails its check on a bad change. Whether a failing check *blocks the merge button* is up to the hosting platform. On GitHub, branch protection needs a public repository or a paid plan for private ones. **On a free plan's private repository, POCP is advisory**: verify still runs and reports, but anyone with write access can merge unverified code, and `pocp doctor` says so. If `--apply` can't set protection, POCP says the branch is unchanged and lists the checks to require by hand; verification keeps working either way.
 
 ## Signed proofs
 

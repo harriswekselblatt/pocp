@@ -171,12 +171,12 @@ test('ci required --check: reports what the branch does not enforce, and never w
   assert.match(r1.stdout, /drops POCP from its workflow can merge/);
 
   fs.rmSync(none.log, { force: true });
-  const some = fakeGh(dir, { required_status_checks: { contexts: ['test'], checks: [{ context: 'test' }] }, required_pull_request_reviews: { required_approving_review_count: 0 }, enforce_admins: { enabled: true } });
+  const some = fakeGh(dir, { required_status_checks: { strict: true, contexts: ['test'], checks: [{ context: 'test' }] }, required_pull_request_reviews: { required_approving_review_count: 0 }, enforce_admins: { enabled: true } });
   const r2 = pocp(dir, ['ci', 'required', '--check', '--json'], { env: { POCP_GH: some.bin } });
   assert.equal(r2.code, 1);
   assert.deepEqual(r2.json.result.gaps, ['check "verify" is not required']);
 
-  const all = fakeGh(dir, { required_status_checks: { contexts: ['verify', 'test'] }, required_pull_request_reviews: {}, enforce_admins: { enabled: true } });
+  const all = fakeGh(dir, { required_status_checks: { strict: true, contexts: ['verify', 'test'] }, required_pull_request_reviews: {}, enforce_admins: { enabled: true } });
   const r3 = pocp(dir, ['ci', 'required', '--check'], { env: { POCP_GH: all.bin } });
   assert.equal(r3.code, 0, r3.stdout + r3.stderr);
   assert.match(r3.stdout, /enforces the plan: verify, test must pass/);
