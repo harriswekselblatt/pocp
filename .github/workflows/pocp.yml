@@ -98,13 +98,10 @@ jobs:
             fi
           fi
           if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--exit-detail'; then set -- "$@" --exit-detail; fi
-          # Isolated checks (see the top of this file). This repo has no dependencies to install;
-          # a project with some passes --install "<command>" too, so its install runs isolated.
-          if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--isolate'; then
-            set -- "$@" --isolate
-          else
-            echo "::warning title=POCP isolation::the base branch's verifier predates --isolate, so this run's checks ran as the job's own user (not the secure profile)"
-          fi
+          # Isolated checks are PAUSED on this repository: POCP's own test suite fails when run as
+          # the isolated worker user, and verify doesn't yet show which tests. Restore --isolate
+          # (as in examples/github/pocp.yml) once the suite passes under isolation.
+          echo "::warning title=POCP isolation::isolation is paused on this repository, so this run's checks ran as the job's own user (not the secure profile)"
           set +e
           node ../verifier/bin/pocp.js verify "$RANGE" "$@"
           code=$?

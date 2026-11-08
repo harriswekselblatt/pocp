@@ -350,12 +350,15 @@ test('newer runs that stopped before their marker never revive an older success'
   const setupOnly = (conclusion) => [{ name: 'verify', status: 'completed', conclusion, steps: [{ name: 'Set up job', conclusion }] }];
   for (const [label, run, job] of [
     ['setup failed', newer({ conclusion: 'failure' }), setupOnly('failure')],
-    ['cancelled during setup', newer({ conclusion: 'cancelled' }), setupOnly('cancelled')],
+    ['cancelled with its marker cancelled', newer({ conclusion: 'cancelled' }), [{ name: 'verify', status: 'completed', conclusion: 'cancelled', steps: [{ name: 'Set up job', conclusion: 'success' }, { name: runMarker(7, BASE), conclusion: 'cancelled' }] }]],
     ['marker failed', newer({ conclusion: 'failure' }), [{ name: 'verify', status: 'completed', conclusion: 'failure', steps: [{ name: runMarker(7, BASE), conclusion: 'failure' }] }]],
   ]) {
     const r = await report(fakeGitHub({ runs: [old, run], jobs: { 100: [verifyJob()], 101: job } }));
     notGreen(r, label);
   }
+  // Cancelled before any pocp step ran (a queued run the concurrency group cancelled): says nothing.
+  const r = await report(fakeGitHub({ runs: [old, newer({ conclusion: 'cancelled' })], jobs: { 100: [verifyJob()], 101: setupOnly('cancelled') } }));
+  assert.equal(r.decision.state, 'success', r.decision.reason);
 });
 
 test('a run with the marker but without the verified step is never green (outdated workflow)', async () => {
