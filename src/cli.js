@@ -22,6 +22,7 @@ import { COMMANDS, commandHelp, parseArgs, UsageError } from './cli-args.js';
 import { COOPERATIVE } from './runner.js';
 import { createIsolatedRunner, IsolationError } from './isolate.js';
 import { createRevCheckout } from './workspace.js';
+import { failedOutputLines } from './output-tail.js';
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
@@ -725,6 +726,7 @@ export async function main(argv = process.argv.slice(2)) {
             ...isolationLine([...result.reruns, ...(result.net?.reruns || [])]),
             ...rerunLines([...result.reruns, ...(result.net?.reruns || [])]),
             ...(result.ok ? [] : nextSteps([...rows, { findings: rangeFindings(result) }])),
+            ...failedOutputLines([...result.reruns, ...(result.net?.reruns || [])]),
           ].join('\n');
         } else {
           result = await engine.verify(rest[0] || 'HEAD', vopts);
@@ -738,6 +740,7 @@ export async function main(argv = process.argv.slice(2)) {
             ...isolationLine(result.reruns),
             ...rerunLines(result.reruns),
             ...(result.ok ? [] : nextSteps([result])),
+            ...failedOutputLines(result.reruns),
           ].join('\n');
         }
         result.isolation = { mode: isolation.mode, secure: isolation.secure };

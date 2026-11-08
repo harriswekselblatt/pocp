@@ -18,6 +18,7 @@ import { allSettled, defaultJobs, runGuardCheck, semaphore } from './guard-check
 import { ranAndFailed, runOutcome, unfinishedReason } from './run-result.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { gateRemedies, pendingApprovals } from './remedies.js';
+import { outputTail } from './output-tail.js';
 
 // One version source: package.json, read relative to this module so it is right wherever pocp is installed.
 export const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -1775,6 +1776,11 @@ export function createPocp(opts = {}) {
         return;
       }
       entries[job.at] = { run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, ...(r.signal ? { signal: r.signal } : {}), ...(r.error ? { error: r.error } : {}), duration_ms: r.duration_ms };
+      // What a failed check printed (its end), for verify's report only: never part of a proof.
+      if (!r.passed) {
+        const tail = outputTail(r.output);
+        if (tail) Object.assign(entries[job.at], { output_tail: tail, ...(r.truncated ? { output_truncated: true } : {}) });
+      }
       // unfinished: it timed out, was killed or didn't start, so it says nothing about the code.
       if (!r.passed) {
         const unfinished = runOutcome(r) === 'unfinished';
