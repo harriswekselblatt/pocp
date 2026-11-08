@@ -71,8 +71,23 @@ function fromTemplate(key, build) {
     templates.set(key, tpl);
   }
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pocp-test-')));
-  fs.cpSync(templates.get(key), dir, { recursive: true, verbatimSymlinks: true });
+  copyTree(templates.get(key), dir);
   return dir;
+}
+
+// A plain recursive copy: folders, files (with their modes, so hooks stay executable) and
+// symlinks as they are. Not fs.cpSync: on macOS, Node 22.23's cpSync now and then failed
+// with ENOENT creating .git/objects in the copy.
+function copyTree(src, dest) {
+  for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, ent.name);
+    const to = path.join(dest, ent.name);
+    if (ent.isSymbolicLink()) fs.symlinkSync(fs.readlinkSync(from), to);
+    else if (ent.isDirectory()) {
+      fs.mkdirSync(to);
+      copyTree(from, to);
+    } else fs.copyFileSync(from, to);
+  }
 }
 
 export function tmpRepo() {

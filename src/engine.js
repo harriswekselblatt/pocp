@@ -79,7 +79,8 @@ const noopPolicy = {};
 export function createRunMemo({ jobs } = {}) {
   const seen = new Map();
   const running = new Map(); // key -> promise of the run in progress
-  const slots = semaphore(Math.max(1, Number(jobs) || defaultJobs()));
+  const limitN = Math.max(1, Number(jobs) || defaultJobs());
+  const slots = semaphore(limitN);
   const key = (subject, ob) => `${subject}\0${ob.cwd || ''}\0${ob.run}`;
   const known = (subject, ob, ciResults = []) => {
     if (ob.expect || !ob.run) return null;
@@ -92,6 +93,8 @@ export function createRunMemo({ jobs } = {}) {
     if (!ob.expect && ob.run) seen.set(key(subject, ob), { duration_ms: r.duration_ms });
   };
   return {
+    /** How many checks this verify runs at once (the test guard uses the same number). */
+    jobs: limitN,
     record,
     known,
     ran(subject, ob) {
@@ -293,6 +296,9 @@ export function createPocp(opts = {}) {
     const res = await runGuardCheck({
       root,
       runObligation: memo ? (o, dir, x) => memo.limit(() => runObligation(o, dir, x)) : runObligation,
+      // In verify, the guard's own slots match verify's limit (--jobs): with fewer, its old-tests
+      // runs queued behind its new-code baseline instead of running alongside it.
+      ...(memo ? { jobs: memo.jobs } : {}),
       share: memo ? (o, run) => memo.share(subject, o, run, ciResults) : undefined,
       base,
       rev,

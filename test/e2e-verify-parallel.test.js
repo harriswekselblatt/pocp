@@ -7,14 +7,23 @@ import { commit } from './fixtures.js';
 import { createRunMemo } from '../src/engine.js';
 
 // Every check run appends "<label> start|end <ms>" to this log (outside every snapshot), so a
-// test can see which runs happened and whether they overlapped.
-function check(label) {
+// test can see which runs happened. With BARRIER set, a check that has a partner waits (up to
+// 15s) until the partner has started and logs "<label> met" or "<label> alone": two checks that
+// run side by side always meet, whatever the machine's speed; one at a time, they never can.
+function check(label, partner = null) {
   return [
     "import fs from 'node:fs';",
     "import { add } from '../src/math.js';",
-    `const say = (what) => process.env.RUN_LOG && fs.appendFileSync(process.env.RUN_LOG, \`${label} \${what} \${Date.now()}\\n\`);`,
+    "const log = process.env.RUN_LOG;",
+    `const say = (what) => log && fs.appendFileSync(log, \`${label} \${what} \${Date.now()}\\n\`);`,
     "say('start');",
-    'await new Promise((r) => setTimeout(r, 1200));',
+    ...(partner ? [
+      `if (log && process.env.BARRIER) {`,
+      `  const until = Date.now() + 15000;`,
+      `  while (Date.now() < until && !fs.readFileSync(log, 'utf8').includes('${partner} start')) await new Promise((r) => setTimeout(r, 50));`,
+      `  say(fs.readFileSync(log, 'utf8').includes('${partner} start') ? 'met' : 'alone');`,
+      `}`,
+    ] : ["await new Promise((r) => setTimeout(r, 1200));"]),
     "if (add(2, 3) !== 5) { say('fail'); process.exit(1); }",
     "say('end');",
     '',
@@ -24,7 +33,7 @@ function check(label) {
 /** Two checks; one commit on top of `base` edits the first check's test and the code. */
 function parallelRepo() {
   const dir = sampleRepo();
-  write(dir, 'test/a.check.mjs', check('a-base'));
+  write(dir, 'test/a.check.mjs', check('a-base', 'a-head'));
   write(dir, 'test/b.check.mjs', check('b'));
   writeRules(dir, {
     triggers: { broad_files: 6, cross_area: { areas: 3, min_files: 4 }, globs: [] },
@@ -38,7 +47,7 @@ function parallelRepo() {
   git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'two checks');
   const base = git(dir, 'rev-parse', 'HEAD');
   write(dir, 'src/math.js', `${fs.readFileSync(path.join(dir, 'src/math.js'), 'utf8')}// tweak\n`);
-  write(dir, 'test/a.check.mjs', check('a-head'));
+  write(dir, 'test/a.check.mjs', check('a-head', 'a-base'));
   git(dir, 'add', '-A');
   assert.equal(pocp(dir, ['fix', '--intent', 'tweak and reword a check']).code, 0);
   assert.equal(commit(dir, 'tweak').status, 0);
@@ -51,7 +60,8 @@ function readLog(file) {
     const [label, what, at] = line.split(' ');
     if (!runs.has(label)) runs.set(label, []);
     if (what === 'start') runs.get(label).push({ start: Number(at) });
-    else runs.get(label).at(-1).end = Number(at);
+    else if (what === 'end') runs.get(label).at(-1).end = Number(at);
+    else runs.get(label).at(-1)[what] = true; // met / alone
   }
   return runs;
 }
@@ -59,7 +69,7 @@ function readLog(file) {
 test('verify --rerun runs the re-runs and the test guard side by side, each check once per code', () => {
   const { dir, base } = parallelRepo();
   const log = path.join(dir, '..', `${path.basename(dir)}-runs.log`);
-  const v = pocp(dir, ['verify', `${base}..HEAD`, '--rerun', '--accept-test-change', '--jobs', '4', '--json'], { env: { RUN_LOG: log } });
+  const v = pocp(dir, ['verify', `${base}..HEAD`, '--rerun', '--accept-test-change', '--jobs', '4', '--json'], { env: { RUN_LOG: log, BARRIER: '1' } });
   assert.equal(v.code, 0, v.stdout + v.stderr);
   const runs = readLog(log);
   // a-head and b on the new code: the guard's new-code baseline and the tip's re-run share
@@ -67,9 +77,8 @@ test('verify --rerun runs the re-runs and the test guard side by side, each chec
   assert.equal(runs.get('a-head').length, 1, 'a on the new code ran once');
   assert.equal(runs.get('a-base').length, 1, 'the old a ran once');
   assert.equal(runs.get('b').length, 2, 'b ran once on each tree (new code; new code with the old tests)');
-  const [rerunA] = runs.get('a-head');
-  const [oldA] = runs.get('a-base');
-  assert.ok(oldA.start < rerunA.end && rerunA.start < oldA.end, 'the old tests ran while the re-run was running');
+  // a-head (the new code's run) and a-base (the old tests) each waited for the other to start.
+  assert.ok(runs.get('a-head')[0].met && runs.get('a-base')[0].met, 'the old tests ran while the new-code run was running');
   // One commit: the guard claims the new-code runs first, and the tip's re-run reuses them.
   const guard = v.json.commits[0].test_guard.mechanical[0].result;
   assert.ok(guard.new_tests.runs.every((r) => !r.reused));
