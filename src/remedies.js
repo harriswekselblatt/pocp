@@ -11,6 +11,20 @@ export const APPROVE_INCONCLUSIVE_LABEL = 'pocp-approve-inconclusive';
 /** Said with every block that needs a person. Rewriting history never clears an approval. */
 export const DONT_REWRITE = 'Do not squash, force-push, rewrite history or commit with --no-verify to get past this: push the commit as it is and ask for the approval.';
 
+/**
+ * A check that didn't finish (timed out, killed, didn't start, exit 126/127) says nothing
+ * about the code. Telling an agent to "fix the code" for it would have it rewrite working code
+ * because the machine was busy.
+ */
+export const UNFINISHED_PROOF = Object.freeze({
+  why: "the check didn't finish (it timed out, was killed or didn't start), so nothing is known about the code yet; this is not a test failure.",
+  next: 're-run it (pocp fix runs it again); if it still can\'t finish, fix the hang or raise the check\'s timeout_ms. Do not change the code because of it.',
+  by: 'agent',
+});
+
+/** Does a rerun failure's text say it didn't finish? (For callers that only have the text.) */
+const UNFINISHED_TEXT = /didn't finish|timed out|killed by SIG|could not start|exit 12[67]\b/;
+
 const list = (xs, n = 6) => (xs.length > n ? `${xs.slice(0, n).join(', ')} and ${xs.length - n} more` : xs.join(', '));
 
 /** Why a set of files needs a packet, in the gate's own words. */
@@ -68,10 +82,13 @@ export function gateRemedies(r) {
     if (ev.missing_required.length) {
       out.push({ code: 'missing_required', what: `${p.id} lacks checks the rules now require: ${ev.missing_required.map((m) => m.id).join(', ')}`, why: 'the rules changed after the packet was opened.', next: `pocp fix (or pocp sync ${p.id})`, by: 'pocp fix' });
     }
-    if (ev.failed.length) {
+    const unfinished = ev.unfinished || [];
+    const failed = ev.failed.filter((id) => !unfinished.includes(id));
+    if (unfinished.length) out.push({ code: 'unfinished_proof', ...UNFINISHED_PROOF, what: `${p.id}: ${unfinished.join(', ')} didn't finish on this code (timed out, killed or didn't start)` });
+    if (failed.length) {
       out.push({
         code: 'failed_proof',
-        what: `${p.id}: ${ev.failed.join(', ')} failed on this exact code`,
+        what: `${p.id}: ${failed.join(', ')} failed on this exact code`,
         why: 'a required check fails, so the change would break what it protects.',
         next: 'fix the code (not the tests), stage it, then pocp fix. The log path is in "pocp show" or the prove output.',
         by: 'agent',
@@ -98,7 +115,7 @@ export function gateRemedies(r) {
       out.push({ code: 'unattested', what: `${p.id}: needs a sign-off: ${manual.join(', ')}`, why: 'these obligations are checks only a person can do.', next: `the person who did each check runs: pocp attest ${p.id} <obligation> --by <their name>`, by: 'person' });
     }
   }
-  for (const p of r.problems.filter((x) => x.code !== 'prove_failed' && x.code !== 'failed_proof' && x.code !== 'packet_not_staged')) {
+  for (const p of r.problems.filter((x) => !['prove_failed', 'failed_proof', 'unfinished_proof', 'packet_not_staged'].includes(x.code))) {
     out.push({ code: p.code, what: p.detail, why: 'the gate cannot pass until this is resolved.', next: 'pocp fix', by: 'agent' });
   }
   for (const w of (r.warnings || []).filter((x) => x.code === 'draft_packet')) {
@@ -126,8 +143,11 @@ export function pendingApprovals(r) {
       }));
 }
 
-/** The remedy for one blocking verify finding (CI). */
-export function verifyRemedy(code, detail = '') {
+/**
+ * The remedy for one blocking verify finding (CI). `finding.unfinished`, when the caller has
+ * it, says whether a rerun_failed didn't finish; without it the detail text decides.
+ */
+export function verifyRemedy(code, detail = '', finding = {}) {
   switch (code) {
     case 'test_change':
       if (/passed only locally/.test(detail)) return { why: 'a local pass can be faked; CI must see the check pass itself.', next: 'run verify with --rerun or --rerun-unsigned (the Action does by default)', by: 'agent' };
@@ -146,9 +166,10 @@ export function verifyRemedy(code, detail = '') {
     case 'ci_failed':
       return { why: 'verify.require_ci lists checks CI must run on this exact code.', next: code === 'ci_failed' ? 'fix the code (not the tests) in a new commit' : 'run verify with --rerun, which runs the required checks itself (see examples/github/pocp.yml)', by: 'agent' };
     case 'rerun_failed':
-      if (/, timed out\)/.test(detail)) return { why: "a required check didn't finish when verify re-ran it (it timed out), so nothing is known about the code yet.", next: 're-run the job; if it still can\'t finish, fix the hang or raise the time limit', by: 'agent' };
+      if (finding?.unfinished ?? UNFINISHED_TEXT.test(detail)) return { why: "a required check didn't finish when verify re-ran it (it timed out, was killed or didn't start), so nothing is known about the code yet.", next: 're-run the job; if it still can\'t finish, fix the hang or raise the time limit', by: 'agent' };
       // falls through: a check that ran and failed
     case 'failed_proof':
+      if (finding?.unfinished) return { why: UNFINISHED_PROOF.why, next: 're-run the job (or pocp fix and commit the new proof); if it still can\'t finish, fix the hang or raise timeout_ms', by: 'agent' };
       return { why: 'a required check fails on this code.', next: 'fix the code (not the tests) and commit the fix with "pocp fix" then "git commit"', by: 'agent' };
     case 'trailer_mismatch':
       return { why: 'the commit\'s code is not the code that was proven; this happens after a rebase or an edit after proving.', next: 'ask a maintainer how to update this branch; to bring in main, use git merge rather than rebase so proofs stay valid', by: 'person' };
@@ -160,8 +181,12 @@ export function verifyRemedy(code, detail = '') {
       return { why: 'this commit was made without the proof its files need (were the hooks skipped or not installed? see "pocp doctor").', next: 'ask a maintainer how to repair the commit; for new commits run "pocp fix" before "git commit"', by: 'person' };
     case 'policy_mismatch':
       return { why: 'the packet was proven under different rules than the ones in force.', next: 'pocp fix, then commit again', by: 'agent' };
+    case 'unfinished_proof':
+      return { why: UNFINISHED_PROOF.why, next: 're-run the job (or pocp fix and commit the new proof); if it still can\'t finish, fix the hang or raise timeout_ms', by: 'agent' };
     case 'invalid_signature':
       return { why: 'a proof was edited after signing, or its signer is not trusted.', next: 'prove again with a trusted key (pocp fix) in a new commit', by: 'agent' };
+    case 'signature_unavailable':
+      return { why: "the signature could not be checked here (ssh-keygen is missing, failed or timed out), so nothing is known about it: it doesn't count as valid, and it isn't a sign of tampering either.", next: 'install OpenSSH 8.1 or later (ssh-keygen) on the machine that runs verify and re-run it', by: 'agent' };
     default:
       return { why: '', next: 'pocp fix', by: 'agent' };
   }

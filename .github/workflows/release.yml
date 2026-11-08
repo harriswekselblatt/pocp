@@ -1,0 +1,61 @@
+# Publishes a release to npm when a maintainer pushes a tag vX.Y.Z (never on a pull request).
+#
+# npm trusted publishing: npm accepts this workflow's short-lived OIDC identity instead of a
+# stored token, and --provenance links the package to this repository, workflow and commit.
+# Before the first run, on npmjs.com, add a trusted publisher for the package: repository
+# harriswekselblatt/pocp, workflow release.yml, environment release. In GitHub, create the
+# "release" environment with required reviewers and only v* tags allowed to deploy to it.
+#
+# The job checks the tag matches package.json's version, runs the tests, packs the tarball
+# once and publishes exactly that file.
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: read
+      id-token: write   # the OIDC identity npm's trusted publishing checks
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@11.6.2 --ignore-scripts
+      - name: tag matches package.json
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error title=release::tag $GITHUB_REF_NAME doesn't match package.json version $version"
+            exit 1
+          fi
+          case "$version" in
+            *-*) echo "::error title=release::$version is a pre-release; this workflow publishes releases only"; exit 1 ;;
+          esac
+          released=$(node -e 'import("./src/init.js").then((m) => console.log(m.RELEASED_ACTION_REF))')
+          if [ "$released" != "$GITHUB_REF_NAME" ]; then
+            echo "::error title=release::src/init.js RELEASED_ACTION_REF is $released; set it to $GITHUB_REF_NAME before tagging"
+            exit 1
+          fi
+      - run: npm test
+      - name: pack
+        run: |
+          npm pack
+          ls -l "pocp-${GITHUB_REF_NAME#v}.tgz"
+          sha256sum "pocp-${GITHUB_REF_NAME#v}.tgz"
+      - name: publish
+        run: npm publish "pocp-${GITHUB_REF_NAME#v}.tgz" --provenance --access public

@@ -5,15 +5,17 @@
 #
 # verify judges the pull request by the base branch's rules and re-runs every required check
 # itself, each in a fresh copy of the commit. The job reports what it found through which steps
-# run: exactly one of waiting / inconclusive / failed (none when verified), plus an approval-*
-# step for each approval passed to verify. pocp-status.yml, a separate trusted workflow, reads
+# run: exactly one of verified / waiting / inconclusive / failed, plus an approval-* step for
+# each approval passed to verify. "verified" runs only when the verify step itself succeeded:
+# its exit status is the one result the checks it runs can't write. Its `code` output only
+# picks between waiting, inconclusive and failed. pocp-status.yml, a separate trusted workflow, reads
 # those steps and sets the "pocp" commit status: green, yellow (waiting for a maintainer, or a
 # check didn't finish) or red.
 #
 # What this does not give you: a re-run *is* the pull request's code, running in this job. POCP
-# keeps its own git calls away from what that code can change, and the checks don't get this
-# job's step files, but code that runs in a job can, with enough effort, interfere with anything
-# else in it. docs/THREAT-MODEL.md says exactly what is and isn't independent.
+# keeps its own git calls away from what that code can change and takes "verified" only from
+# verify's exit status, not from a file the checks could write, but code that runs in a job can,
+# with enough effort, interfere with anything else in it. docs/THREAT-MODEL.md says exactly what is and isn't independent.
 #
 # POCP_STATUS_LIVE (a repository variable an admin sets; a pull request can't change it):
 # - unset (start here): waits still fail this job, so "verify" can stay your required check
@@ -25,7 +27,7 @@
 name: pocp
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]   # edited: a retarget changes the base that judges it
 permissions:
   contents: read
 jobs:
@@ -37,6 +39,9 @@ jobs:
       group: ${{ (vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && format('pocp-verify-{0}', github.event.pull_request.number) || format('pocp-ignored-{0}', github.run_id) }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    # verify re-runs every required check of every commit: allow for your test suite times the
+    # number of commits in a typical pull request, with margin.
+    timeout-minutes: 60
     env:
       # Each approval is a label only maintainers apply. A label isn't tied to a commit, so it
       # counts only on the event that changed labels, and only for the head at that moment (the
@@ -47,7 +52,12 @@ jobs:
       APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
       WAIT_EXIT: ${{ vars.POCP_STATUS_LIVE == 'true' && '0' || '1' }}
     steps:
-      - uses: actions/checkout@v5
+      # Which pull request and base this run evaluated. A head commit can belong to several pull
+      # requests, each judged by its own base, so pocp-status.yml counts a run only for the pull
+      # request and base this step names. Keep it first, and keep its name exactly.
+      - name: pocp-run pr-${{ github.event.pull_request.number }} base-${{ github.event.pull_request.base.sha }}
+        run: 'true'
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}   # the PR head, not GitHub's merge commit
           fetch-depth: 0                                    # verify reads the whole range of commits
@@ -58,6 +68,7 @@ jobs:
       - uses: harriswekselblatt/pocp@POCP_REF                  # pin a release or commit; the action runs its bundled pocp
         name: verify
         id: verify
+        continue-on-error: true    # the step fails unless verified; the steps below report why
         with:
           rerun: all
           exit-detail: true
@@ -78,7 +89,11 @@ jobs:
       - name: approval-coverage
         if: env.APPROVE_COVERAGE != 'false'
         run: 'true'
-      # Exactly one of these runs unless verify passed (code 0). A missing or unknown code is a failure.
+      # Exactly one of these runs. Green needs the verify step's own success; the code output
+      # only picks waiting / inconclusive / failed. A missing or unknown code is a failure.
+      - name: verified
+        if: steps.verify.outcome == 'success' && steps.verify.outputs.code == '0'
+        run: 'true'
       - name: waiting
         if: steps.verify.outputs.code == '4'
         run: |
@@ -90,7 +105,7 @@ jobs:
           echo "::notice title=POCP::a check didn't finish: re-run this job, or a maintainer approves with pocp-approve-inconclusive"
           exit "$WAIT_EXIT"
       - name: failed
-        if: steps.verify.outputs.code != '0' && steps.verify.outputs.code != '4' && steps.verify.outputs.code != '5'
+        if: steps.verify.outputs.code != '4' && steps.verify.outputs.code != '5' && (steps.verify.outcome != 'success' || steps.verify.outputs.code != '0')
         run: exit 1
 #
 # Faster, but trusting: run your tests through `pocp ci-run --results ci-results.jsonl -- <cmd>`

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import { StringDecoder } from 'node:string_decoder';
 import { onCleanup } from './exit.js';
 
 const MINIMAL_ENV = ['PATH', 'HOME', 'LANG', 'TMPDIR', 'CI'];
@@ -27,7 +28,27 @@ export function buildEnv({ mode = 'inherit', allow = [], extra = {}, keepCiFiles
     for (const k of CI_STEP_VARS) delete env[k];
     for (const k of Object.keys(env)) if (k.startsWith('ACTIONS_')) delete env[k];
   }
-  return { ...env, ...extra };
+  // Last, after `allow` and `extra`: a check never sees variables that point git at another
+  // repository, index or config. Git sets GIT_INDEX_FILE (and sometimes GIT_DIR) for the commit
+  // hooks, so a check run from a hook that runs git in a temporary repository would otherwise
+  // write into the committer's index.
+  const out = { ...env, ...extra };
+  for (const k of Object.keys(out)) if (isGitRedirectVar(k)) delete out[k];
+  return out;
+}
+
+// Environment variables that point git at another repository, index, object store or config
+// (the same set src/git.js keeps out of its own calls in isolation), plus every GIT_CONFIG*.
+export const GIT_REDIRECT_VARS = Object.freeze([
+  'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR', 'GIT_NAMESPACE', 'GIT_PREFIX', 'GIT_REPLACE_REF_BASE', 'GIT_SHALLOW_FILE', 'GIT_GRAFT_FILE',
+  'GIT_CEILING_DIRECTORIES',
+]);
+const GIT_REDIRECT = new Set(GIT_REDIRECT_VARS);
+
+/** Is `name` a variable that redirects git (GIT_DIR, GIT_INDEX_FILE, GIT_CONFIG*, …)? */
+export function isGitRedirectVar(name) {
+  return GIT_REDIRECT.has(name) || name.startsWith('GIT_CONFIG');
 }
 
 function killGroup(child, signal) {
@@ -96,14 +117,24 @@ const WATCHDOG = '(while read -r _; do :; done; kill -9 0) <&3 >/dev/null 2>&1 &
  * Default Runner. Runs `command` with /bin/sh in its own process group.
  * Output is hashed in full, logged up to `logCapBytes`, and kept in memory up to the
  * same cap so `expect` can be matched.
+ *
+ * Lifecycle: the execution deadline (`timeoutMs`) covers the command only and is cleared as
+ * soon as its exit is observed, so a command that exits before the limit is never recorded as
+ * timed out. Cleanup has its own deadline: on exit the rest of the group gets SIGTERM, then
+ * SIGKILL after `killGraceMs`. Once the group is empty, a descendant that left the group but
+ * still holds stdout/stderr gets `pipeGraceMs` to let go before the pipes are destroyed, so the
+ * run settles promptly. It settles exactly once.
  */
 export function createProcessRunner() {
   return {
     kind: 'process',
-    run(command, { cwd, env, timeoutMs = 600_000, killGraceMs = 5_000, logFile = null, logCapBytes = 10 * 1024 * 1024 } = {}) {
+    run(command, { cwd, env, timeoutMs = 600_000, killGraceMs = 5_000, pipeGraceMs = 250, logFile = null, logCapBytes = 10 * 1024 * 1024 } = {}) {
       return new Promise((resolve) => {
         const startedAt = Date.now();
         const hashes = { stdout: crypto.createHash('sha256'), stderr: crypto.createHash('sha256') };
+        // One decoder per stream: a multi-byte character split across chunks is decoded whole.
+        // Hashes and the log stay over the raw bytes.
+        const decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') };
         let captured = '';
         let capturedBytes = 0;
         let truncated = false;
@@ -119,7 +150,7 @@ export function createProcessRunner() {
             const part = chunk.length > room ? chunk.subarray(0, room) : chunk;
             if (part.length < chunk.length) truncated = true;
             capturedBytes += part.length;
-            captured += part.toString('utf8');
+            captured += decoders[stream].write(part);
             if (log) fs.writeSync(log, part);
           } else {
             truncated = true;
@@ -141,47 +172,27 @@ export function createProcessRunner() {
         child.stdout.on('data', take('stdout'));
         child.stderr.on('data', take('stderr'));
 
-        let timedOut = false;
-        let graceTimer = null;
-        const timer = setTimeout(() => {
-          timedOut = true;
-          killGroup(child, 'SIGTERM');
-          graceTimer = setTimeout(() => killGroup(child, 'SIGKILL'), killGraceMs);
-        }, timeoutMs);
-
         let exitInfo = null;
-        let termSentAt = null;
-        child.on('exit', (code, signal) => {
-          exitInfo = { code, signal };
-          // Clean up anything the command left running in its group (and the watchdog).
-          termSentAt = Date.now();
-          killGroup(child, 'SIGTERM');
-        });
-        child.on('error', (err) => {
-          exitInfo = exitInfo || { code: null, signal: null, error: err.message };
-        });
-        // The group is only released once it is empty: a process that ignores SIGTERM, or
-        // that let go of stdout/stderr (so "close" came early), gets SIGKILL after the grace
-        // period. Until then the onCleanup handler above still covers pocp exiting.
-        const reap = (done) => {
-          const deadline = (termSentAt ?? Date.now()) + killGraceMs;
-          let killed = false;
-          const started = Date.now();
-          const tick = () => {
-            if (!groupAlive(child.pid)) return done();
-            if (!killed && Date.now() >= deadline) {
-              killed = true;
-              killGroup(child, 'SIGKILL');
-            }
-            setTimeout(tick, Date.now() - started < 200 ? 2 : 25);
-          };
-          tick();
-        };
-        child.on('close', (code, signal) => reap(() => {
+        let timedOut = false;
+        let settled = false;
+        let closed = false;
+        let reaped = false;
+        let reaping = false;
+        let graceTimer = null;
+        let pipeTimer = null;
+        let timer = null;
+
+        const settle = () => {
+          if (settled) return;
+          settled = true;
           unregister();
           clearTimeout(timer);
-          if (graceTimer) clearTimeout(graceTimer);
-          const info = exitInfo || { code, signal };
+          clearTimeout(graceTimer);
+          clearTimeout(pipeTimer);
+          // Output cut off at the cap keeps a partial character out; output read to the end
+          // flushes whatever the decoders still hold.
+          if (!truncated) captured += decoders.stdout.end() + decoders.stderr.end();
+          const info = exitInfo || { code: null, signal: null };
           if (log) {
             if (truncated) fs.writeSync(log, `\n\n# output truncated at ${logCapBytes} bytes\n`);
             fs.writeSync(log, `\n# exit=${info.code} signal=${info.signal} timed_out=${timedOut}\n`);
@@ -198,7 +209,85 @@ export function createProcessRunner() {
             stdout_sha256: hashes.stdout.digest('hex'),
             stderr_sha256: hashes.stderr.digest('hex'),
           });
-        }));
+        };
+        const maybeSettle = () => {
+          if (closed && reaped) settle();
+        };
+        const destroyPipes = () => {
+          for (const s of [child.stdout, child.stderr, child.stdio[3]]) {
+            try {
+              s?.destroy();
+            } catch { /* already closed */ }
+          }
+        };
+
+        // The execution deadline. When it fires, the command's exit may already be waiting in
+        // the event loop (timers run before I/O), so look again after I/O before calling it a
+        // timeout: a command that exited in time is never recorded as timed out.
+        timer = setTimeout(() => setImmediate(() => {
+          if (exitInfo || settled) return;
+          timedOut = true;
+          killGroup(child, 'SIGTERM');
+          graceTimer = setTimeout(() => killGroup(child, 'SIGKILL'), killGraceMs);
+        }), timeoutMs);
+
+        // Started when the command exits. The group is only released once it is empty: a
+        // process that ignores SIGTERM gets SIGKILL after the grace period, and until then the
+        // onCleanup handler above still covers pocp exiting. Then stdout/stderr get a short
+        // grace to close; a descendant that left the group but still holds them can't keep the
+        // run open (they are destroyed).
+        const reap = () => {
+          if (reaping) return;
+          reaping = true;
+          const deadline = Date.now() + killGraceMs;
+          let killed = false;
+          const started = Date.now();
+          const tick = () => {
+            if (settled) return;
+            if (!groupAlive(child.pid)) {
+              reaped = true;
+              if (!closed) {
+                pipeTimer = setTimeout(() => {
+                  destroyPipes();
+                  closed = true;
+                  maybeSettle();
+                }, pipeGraceMs);
+              }
+              maybeSettle();
+              return;
+            }
+            if (!killed && Date.now() >= deadline) {
+              killed = true;
+              killGroup(child, 'SIGKILL');
+            }
+            setTimeout(tick, Date.now() - started < 200 ? 2 : 25);
+          };
+          tick();
+        };
+
+        child.on('exit', (code, signal) => {
+          exitInfo = exitInfo?.error ? { ...exitInfo, code, signal } : { code, signal };
+          // The command is done: its execution deadline no longer applies.
+          clearTimeout(timer);
+          // Clean up anything the command left running in its group (and the watchdog).
+          killGroup(child, 'SIGTERM');
+          reap();
+        });
+        child.on('error', (err) => {
+          exitInfo = exitInfo || { code: null, signal: null, error: err.message };
+          // It never started (no pid): there is no group to reap and no exit to wait for.
+          if (!child.pid) {
+            clearTimeout(timer);
+            reaped = true;
+            destroyPipes();
+            closed = true;
+            setImmediate(maybeSettle);
+          }
+        });
+        child.on('close', () => {
+          closed = true;
+          maybeSettle();
+        });
       });
     },
   };

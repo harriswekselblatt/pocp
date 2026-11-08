@@ -43,7 +43,8 @@ test('the example verify job has the step layout the reporter reads, like POCP\'
   assert.match(verify, /id: verify/);
   assert.match(verify, /exit-detail: true/);
   // Same conditions as POCP's own workflow for every result step and approval marker.
-  for (const name of ['waiting', 'inconclusive', 'failed', ...Object.keys(APPROVAL_MARKERS)]) {
+  assert.match(verify, /continue-on-error: true/);
+  for (const name of ['verified', 'waiting', 'inconclusive', 'failed', ...Object.keys(APPROVAL_MARKERS)]) {
     assert.equal(stepKey(ex, name, 'if'), stepKey(own, name, 'if'), name);
   }
   for (const env of ['APPROVE_POLICY', 'APPROVE_TESTS', 'APPROVE_INCONCLUSIVE', 'APPROVE_COVERAGE', 'WAIT_EXIT']) assert.equal(envLine(ex, env), envLine(own, env), env);
@@ -97,19 +98,20 @@ function runAction({ exit, exitDetail, env = {} }) {
   for (let i = start + 1; i < lines.length && (!lines[i].trim() || lines[i].match(/^\s*/)[0].length >= indent); i++) body.push(lines[i].slice(indent));
   const r = spawnSync('bash', ['-e', '-c', body.join('\n')], {
     encoding: 'utf8', cwd: dir,
-    env: { PATH: process.env.PATH, RANGE: 'b..h', RERUN: 'all', CI_RESULTS: '', ACCEPT_POLICY: 'false', ACCEPT_TESTS: 'false', ACCEPT_INCONCLUSIVE: 'false', ACCEPT_UNCOVERED: 'false', EXIT_DETAIL: exitDetail ? 'true' : 'false', COVERAGE: 'true', POCP_CMD: fake, GITHUB_OUTPUT: out, ...env },
+    env: { PATH: process.env.PATH, RANGE_INPUT: '', PR_BASE: 'b', PR_HEAD: 'h', EVENT_NAME: 'pull_request', RERUN: 'all', CI_RESULTS: '', ACCEPT_POLICY: 'false', ACCEPT_TESTS: 'false', ACCEPT_INCONCLUSIVE: 'false', ACCEPT_UNCOVERED: 'false', EXIT_DETAIL: exitDetail ? 'true' : 'false', COVERAGE: 'true', POCP_CMD: fake, GITHUB_OUTPUT: out, ...env },
   });
-  const res = { code: r.status, output: fs.readFileSync(out, 'utf8'), args: fs.existsSync(argsFile) ? JSON.parse(fs.readFileSync(argsFile, 'utf8')) : null, err: r.stderr };
+  const res = { code: r.status, output: fs.readFileSync(out, 'utf8'), args: fs.existsSync(argsFile) ? JSON.parse(fs.readFileSync(argsFile, 'utf8')) : null, err: r.stderr, out: r.stdout };
   fs.rmSync(dir, { recursive: true, force: true });
   return res;
 }
 
-test('action.yml: with exit-detail it records verify\'s code and passes; without, it behaves as before', () => {
+test('action.yml: with exit-detail it records verify\'s code and exits with it; without, it behaves as before', () => {
   for (const exit of [0, 1, 4, 5]) {
     const r = runAction({ exit, exitDetail: true });
-    assert.equal(r.code, 0, r.err);
+    assert.equal(r.code, exit, r.err);
     assert.equal(r.output, `code=${exit}\n`);
     assert.ok(r.args.includes('--exit-detail'));
+    assert.deepEqual(r.args.slice(0, 2), ['verify', 'b..h']);
   }
   const old = runAction({ exit: 1, exitDetail: false });
   assert.equal(old.code, 1, 'without exit-detail the step still fails');
@@ -117,6 +119,29 @@ test('action.yml: with exit-detail it records verify\'s code and passes; without
   assert.ok(!old.args.includes('--exit-detail'));
   const approved = runAction({ exit: 0, exitDetail: true, env: { ACCEPT_INCONCLUSIVE: 'abc123', ACCEPT_UNCOVERED: 'abc123' } });
   assert.ok(approved.args.includes('--accept-inconclusive=abc123') && approved.args.includes('--accept-uncovered=abc123'));
+});
+
+test('action.yml: an explicit range wins; with no pull request and no range it fails clearly instead of verifying ".."', () => {
+  const pushed = runAction({ exit: 0, exitDetail: false, env: { RANGE_INPUT: 'aaa..bbb', PR_BASE: '', PR_HEAD: '', EVENT_NAME: 'push' } });
+  assert.equal(pushed.code, 0, pushed.err);
+  assert.deepEqual(pushed.args.slice(0, 2), ['verify', 'aaa..bbb']);
+  const none = runAction({ exit: 0, exitDetail: false, env: { PR_BASE: '', PR_HEAD: '', EVENT_NAME: 'push' } });
+  assert.equal(none.code, 2);
+  assert.equal(none.args, null, 'verify never ran');
+  assert.match(none.out, /::error title=POCP verify::no commit range: this push event isn't a pull request/);
+});
+
+test('action.yml: pocp-command is split into words without glob or variable expansion', () => {
+  const dir = tmp();
+  const argsFile = path.join(dir, 'args.json');
+  const fake = path.join(dir, 'fake.sh');
+  fs.writeFileSync(fake, `#!/bin/sh\nnode -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify(process.argv.slice(2)))' "${argsFile}" "$@"\n`, { mode: 0o755 });
+  const r = runAction({ exit: 0, exitDetail: false, env: { POCP_CMD: `${fake} *.sh $HOME`  /* the action's working folder holds a .sh file */ } });
+  assert.equal(r.code, 0, r.err);
+  assert.equal(r.args, null, 'runAction\'s own stand-in did not run');
+  const args = JSON.parse(fs.readFileSync(argsFile, 'utf8'));
+  assert.deepEqual(args.slice(0, 3), ['*.sh', '$HOME', 'verify']);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('pocp init --github writes the three workflows, pinned, and keeps existing ones', () => {

@@ -37,7 +37,7 @@ test('weakening an existing test needs a sign-off, and is named (attest mode)', 
   assert.equal(v.json.commits[0].test_guard.files[0], 'test/math.check.mjs');
 });
 
-test('block mode: changed tests fail CI until accepted; new tests are fine', () => {
+test('block mode: changed and new tests fail CI until accepted', () => {
   const dir = sampleRepo({ hooks: true });
   writeConfig(dir, { guard: { tests: 'block' } });
   git(dir, 'add', '-A');
@@ -46,7 +46,10 @@ test('block mode: changed tests fail CI until accepted; new tests are fine', () 
   write(dir, 'test/extra.check.mjs', 'process.exit(0);\n');
   git(dir, 'add', '-A');
   git(dir, 'commit', '-q', '--no-verify', '-m', 'new test only');
-  assert.equal(pocp(dir, ['verify', 'HEAD', '--json']).json.test_guard, null, 'adding a test is not guarded');
+  // A new test file runs with the old ones (this one ends the run before they do): guarded.
+  const added = pocp(dir, ['verify', 'HEAD', '--json']);
+  assert.deepEqual(added.json.test_guard?.files, ['test/extra.check.mjs'], 'adding a test is guarded');
+  assert.equal(added.code, 1);
   write(dir, 'test/math.check.mjs', "import assert from 'node:assert';\nassert.equal(1, 1);\n");
   git(dir, 'add', '-A');
   git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'assert style');

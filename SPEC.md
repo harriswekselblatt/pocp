@@ -317,7 +317,8 @@ A check can be hollowed out without touching its command: gut the assertions in 
 existing test, add `.skip`, or change `"test": "…"` in `package.json` to `echo ok`. POCP
 treats these changes as guarded:
 
-- existing test files modified, deleted or renamed (added test files are fine). The default
+- test files added, modified, deleted or renamed (an added test file runs with the old ones
+  and can change their outcome). The default
   test patterns cover the common layouts of JavaScript/TypeScript (`test/`, `spec/`,
   `__tests__/`, `*.test.*`, `*.spec.*`, `*_spec.*`, snapshots, `__mocks__/`), Python
   (`tests/`, `test_*.py`, `*_test.py`), Ruby (`spec/`, `*_spec.rb`, `*_test.rb`), Go
@@ -367,7 +368,7 @@ Defaults cover common JavaScript, Python, Ruby, Rust, PHP, JVM and .NET harness 
 `guard.runner_globs` replace the defaults; `guard.extra_test_globs` and
 `guard.extra_runner_globs` add to them, for harnesses POCP can't know about (a Makefile
 target, a Gradle task, a custom script). Added, modified, deleted and renamed runner files
-are all guarded; for test files, only added ones are free.
+are all guarded, and so are test files.
 
 Guarded files always need a packet. With `guard.tests` set to `"block"` (default) or
 `"attest"`, a packet that covers them gains a `guard` obligation (`source: "guard:tests"`)
@@ -408,15 +409,11 @@ runnable obligations. Every run below is in its own fresh copy of the code.
    the new tests must catch too (which implies they catch at least as many). Otherwise the
    result is `detection-dropped`, with the lost mutants listed. With `guard.mutants: 0`
    (fast mode, which `pocp init` writes for new projects; `pocp init --deep` writes 10) this
-   part is replaced by a structural review: the change passes only if every guarded change
-   is an existing test file modified by adding lines, none of which matches a list of risky
-   text patterns (skipping or focusing tests, exiting, a bare early return, reassigning or
-   patching an assertion object or a prototype, the common mocking and stubbing APIs,
-   exit-code resets and exit handlers, test hooks and fixtures, assignments to `globalThis`
-   or `global`, an empty `catch`), matched on each added line and on the file's added lines
-   joined. Anything else (changed or removed test lines, deleted or renamed tests, helpers,
-   runner config, test settings) is `needs-review`: a person decides. The patterns are a
-   heuristic; fast mode doesn't judge what an edit means. The built-in default stays 10, so a
+   part is replaced by a review: every guarded change, including lines added to existing
+   tests and new test files, is `needs-review` and a person decides. Without planted bugs no
+   text rule can show that a test edit still catches what it caught (added lines alone can
+   disable existing assertions). The review names what changed and flags added lines that
+   match a list of risky patterns, as a hint to the reviewer, not as a pass condition.
    config without `guard.mutants` (any project set up before fast mode) keeps deep mode.
 
    **Only a normal failure catches a mutant.** A check catches a mutant only if it ran to

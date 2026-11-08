@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import * as P from './packets.js';
-import { DONT_REWRITE } from './remedies.js';
+import { DONT_REWRITE, UNFINISHED_PROOF } from './remedies.js';
 
 const MAX_ROUNDS = 4;
 
@@ -95,7 +95,12 @@ export async function runFix(engine, { intent, test, mode, actor } = {}) {
         ran: ran.length,
         checks: r.packets.reduce((n, p) => n + p.runs.length, 0),
         ms: ran.reduce((a, x) => a + (x.duration_ms || 0), 0),
-        failed: r.packets.flatMap((p) => p.runs.filter((x) => x.passed === false || x.failed_before).map((x) => ({ packet: p.id, obligation: x.obligation, log: x.run_id ? `.proof/runs/${x.run_id}.log` : null, before: Boolean(x.failed_before) }))),
+        failed: r.packets.flatMap((p) => p.runs.filter((x) => x.passed === false || x.failed_before).map((x) => ({
+          packet: p.id, obligation: x.obligation, log: x.run_id ? `.proof/runs/${x.run_id}.log` : null, before: Boolean(x.failed_before),
+          // Timed out, killed or didn't start: says nothing about the code (a guard's own
+          // verdict is judged elsewhere).
+          ...(x.outcome === 'unfinished' ? { unfinished: true } : {}),
+        }))),
       });
       progressed = true;
     }
@@ -140,6 +145,16 @@ export async function runFix(engine, { intent, test, mode, actor } = {}) {
     a.handed = a.failed.filter((f) => handed.has(`${f.packet}\0${f.obligation}`)).map((f) => f.obligation);
     for (const f of a.failed) {
       if (handed.has(`${f.packet}\0${f.obligation}`)) continue;
+      if (f.unfinished) {
+        needsAgent.unshift({
+          code: 'unfinished_proof',
+          what: `${f.obligation} didn't finish on this code (timed out, killed or didn't start)${f.log ? ` · log ${f.log}` : ''}`,
+          why: UNFINISHED_PROOF.why,
+          next: 'run pocp fix again (it re-runs checks that didn\'t finish); if it still can\'t finish, fix the hang or raise the check\'s timeout_ms. Do not change the code because of it.',
+          by: 'agent',
+        });
+        continue;
+      }
       needsAgent.unshift({
         code: 'failed_proof',
         what: `${f.obligation} fails on this exact code${f.before ? ' (it failed here before, so it was not run again)' : ''}${f.log ? ` · log ${f.log}` : ''}`,
@@ -201,9 +216,10 @@ export function formatFix(r) {
       else {
         // Say what passed and what didn't: a failed check is never counted as proved.
         const handed = a.handed || [];
-        const failing = a.failed.map((f) => f.obligation).filter((o) => !handed.includes(o));
+        const failing = a.failed.filter((f) => !f.unfinished).map((f) => f.obligation).filter((o) => !handed.includes(o));
+        const unfinished = a.failed.filter((f) => f.unfinished).map((f) => f.obligation).filter((o) => !handed.includes(o));
         const total = Math.max(a.checks ?? a.ran, a.failed.length);
-        lines.push(`  did: proved ${total - a.failed.length} of ${total} check(s) for ${a.packets.join(', ')}${extra ? ` (${extra.slice(2)})` : ''}${handed.length ? `; ${handed.join(', ')} handed to CI` : ''}${failing.length ? `; ${failing.join(', ')} failed` : ''}`);
+        lines.push(`  did: proved ${total - a.failed.length} of ${total} check(s) for ${a.packets.join(', ')}${extra ? ` (${extra.slice(2)})` : ''}${handed.length ? `; ${handed.join(', ')} handed to CI` : ''}${failing.length ? `; ${failing.join(', ')} failed` : ''}${unfinished.length ? `; ${unfinished.join(', ')} didn't finish` : ''}`);
       }
     }
     else if (a.action === 'defer') lines.push(`  did: handed ${a.packet} ${a.obligations.join(', ')} to CI: a maintainer approves the test change there (no sign-off from you)`);

@@ -13,7 +13,7 @@ environment.
 | The set of required checks | Rules re-derived on every gate and verify; requirements matched against the changed files a packet covers (§6, §7) |
 | The rules themselves | Policy files need a packet; CI judges each commit by the **base** branch's rules and fails any loosening without approval (§7.2) |
 | The trust root for signatures | `allowed_signers` read from the base (or a pinned file), never from the commit under review (§7.2) |
-| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code. Fast mode (`guard.mutants: 0`): the change must only add non-risky lines to existing test files. Deep mode: the new tests must catch every sampled mutant the old ones caught. Otherwise a sign-off, or approval in block mode (§6.2). In CI the whole pull request is also judged as one change, merges included (§7.2) |
+| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code. Fast mode (`guard.mutants: 0`): every test change, new test files included, goes to a person. Deep mode: the new tests must catch every sampled mutant the old ones caught. Otherwise a sign-off, or approval in block mode (§6.2). In CI the whole pull request is also judged as one change, merges included (§7.2) |
 | Lessons from escapes | Misses close only through a runnable rule; replay shows it catches the old code (§8) |
 
 ## Who it defends against
@@ -111,6 +111,17 @@ re-runs; and new tests inside one check can sabotage the other tests of that sam
 example by rewriting their files before they run). So the re-run verdict is as trustworthy as
 running the pull request's tests in CI, which every project already relies on, plus the checks
 the pull request can't edit: base-branch rules, coverage, digests, signatures, the test guard.
+
+**How the job reports the verdict.** Removing `GITHUB_OUTPUT` and the other step-file variables
+from a check's environment doesn't hide the files: they sit in the runner's temp directory,
+writable by the job's user. So the example workflows and POCP's own never take "verified" from
+a step output. The verify step exits with verify's exit code, and a `verified` step runs only
+when that step succeeded; the `code` output only chooses between waiting, inconclusive and
+failed. The same goes for the environment and path files: what a check writes to them can
+change later steps' environment, but not whether the verify step succeeded. What remains is the
+limit above: code that can use `ptrace` or sudo on the runner can tamper with the verifier's
+process or the runner itself, exit status included. Closing that needs the checks to run as a
+different user or in a separate container or job from the verifier, which POCP doesn't do yet.
 
 **Faster, trusting mode.** Running the tests first with `pocp ci-run` and passing
 `--ci-results` to verify skips the re-run of any check with a passing record. The tests run
@@ -221,18 +232,13 @@ other than the author can review.
   records that verify. Protect them as you would release credentials.
 - **Heuristic signals.** The test guard's "assertions removed / skips added" counts are
   hints for the reviewer, not a parser of every test framework.
-- **Limits of fast mode** (`guard.mutants: 0`). It passes a test edit only when the edit adds
-  lines to existing test files and none matches its risky text patterns (skip or focus,
-  exit, a bare early return, reassigning or patching an assertion object or a prototype, the
-  common mocking and stubbing APIs it names, exit-code resets and exit handlers, test hooks
-  and fixtures, assignments to `globalThis`/`global`, empty `catch`). They are matched on
-  each added line and on a file's added lines joined. They are not a parser, and an added
-  line can still weaken a test in ways they miss. Known examples: patching through an alias
-  (`const a = assert; a.equal = () => {}`), a mocking API it doesn't name, a global changed
-  some other way (`Reflect.set`, a bare assignment in sloppy mode), a statement split around
-  an unchanged line, a new helper that later tests call instead of the real assertion, and
-  shared state set by an added test that runs first. Everything else goes to a person, so fast mode trades the planted-bug
-  check for more reviews.
+- **Limits of fast mode** (`guard.mutants: 0`). No test edit passes on its own: every
+  guarded change, new test files and lines added to existing tests included, goes to a
+  person. (Earlier versions passed edits that only added lines matching none of a list of
+  risky patterns; added lines can disable existing assertions in ways no text rule sees, so
+  that path was removed.) The risky-pattern matches are now only hints for the reviewer. Fast
+  mode is therefore as strong as the review it asks for, and trades the planted-bug check for
+  more reviews.
 - **Limits of `changed_test_command`** (docs/REFERENCE.md). When a rule sets it, fast mode
   runs only the old versions of the edited test files (and, when they fail, the same files on
   the base, which can only send the change to a person). A test that passes alone but fails
