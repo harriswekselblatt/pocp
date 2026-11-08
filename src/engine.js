@@ -14,7 +14,7 @@ import { formatTrailer, parseTrailers, TRAILER_KEY } from './trailer.js';
 import { signProof, verifyProofSignature } from './sign.js';
 import { detectTestChanges, effectiveGuardGlobs, guardBudget, guardRequirement, isLegacyGuardObligation } from './guard.js';
 import { requirementCommands } from './test-setup.js';
-import { runGuardCheck } from './guard-check.js';
+import { allSettled, defaultJobs, runGuardCheck, semaphore } from './guard-check.js';
 import { ranAndFailed, runOutcome, unfinishedReason } from './run-result.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { gateRemedies, pendingApprovals } from './remedies.js';
@@ -65,27 +65,74 @@ const noopPolicy = {};
  * Interfaces (all optional): store, runner, policy, events. Options: now, newId, by, hostName.
  */
 /**
- * Passes seen by one verify, by (subject, cwd, command): a check that already passed on a
- * commit's exact code in this verify (a re-run, or the test guard's baseline) is not run again.
+ * The checks one verify runs: a check that already passed on a commit's exact code in this
+ * verify (a re-run, or the test guard's baseline) is not run again, by (subject, cwd, command).
  * Checks that match output (`expect`) are never shared. CI results count only for the guard's
  * baseline (rerunAt applies its own rule for them).
+ *
+ * verify starts its re-runs and its test guard together, so a check can be asked for while
+ * the same check on the same code is still running: `share` then waits for that run and
+ * reuses it if it passed. Only a pass is ever shared. A run that failed, timed out or didn't
+ * start is not, so the one asking runs the check itself, as it would have before. `limit`
+ * caps how many checks run at once across the whole verify.
  */
-export function createRunMemo() {
+export function createRunMemo({ jobs } = {}) {
   const seen = new Map();
+  const running = new Map(); // key -> promise of the run in progress
+  const limitN = Math.max(1, Number(jobs) || defaultJobs());
+  const slots = semaphore(limitN);
   const key = (subject, ob) => `${subject}\0${ob.cwd || ''}\0${ob.run}`;
+  const known = (subject, ob, ciResults = []) => {
+    if (ob.expect || !ob.run) return null;
+    const hit = seen.get(key(subject, ob));
+    if (hit) return hit;
+    const last = latestCiResults(ciResults.filter((r) => r.subject === subject && r.run === ob.run && (r.cwd || '') === (ob.cwd || ''))).pop();
+    return last?.passed ? { duration_ms: last.duration_ms } : null;
+  };
+  const record = (subject, ob, r) => {
+    if (!ob.expect && ob.run) seen.set(key(subject, ob), { duration_ms: r.duration_ms });
+  };
   return {
-    record(subject, ob, r) {
-      if (!ob.expect && ob.run) seen.set(key(subject, ob), { duration_ms: r.duration_ms });
-    },
+    /** How many checks this verify runs at once (the test guard uses the same number). */
+    jobs: limitN,
+    record,
+    known,
     ran(subject, ob) {
       return !ob.expect && seen.has(key(subject, ob));
     },
-    known(subject, ob, ciResults = []) {
-      if (ob.expect || !ob.run) return null;
-      const hit = seen.get(key(subject, ob));
-      if (hit) return hit;
-      const last = latestCiResults(ciResults.filter((r) => r.subject === subject && r.run === ob.run && (r.cwd || '') === (ob.cwd || ''))).pop();
-      return last?.passed ? { duration_ms: last.duration_ms } : null;
+    /**
+     * `run()` once per check and code: { reused: { duration_ms } } for a pass seen here (or, with
+     * `ciResults`, recorded by CI), else { result } of running it. Deciding to run and marking
+     * the run as in progress happen with no await in between, so two callers can't both start it.
+     */
+    async share(subject, ob, run, ciResults = []) {
+      if (ob.expect || !ob.run) return { result: await run() };
+      const k = key(subject, ob);
+      for (;;) {
+        const hit = known(subject, ob, ciResults);
+        if (hit) return { reused: hit };
+        const pending = running.get(k);
+        if (!pending) break;
+        await pending.then(() => {}, () => {});
+      }
+      const p = run();
+      running.set(k, p);
+      try {
+        const result = await p;
+        if (result.passed) record(subject, ob, result);
+        return { result };
+      } finally {
+        if (running.get(k) === p) running.delete(k);
+      }
+    },
+    /** Run `fn` when one of this verify's check slots is free. */
+    async limit(fn) {
+      await slots.acquire();
+      try {
+        return await fn();
+      } finally {
+        slots.release();
+      }
     },
   };
 }
@@ -238,13 +285,21 @@ export function createPocp(opts = {}) {
   }
 
   /** Run the mechanical check for one guard obligation. `rev` null means the staged index. */
-  async function guardCheckFor(ob, { packet, required, guardInfo, base, rev, cfg, known, onPass, seed }) {
+  /**
+   * In verify, pass `memo` and `subject`: the guard's runs then count toward verify's limit on
+   * checks at once, and its new-code baseline is shared with verify's re-runs (memo.share).
+   */
+  async function guardCheckFor(ob, { packet, required, guardInfo, base, rev, cfg, known, onPass, seed, memo, subject, ciResults = [] }) {
     const { checks, sourceGlobs, from } = guardInputs(packet, required);
     const files = new Set(ob.files);
     const changes = (guardInfo.changes || []).filter((c) => files.has(c.path) || (c.oldPath && files.has(c.oldPath)));
     const res = await runGuardCheck({
       root,
-      runObligation,
+      runObligation: memo ? (o, dir, x) => memo.limit(() => runObligation(o, dir, x)) : runObligation,
+      // In verify, the guard's own slots match verify's limit (--jobs): with fewer, its old-tests
+      // runs queued behind its new-code baseline instead of running alongside it.
+      ...(memo ? { jobs: memo.jobs } : {}),
+      share: memo ? (o, run) => memo.share(subject, o, run, ciResults) : undefined,
       base,
       rev,
       changes,
@@ -1192,6 +1247,8 @@ export function createPocp(opts = {}) {
    * unreadable JSON or values that don't validate. verify fails closed on any problem.
    */
   function policyAt(rev) {
+    // All four policy files in one git call; policyInForce reads the other two right after.
+    g.prefetchFilesAt(root, rev, POLICY_FILES);
     const problems = [];
     const rawRules = readJsonAt(rev, '.proof/rules.json');
     const rawCfg = readJsonAt(rev, '.proof/config.json');
@@ -1328,7 +1385,7 @@ export function createPocp(opts = {}) {
    * obligation again in a clean checkout of that commit. With `requireCoverage`,
    * also require that files the commit changed are covered when the rules say so.
    */
-  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, acceptInconclusive = false, acceptUncovered = false, uncoveredExceptions, testGuardOnNet = false, rulesGuardFallback = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, memo = createRunMemo() } = {}) {
+  async function verify(rev = 'HEAD', { rerun = false, guardRerun, requireCoverage = false, useHost = Boolean(opts.policy), ciResults, policyFrom, acceptPolicyChange = false, acceptTestChange = false, acceptInconclusive = false, acceptUncovered = false, uncoveredExceptions, testGuardOnNet = false, rulesGuardFallback = false, allowedSignersFile, checkRequiredCiHere = true, guardSeed, jobs, memo = createRunMemo({ jobs }), alongside = null } = {}) {
     if (rerun === true) rerun = 'all';
     // The test guard's check compares a commit with its parent, so in a range it re-runs per
     // commit (verifyRange passes guardRerun) rather than once at the head.
@@ -1342,7 +1399,7 @@ export function createPocp(opts = {}) {
 
     // Policy comes from the base (default: the commit's parent), so a change can't loosen
     // the rules it is judged by. Stricter rules from the commit still apply.
-    const baseRev = policyFrom === undefined ? g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true }) : policyFrom ? g.resolveRev(root, policyFrom) : null;
+    const baseRev = policyFrom === undefined ? g.parentOf(root, commit) : policyFrom ? g.resolveRev(root, policyFrom) : null;
     const { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks } = policyInForce(commit, baseRev, { acceptPolicyChange, allowedSignersFile });
     const commitFinding = findingSink(out, blocks);
     reportPolicy(commitFinding, out, { baseRev, policyProblems, weakened, accepted });
@@ -1482,7 +1539,7 @@ export function createPocp(opts = {}) {
         config: cfgAt,
         hostName,
       });
-      const parent = g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true });
+      const parent = g.parentOf(root, commit);
       const pc = policyChange(commitChangeList, rulesAt, parent ? readRulesAt(parent) : null);
       if (pc) {
         trig.required_files = [...new Set([...trig.required_files, ...pc.files])].sort();
@@ -1507,39 +1564,49 @@ export function createPocp(opts = {}) {
       if (accepted.length) out.coverage.accepted = accepted;
     }
 
-    if (rerun && packetsAt.length) {
-      const failures = await rerunAt(commit, packetsAt, { mode: rerun, ciResults: ciResults || [], subject, signed: sigOf, links: cfgAt.snapshot.link, into: out.reruns, memo });
-      for (const f of failures) {
-        const entry = out.packets.find((x) => x.id === f.packet);
-        const blocking = blocks('rerun_failed');
-        out.findings.push({ code: 'rerun_failed', detail: f.problem, blocking, packet: f.packet, unfinished: f.unfinished });
-        if (entry) {
-          if (blocking) {
-            entry.ok = false;
-            entry.problems.push(f.problem);
-          } else entry.warnings.push(f.problem);
-        }
+    // The re-runs, the test guard and the required CI re-runs start together and run side by
+    // side (up to the memo's limit), in this order, so a check two of them need runs once: the
+    // later one waits for it (memo.share). Their results are then judged in the same order as
+    // when they ran one after another, so the findings and their order don't change.
+    const rerunning = rerun && packetsAt.length ? rerunAt(commit, packetsAt, { mode: rerun, ciResults: ciResults || [], subject, signed: sigOf, links: cfgAt.snapshot.link, into: out.reruns, memo }) : null;
+    const guardOnNet = Boolean(testGuardOnNet && commitGuard.files.length);
+    // A one-commit range: test files no packet's guard covers are checked from the base
+    // branch's rules, as a range of several commits checks them on its net change.
+    const rulesRequired = rulesGuardFallback
+      ? async () => {
+        const hostReqs = useHost ? await hostRequirements(commitFiles, { rev: commit }) : [];
+        const req = requirementsFor(commitFiles, { rules: rulesAt, hostRequirements: hostReqs, hostName });
+        return useHost ? req.merged : req.repoOnly;
+      }
+      : null;
+    const guardRunning = guardOnNet ? null : startTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, cfgAt, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed, rulesRequired });
+    // verifyRange's re-run of a one-commit range's tip, started once this commit's guard has
+    // claimed its runs (so the guard's baseline is the one run and the re-run reuses it).
+    if (alongside) alongside({ packets: packetsAt, signed: sigOf });
+    // Required CI results (verify.require_ci). Fails closed: with no results supplied at all,
+    // every required command counts as missing. A passing re-run by this verify also counts.
+    const requiredCiReruns = [];
+    const requiredCiRunning = checkRequiredCiHere && rerun ? rerunRequiredCi(commit, cfgAt, { mode: rerun, ciResults: ciResults || [], subject, into: requiredCiReruns, memo }) : null;
+    const [failures, guardRan] = await allSettled([rerunning, guardRunning, requiredCiRunning]);
+
+    for (const f of failures || []) {
+      const entry = out.packets.find((x) => x.id === f.packet);
+      const blocking = blocks('rerun_failed');
+      out.findings.push({ code: 'rerun_failed', detail: f.problem, blocking, packet: f.packet, unfinished: f.unfinished });
+      if (entry) {
+        if (blocking) {
+          entry.ok = false;
+          entry.problems.push(f.problem);
+        } else entry.warnings.push(f.problem);
       }
     }
-    if (testGuardOnNet && commitGuard.files.length) {
+    if (guardOnNet) {
       commitGuard.mechanical = [];
       out.notes.push(`test change (${commitGuard.files.join(', ')}) is judged once, on the pull request's net change`);
     } else {
-      // A one-commit range: test files no packet's guard covers are checked from the base
-      // branch's rules, as a range of several commits checks them on its net change.
-      const rulesRequired = rulesGuardFallback
-        ? async () => {
-          const hostReqs = useHost ? await hostRequirements(commitFiles, { rev: commit }) : [];
-          const req = requirementsFor(commitFiles, { rules: rulesAt, hostRequirements: hostReqs, hostName });
-          return useHost ? req.merged : req.repoOnly;
-        }
-        : null;
-      await checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive, cfgAt, commitFinding, blocks, signed: sigOf, memo, ciResults: ciResults || [], seed: guardSeed, rulesRequired });
+      await checkTestGuard({ out, commitGuard, guardJobs, acceptTestChange, acceptInconclusive, cfgAt, commitFinding, blocks, seed: guardSeed, ran: guardRan });
     }
-
-    // Required CI results (verify.require_ci). Fails closed: with no results supplied at all,
-    // every required command counts as missing. A passing re-run by this verify also counts.
-    if (checkRequiredCiHere && rerun) await rerunRequiredCi(commit, cfgAt, { mode: rerun, ciResults: ciResults || [], subject, into: out.reruns, memo });
+    out.reruns.push(...requiredCiReruns);
     if (checkRequiredCiHere) checkRequiredCi(cfgAt, ciResults, subject, commitFinding, out.reruns, out.notes);
     applyRerunEvidence(out.packets, packetsAt, out.reruns);
     Object.defineProperty(out, 'packetData', { value: packetsAt, enumerable: false });
@@ -1560,16 +1627,35 @@ export function createPocp(opts = {}) {
    * passes only on an independent mechanical pass (this re-run, or a proof signed by a
    * trusted key); anything else needs --accept-test-change, which is meant for a person.
    */
-  async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive = false, cfgAt, commitFinding, blocks, signed, memo, ciResults, seed, rulesRequired = null }) {
+  /**
+   * Start the test guard's re-runs for a commit (startTestGuard), so they run while verify's
+   * own re-runs do. Resolves once all of them have ended to { jobs: [result or null per guard
+   * job], rules: result or null }; checkTestGuard judges them.
+   */
+  function startTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, cfgAt, signed, memo, ciResults, seed, rulesRequired = null }) {
+    if (!commitGuard.files.length) return Promise.resolve(null);
+    const base = g.parentOf(root, commit);
+    const reruns = (job) => guardRerun && !(guardRerun === 'unsigned' && signed.get(obligationDigest(job.ob)) === 'valid' && job.proof?.passed);
+    // The new code's baseline is the same run as a re-run or CI result for this commit, if one exists.
+    const jobs = guardJobs.map((job) => (reruns(job) ? guardCheckFor(job.ob, { packet: job.packet, required: job.required, guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, seed, memo, subject: out.subject, ciResults }) : null));
+    // The rules' check for test files no packet's guard covers (one-commit ranges only, see
+    // verify's rulesGuardFallback): the same check a range of several commits runs on its net
+    // change. Packets keep their own path; a bad packet's findings are unaffected.
+    const notInJobs = commitGuard.files.filter((f) => !guardJobs.some((j) => j.files.includes(f)));
+    const rules = rulesRequired && guardRerun && notInJobs.length && (commitGuard.mode === 'block' || commitGuard.mode === 'attest')
+      ? (async () => guardCheckFor({ id: 'rules', kind: 'guard', files: notInJobs, ...guardBudget(cfgAt) }, { packet: { id: 'rules', touches: [], obligations: [] }, required: await rulesRequired(), guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, seed, memo, subject: out.subject, ciResults }))()
+      : null;
+    return allSettled([...jobs, rules]).then((done) => ({ jobs: done.slice(0, -1), rules: done[done.length - 1] }));
+  }
+
+  async function checkTestGuard({ out, commitGuard, guardJobs, acceptTestChange, acceptInconclusive = false, cfgAt, commitFinding, blocks, seed, ran }) {
     if (!commitGuard.files.length) return;
-    const base = g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true });
     const results = [];
-    for (const job of guardJobs) {
+    for (const [i, job] of guardJobs.entries()) {
       const entry = out.packets.find((e) => e.id === job.packet.id);
       const r = { packet: job.packet.id, obligation: job.ob.id, files: job.files };
-      if (guardRerun && !(guardRerun === 'unsigned' && signed.get(obligationDigest(job.ob)) === 'valid' && job.proof?.passed)) {
-        // The new code's baseline is the same run as a re-run or CI result for this commit, if one exists.
-        const res = await guardCheckFor(job.ob, { packet: job.packet, required: job.required, guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, seed, known: (ob) => memo.known(out.subject, ob, ciResults), onPass: (ob, r) => memo.record(out.subject, ob, r) });
+      const res = ran.jobs[i];
+      if (res) {
         Object.assign(r, { evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, unfinished: Boolean(res.unfinished), result: res });
         out.reruns.push({ run: `test guard (${job.ob.id}, ${job.ob.mutants} mutants${seed !== undefined ? `, seed ${seed}` : ''})`, kind: 'guard', packets: [job.packet.id], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
         if (entry?.evidence) {
@@ -1594,14 +1680,11 @@ export function createPocp(opts = {}) {
       }
       results.push(r);
     }
-    // The rules' check for test files no packet's guard covers (one-commit ranges only, see
-    // verify's rulesGuardFallback): the same check a range of several commits runs on its net
-    // change. Packets keep their own path; a bad packet's findings are unaffected.
     const notInJobs = commitGuard.files.filter((f) => !guardJobs.some((j) => j.files.includes(f)));
     let rulesRun = null;
-    if (rulesRequired && guardRerun && notInJobs.length && (commitGuard.mode === 'block' || commitGuard.mode === 'attest')) {
-      const ob = { id: 'rules', kind: 'guard', files: notInJobs, ...guardBudget(cfgAt) };
-      const res = await guardCheckFor(ob, { packet: { id: 'rules', touches: [], obligations: [] }, required: await rulesRequired(), guardInfo: commitGuard, base, rev: commit, cfg: cfgAt, seed, known: (o) => memo.known(out.subject, o, ciResults), onPass: (o, x) => memo.record(out.subject, o, x) });
+    if (ran.rules) {
+      const res = ran.rules;
+      const ob = { id: 'rules', ...guardBudget(cfgAt) };
       rulesRun = { packet: null, obligation: 'rules', files: notInJobs, evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, unfinished: Boolean(res.unfinished), result: res };
       results.push(rulesRun);
       out.reruns.push({ run: `test guard (rules, ${ob.mutants} mutants${seed !== undefined ? `, seed ${seed}` : ''})`, kind: 'guard', packets: [], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
@@ -1663,25 +1746,35 @@ export function createPocp(opts = {}) {
     }
     const failures = [];
     const todo = [];
+    const entries = []; // in job order, whatever order the runs finish in
     for (const [d, job] of jobs) {
       // A CI result can't stand in for a check that also matches output (`expect`).
-      if (ran.has(`${job.ob.cwd || ''}\0${job.ob.run}`) && !job.ob.expect) into.push({ run: job.ob.run, digest: d, packets: job.packets, status: 'skipped: passing CI result for this code', evidence: 'ci-result' });
-      else if (mode === 'unsigned' && signed.get(d) === 'valid') into.push({ run: job.ob.run, digest: d, packets: job.packets, status: 'skipped: signed by an allowed signer', evidence: 'signed' });
-      else if (memo.ran(subj, job.ob)) into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: d, packets: job.packets, status: 'passed', reused: 'already run on this commit by this verify', duration_ms: 0 });
-      else todo.push(job);
+      if (ran.has(`${job.ob.cwd || ''}\0${job.ob.run}`) && !job.ob.expect) entries.push({ run: job.ob.run, digest: d, packets: job.packets, status: 'skipped: passing CI result for this code', evidence: 'ci-result' });
+      else if (mode === 'unsigned' && signed.get(d) === 'valid') entries.push({ run: job.ob.run, digest: d, packets: job.packets, status: 'skipped: signed by an allowed signer', evidence: 'signed' });
+      else {
+        job.at = entries.length;
+        entries.push(null);
+        todo.push(job);
+      }
     }
     // Each check gets its own fresh copy of the commit (no .git), so one check's code can't
-    // change the files another check runs.
-    for (const job of todo) {
+    // change the files another check runs. The checks run side by side, up to verify's limit;
+    // one this verify already ran (or is running, in the test guard) on this code is reused.
+    const done = await allSettled(todo.map((job) => memo.share(subj, job.ob, () => memo.limit(async () => {
       const co = createRevCheckout(root, commit, { links });
-      let r;
       try {
-        r = await runObligation(job.ob, co.dir);
+        return await runObligation(job.ob, co.dir);
       } finally {
         co.cleanup();
       }
-      if (r.passed) memo.record(subj, job.ob, r);
-      into.push({ run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, ...(r.signal ? { signal: r.signal } : {}), ...(r.error ? { error: r.error } : {}), duration_ms: r.duration_ms });
+    }))));
+    todo.forEach((job, i) => {
+      const { reused, result: r } = done[i];
+      if (reused) {
+        entries[job.at] = { run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: 'passed', reused: 'already run on this commit by this verify', duration_ms: 0 };
+        return;
+      }
+      entries[job.at] = { run: job.ob.run, cwd: job.ob.cwd || null, subject: subj, digest: obligationDigest(job.ob), packets: job.packets, status: r.passed ? 'passed' : 'failed', exit: r.exit, timed_out: r.timed_out, ...(r.signal ? { signal: r.signal } : {}), ...(r.error ? { error: r.error } : {}), duration_ms: r.duration_ms };
       // unfinished: it timed out, was killed or didn't start, so it says nothing about the code.
       if (!r.passed) {
         const unfinished = runOutcome(r) === 'unfinished';
@@ -1690,7 +1783,8 @@ export function createPocp(opts = {}) {
           : `rerun of "${job.ob.run}" failed (exit ${r.exit})`;
         for (const id of job.packets) failures.push({ packet: id, problem, unfinished });
       }
-    }
+    });
+    into.push(...entries);
     return failures;
   }
 
@@ -1860,7 +1954,7 @@ export function createPocp(opts = {}) {
     if (baseRev && !netBase) throw new PocpError(`${rangeBase} and ${tipSpec || 'HEAD'} share no history here, so the net change can't be computed (fetch the full history of both)`, { code: 'no_merge_base' });
     // One plain commit on the base: its own check is the net change's check, so it isn't run twice.
     const single = merges.length === 0 && commits.length === 1 && tip === lastCommit && netBase
-      && g.git(root, ['rev-parse', '--verify', '--quiet', `${lastCommit}^1`], { allowFail: true }) === netBase;
+      && g.parentOf(root, lastCommit) === netBase;
     const seed = netBase && pol ? rangeGuardSeed(guardBudget(pol.cfgAt).seed, netBase, tip) : undefined;
 
     // The net change's commit is written before any code under review runs: verify trusts the
@@ -1868,14 +1962,30 @@ export function createPocp(opts = {}) {
     const synth = netBase && !single ? netChangeCommit(netBase, tip) : null;
 
     // Required CI results are checked once, at the tip (where CI ran), after the range's re-runs.
-    const memo = createRunMemo();
+    const memo = createRunMemo({ jobs: options.jobs });
+    const rerun = options.rerun === true ? 'all' : options.rerun;
+    // The tip's re-run of every packet's checks. It runs side by side with the test guard (the
+    // one-commit range's own, or the net change's); a check both need runs once (memo.share).
+    let tipRerun = null;
+    const startTipRerun = (packets, signed) => {
+      const into = [];
+      const done = rerunAt(tip, packets, { mode: rerun, ciResults: options.ciResults || [], signed, links: pol.cfgAt.snapshot.link, into, memo });
+      tipRerun = { into, done: done.then((failures) => ({ failures }), (err) => ({ err })) };
+    };
     // Exceptions come from the code being merged, and count only with an approval for it.
     const uncoveredExceptions = options.acceptUncovered && tip ? { head: tip, ...readUncoveredExceptions(tip) } : null;
-    for (const c of commits) {
-      // With a net change, a test change is judged once, on the whole pull request (old tests
-      // from the merge base, new code from the tip): that check alone decides, so running it
-      // again on each commit only multiplied the cost (the slowest part of verify).
-      results.push(await verify(c, { ...options, uncoveredExceptions, policyFrom, rerun: false, guardRerun: synth ? false : (options.rerun || false), testGuardOnNet: Boolean(synth), rulesGuardFallback: single, checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo }));
+    try {
+      for (const c of commits) {
+        // With a net change, a test change is judged once, on the whole pull request (old tests
+        // from the merge base, new code from the tip): that check alone decides, so running it
+        // again on each commit only multiplied the cost (the slowest part of verify).
+        // A one-commit range's tip is that commit: its re-run starts alongside the commit's guard.
+        const alongside = single && rerun ? ({ packets, signed }) => startTipRerun(tipPackets([{ packetData: packets }], null), signed) : null;
+        results.push(await verify(c, { ...options, uncoveredExceptions, policyFrom, rerun: false, guardRerun: synth ? false : (options.rerun || false), testGuardOnNet: Boolean(synth), rulesGuardFallback: single, checkRequiredCiHere: false, guardSeed: single ? seed : undefined, memo, alongside }));
+      }
+    } catch (err) {
+      if (tipRerun) await tipRerun.done; // never leave a re-run running in folders being removed
+      throw err;
     }
     const result = { range, ok: results.every((r) => r.ok), commits: results, reruns: [], findings: [] };
     for (const p of uncoveredExceptions?.problems || []) {
@@ -1888,18 +1998,22 @@ export function createPocp(opts = {}) {
     if (synth) net = await prepareNetChange({ tip, netBase, synth, pol, options });
     else if (!netBase && commits.length + merges.length > 1) result.notes = [`no range base, so the range's net change was not judged as one change`];
 
-    const rerun = options.rerun === true ? 'all' : options.rerun;
     const headResult = tip === lastCommit ? results[results.length - 1] : null;
+    // A signature covers the commit it was made on; when the tip is a merge, none covers the tip.
+    if (rerun && !tipRerun) startTipRerun(tipPackets(results, net), headResult ? headResult.signedDigests : new Map());
+    // Started after the tip's re-run, as they ran before: a check they share with it is its run.
+    const netGuard = net ? startNetGuard(net, { options, memo, seed }) : null;
+    // Required CI results belong to the tip's code: the last commit's result, or the net change's when the tip is a merge.
+    const tipSubject = tip ? g.subjectHashRev(root, tip) : null;
+    const requiredCiReruns = [];
+    // With --rerun, verify runs the required CI commands itself at the tip (no results file needed).
+    const requiredCi = rerun && (headResult || net) ? rerunRequiredCi(tip, pol.cfgAt, { mode: rerun, ciResults: options.ciResults || [], subject: tipSubject, into: requiredCiReruns, memo }) : null;
+    const [tipDone, netGuardRes] = await allSettled([tipRerun?.done, netGuard, requiredCi]);
+    if (tipDone?.err) throw tipDone.err;
+
     if (rerun) {
-      const packets = [];
-      const seenIds = new Set();
-      for (const r of [...results].reverse()) {
-        for (const p of r.packetData || []) if (!seenIds.has(p.id)) { seenIds.add(p.id); packets.push(p); }
-      }
-      if (net?.obligations.length) packets.push({ id: 'net-change', obligations: net.obligations });
-      // A signature covers the commit it was made on; when the tip is a merge, none covers the tip.
-      const signed = headResult ? headResult.signedDigests : new Map();
-      const failures = await rerunAt(tip, packets, { mode: rerun, ciResults: options.ciResults || [], signed, links: pol.cfgAt.snapshot.link, into: result.reruns, memo });
+      const failures = tipDone.failures;
+      result.reruns.push(...tipRerun.into);
       if (failures.length) {
         // Range-level findings carry code and blocking like a commit's.
         const blocking = pol.failOn.has('rerun_failed');
@@ -1911,16 +2025,13 @@ export function createPocp(opts = {}) {
       if (headResult) applyRerunEvidence(headResult.packets, headResult.packetData || [], result.reruns);
     }
     if (net) {
-      result.net = await judgeNetChange(net, { results, merges, lastCommit, policyBase, options: { ...options, uncoveredExceptions }, memo, seed });
+      result.net = await judgeNetChange(net, { results, merges, lastCommit, policyBase, options: { ...options, uncoveredExceptions }, seed, guardRes: netGuardRes });
       result.ok = result.ok && result.net.ok;
     }
-    // Required CI results belong to the tip's code: the last commit's result, or the net change's when the tip is a merge.
     const tipOut = headResult || result.net;
     if (tipOut) {
       const finding = headResult ? headResult.addFinding : findingSink(result.net, pol.blocks);
-      const tipSubject = g.subjectHashRev(root, tip);
-      // With --rerun, verify runs the required CI commands itself at the tip (no results file needed).
-      if (rerun) await rerunRequiredCi(tip, pol.cfgAt, { mode: rerun, ciResults: options.ciResults || [], subject: tipSubject, into: result.reruns, memo });
+      result.reruns.push(...requiredCiReruns);
       checkRequiredCi(pol.cfgAt, options.ciResults, tipSubject, finding, result.reruns, tipOut.notes);
       result.ok = result.ok && tipOut.ok;
     } else if ((pol.cfgAt.verify?.require_ci || []).length) {
@@ -1931,6 +2042,17 @@ export function createPocp(opts = {}) {
       result.findings.push({ code: 'ci_missing', detail, blocking: true });
     }
     return result;
+  }
+
+  /** The checks the tip's re-run runs: each packet in the range once (the latest commit's copy), and the net change's. */
+  function tipPackets(results, net) {
+    const packets = [];
+    const seenIds = new Set();
+    for (const r of [...results].reverse()) {
+      for (const p of r.packetData || []) if (!seenIds.has(p.id)) { seenIds.add(p.id); packets.push(p); }
+    }
+    if (net?.obligations.length) packets.push({ id: 'net-change', obligations: net.obligations });
+    return packets;
   }
 
   /** What the net change is, before the tip's re-runs: its changes, test guard and required checks. */
@@ -1952,8 +2074,23 @@ export function createPocp(opts = {}) {
    * Judge the net change: policy and CI files when the tip is a merge (no per-commit result saw
    * them), the test guard, and coverage. A result shaped like a commit's, with kind "net".
    */
-  async function judgeNetChange(net, { results, merges, lastCommit, policyBase, options, memo, seed }) {
-    const { tip, netBase, synth, changes, paths, files, guard, required, pol, useHost } = net;
+  /**
+   * Start the test guard on the net change (old tests and setup from the net base, new code and
+   * tests from the tip), or null when there is none to run. judgeNetChange reads its result.
+   */
+  function startNetGuard(net, { options, memo, seed }) {
+    const { tip, netBase, synth, guard, required, pol } = net;
+    const guardRerun = options.rerun === true ? 'all' : options.rerun;
+    if (!guard.files.length || guard.mode === 'warn' || !guardRerun) return null;
+    const ob = { id: 'net', kind: 'guard', files: guard.files, ...guardBudget(pol.cfgAt) };
+    return guardCheckFor(ob, {
+      packet: { id: 'net-change', touches: [], obligations: [] }, required, guardInfo: guard, base: netBase, rev: synth, cfg: pol.cfgAt, seed,
+      memo, subject: g.subjectHashRev(root, tip), ciResults: options.ciResults || [],
+    });
+  }
+
+  async function judgeNetChange(net, { results, merges, lastCommit, policyBase, options, seed, guardRes = null }) {
+    const { tip, netBase, changes, paths, files, guard, pol, useHost } = net;
     const { cfgAt, rulesAt, blocks } = pol;
     const subject = g.subjectHashRev(root, tip);
     const span = `${netBase.slice(0, 12)}..${tip.slice(0, 12)}`;
@@ -1976,12 +2113,9 @@ export function createPocp(opts = {}) {
       out.test_guard = guard;
       const results2 = [];
       const guardRerun = options.rerun === true ? 'all' : options.rerun;
-      if (guard.mode !== 'warn' && guardRerun) {
-        const ob = { id: 'net', kind: 'guard', files: guard.files, ...guardBudget(cfgAt) };
-        const res = await guardCheckFor(ob, {
-          packet: { id: 'net-change', touches: [], obligations: [] }, required, guardInfo: guard, base: netBase, rev: synth, cfg: cfgAt, seed,
-          known: (o) => memo.known(subject, o, options.ciResults || []), onPass: (o, r) => memo.record(subject, o, r),
-        });
+      if (guardRes) {
+        const ob = { id: 'net', ...guardBudget(cfgAt) };
+        const res = guardRes;
         results2.push({ packet: null, obligation: 'net', files: guard.files, evidence: 'rerun', passed: res.passed, verdict: res.verdict, summary: res.summary, checks_from: res.checks_from, seed, result: res });
         out.reruns.push({ run: `test guard (net change ${span}, ${ob.mutants} mutants, seed ${seed})`, kind: 'guard', packets: [], status: res.passed ? 'passed' : 'failed', verdict: res.verdict, summary: res.summary, duration_ms: res.duration_ms });
       }

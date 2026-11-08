@@ -48,6 +48,7 @@ export async function runGuardCheck({
   logPrefix = 'guard',
   known,
   onPass,
+  share,
 }) {
   const started = Date.now();
   const result = {
@@ -94,34 +95,71 @@ export async function runGuardCheck({
 
     // Baselines: the checks on the new code with the new tests (as proven), then with the old.
     const speed = new Map();
+    // At most `jobs` checks run at once in this guard; waiters are served in order. Each mutant
+    // holds a slot for all of its checks (part 2).
+    // In verify (`share` given) the two baselines run together, each of their checks in its own
+    // slot: the new-code baseline there is mostly verify's own re-run of the same checks, already
+    // running, so the old tests needn't wait for it. Elsewhere (prove) they run as before: the
+    // new-code baseline first, one check at a time, then the old tests one at a time in one slot
+    // while the mutants use the others.
+    const together = typeof share === 'function';
+    const slots = semaphore(Math.max(1, Number(jobs) || defaultJobs()));
+    const inSlot = async (fn) => {
+      await slots.acquire();
+      try {
+        return await fn();
+      } finally {
+        slots.release();
+      }
+    };
+    const slotted = (fn) => (together ? inSlot(fn) : fn());
+    const eachCheck = async (list, fn) => {
+      if (together) return allSettled(list.map(fn));
+      const out = [];
+      for (const x of list) out.push(await fn(x));
+      return out;
+    };
     // Set when the mutants' results can no longer count (see part 2 below).
     let abandon = false;
     // `known(check)` reports a pass already seen for this exact new code (the plain proof of
     // the same check), so the new-code baseline isn't run twice; `onPass` shares new passes.
+    // In verify, `share(check, run)` does both, and also waits for the same check when verify's
+    // re-run is running it right now, instead of starting a second run.
+    // Results are listed in check order, whatever order the checks finish in.
     const runAll = async (tplDir, label, into, only = checks) => {
-      let copy = null;
-      try {
-        for (const ob of only) {
-          const seen = label === 'new' && typeof known === 'function' ? known(ob) : null;
-          if (seen) {
-            into.push({ check: ob.id, passed: true, reused: true, duration_ms: 0 });
-            speed.set(ob, seen.duration_ms ?? 0);
-            continue;
-          }
-          // A fresh copy for every check: one check's tests (the pull request's code) must not
-          // be able to rewrite the files another check then runs, since a pass here is shared
-          // with verify's re-runs (onPass).
-          copy?.cleanup();
-          copy = copySnapshot(tplDir);
-          const r = await runObligation(ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
-          const names = r.passed ? [] : failingTests(r.output);
-          into.push({ check: ob.id, passed: r.passed, exit: r.exit, timed_out: r.timed_out || undefined, signal: r.signal || undefined, error: r.error || undefined, duration_ms: r.duration_ms, ...(names.length ? { failed_tests: names } : {}) });
-          speed.set(ob, r.duration_ms);
-          if (label === 'old' && !r.passed) abandon = true;
-          if (label === 'new' && r.passed && typeof onPass === 'function') onPass(ob, r);
+      // A fresh copy for every check: one check's tests (the pull request's code) must not be
+      // able to rewrite the files another check then runs, since a pass here is shared with
+      // verify's re-runs (onPass).
+      const runIn = (ob) => () => slotted(async () => {
+        const copy = copySnapshot(tplDir);
+        try {
+          return await runObligation(ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
+        } finally {
+          copy.cleanup();
         }
-      } finally {
-        copy?.cleanup();
+      });
+      const runs = await eachCheck(only, async (ob) => {
+        if (label === 'new' && typeof share === 'function') {
+          const got = await share(ob, runIn(ob));
+          return got.reused ? { ob, seen: got.reused } : { ob, r: got.result };
+        }
+        const seen = label === 'new' && typeof known === 'function' ? known(ob) : null;
+        if (seen) return { ob, seen };
+        const r = await runIn(ob)();
+        if (label === 'old' && !r.passed) abandon = true;
+        return { ob, r };
+      });
+      for (const { ob, seen, r } of runs) {
+        // Only the new-code runs order the mutants' checks (fastest first), as before.
+        if (seen) {
+          into.push({ check: ob.id, passed: true, reused: true, duration_ms: 0 });
+          if (label === 'new') speed.set(ob, seen.duration_ms ?? 0);
+          continue;
+        }
+        const names = r.passed ? [] : failingTests(r.output);
+        into.push({ check: ob.id, passed: r.passed, exit: r.exit, timed_out: r.timed_out || undefined, signal: r.signal || undefined, error: r.error || undefined, duration_ms: r.duration_ms, ...(names.length ? { failed_tests: names } : {}) });
+        if (label === 'new') speed.set(ob, r.duration_ms);
+        if (label === 'new' && r.passed && typeof onPass === 'function' && typeof share !== 'function') onPass(ob, r);
       }
       return into.every((x) => x.passed) ? 'pass' : 'fail';
     };
@@ -148,7 +186,7 @@ export async function runGuardCheck({
         const ob = { id: c.ob.id, kind: 'test', run: args.map(shellQuote).join(' ') };
         if (c.ob.cwd) ob.cwd = c.ob.cwd;
         if (c.ob.timeout_ms) ob.timeout_ms = c.ob.timeout_ms;
-        const r = await runObligation(ob, dir, { logName: `${logPrefix}-${side}-changed-${c.ob.id}` });
+        const r = await slotted(() => runObligation(ob, dir, { logName: `${logPrefix}-${side}-changed-${c.ob.id}` }));
         const tests = countTests(r.output);
         // Node's runner reports a file that ran no test as one passing "test" named after the
         // file (a helper, or a filter that matched nothing). Those aren't tests that ran.
@@ -209,13 +247,33 @@ export async function runGuardCheck({
       result.baseline.scope = 'changed-tests';
       return 'escalate';
     };
-    result.new_tests.result = await runAll(newTpl.dir, 'new', result.new_tests.runs);
+    // The old tests on the new code: in verify they start now, alongside the new code's own
+    // baseline (neither needs the other's result; the verdict below reads both once both are
+    // done). Each run still gets its own fresh copy.
+    const oldTests = async () => {
+      // Fast mode: when a rule says how to run specific test files, run only the old versions
+      // of the edited ones. Only a clean pass counts; anything else runs the whole check below.
+      if (mutants === 0) {
+        const shortcut = await runChangedTests();
+        if (shortcut) return shortcut;
+      }
+      return runAll(oldTpl.dir, 'old', result.old_tests.runs);
+    };
+    const startOld = () => (together ? oldTests() : inSlot(oldTests)).then((r) => ({ r }), (err) => ({ err }));
+    let oldDone = together ? startOld() : null;
+    const fresh = await runAll(newTpl.dir, 'new', result.new_tests.runs).then((r) => ({ r }), (err) => ({ err }));
+    if (fresh.err) {
+      // The old-tests run uses the snapshots removed below: let it end first.
+      abandon = true;
+      if (oldDone) await oldDone;
+      throw fresh.err;
+    }
+    result.new_tests.result = fresh.r;
 
-    // The mutants (part 2) start alongside the old-tests baseline instead of after it: the
-    // baseline is one check at a time, so the other job slots sat idle (E5 profiling). Their
-    // results count only if both baselines pass; from the first old-tests failure on, every
-    // mutant stops before its next check and is discarded, so the result is what it was when
-    // they ran afterwards.
+    // The mutants (part 2) start alongside the old-tests baseline instead of after it, so the
+    // other job slots don't sit idle (E5 profiling). Their results count only if both baselines
+    // pass; from the first old-tests failure on, every mutant stops before its next check and
+    // is discarded, so the result is what it was when they ran afterwards.
     let plan = null;
     let planError = null;
     if (result.new_tests.result === 'pass' && mutants !== 0) {
@@ -226,7 +284,6 @@ export async function runGuardCheck({
       }
     }
     const ordered = [...checks].sort((a, b) => (speed.get(a) ?? 0) - (speed.get(b) ?? 0));
-    const slots = semaphore(Math.max(1, Number(jobs) || Math.min(4, Math.max(1, os.cpus().length - 1))));
     // One side's verdict on a mutant: `by` is the check that caught it, `unfinished` the checks
     // that didn't end normally, `retried` the retries made. Caught means a check ran to the end
     // and failed (`ranAndFailed`, the rule base runs use). A timeout, a signal, a spawn error or
@@ -285,21 +342,8 @@ export async function runGuardCheck({
     };
     const sideResult = (k) => (k.by ? 'caught' : k.unfinished.length ? 'not-measured' : 'missed');
     const outcomes = new Array(plan?.picked.length || 0);
-    // The baseline takes a slot first; the mutants queue for the rest in index order.
-    const oldDone = (async () => {
-      await slots.acquire();
-      try {
-        // Fast mode: when a rule says how to run specific test files, run only the old versions
-        // of the edited ones. Only a clean pass counts; anything else runs the whole check below.
-        if (mutants === 0) {
-          const shortcut = await runChangedTests();
-          if (shortcut) return shortcut;
-        }
-        return await runAll(oldTpl.dir, 'old', result.old_tests.runs);
-      } finally {
-        slots.release();
-      }
-    })().then((r) => ({ r }), (err) => ({ err }));
+    // Outside verify the old tests start here, taking a slot before the mutants queue for the rest.
+    oldDone ??= startOld();
     const pool = Promise.all((plan?.picked || []).map(async (m, i) => {
       await slots.acquire();
       try {
@@ -478,8 +522,24 @@ export async function runGuardCheck({
   }
 }
 
+/**
+ * Like Promise.all, but returns (or throws the first error) only once every promise has
+ * settled: a run that is still going must not have its folders removed under it.
+ */
+export async function allSettled(promises) {
+  const settled = await Promise.allSettled(promises);
+  const failed = settled.find((x) => x.status === 'rejected');
+  if (failed) throw failed.reason;
+  return settled.map((x) => x.value);
+}
+
+/** How many checks run at once by default: one core is left for the rest of the machine. */
+export function defaultJobs() {
+  return Math.min(4, Math.max(1, os.cpus().length - 1));
+}
+
 /** A counting semaphore: at most `n` holders at once, waiters served in order. */
-function semaphore(n) {
+export function semaphore(n) {
   let free = n;
   const waiting = [];
   return {

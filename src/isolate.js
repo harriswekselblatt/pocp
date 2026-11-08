@@ -326,6 +326,11 @@ export function createIsolatedRunner({
       // Sticky folders (/tmp) are left alone. find's own complaints
       // (a link loop, a dangling link) don't stop this; the probe below has the last word.
       if (lockTrees.length) asRoot(['find', '-L', ...lockTrees, '-xdev', '(', '-type', 'f', '-o', '-type', 'd', ')', '-perm', '-0002', '!', '-perm', '-1000', '-exec', 'chmod', 'o-w', '{}', '+'], { timeout: 300_000, allowFail: true });
+      // The tool cache itself (not following links): no exceptions, sticky folders included
+      // (GitHub's Ruby folder is one). Nothing there is a shared scratch place.
+      if (process.env.RUNNER_TOOL_CACHE && fs.existsSync(process.env.RUNNER_TOOL_CACHE)) {
+        asRoot(['find', process.env.RUNNER_TOOL_CACHE, '-xdev', '(', '-type', 'f', '-o', '-type', 'd', ')', '-perm', '-0002', '-exec', 'chmod', 'o-w', '{}', '+'], { timeout: 300_000, allowFail: true });
+      }
       const openAbove = [...above].filter((d) => {
         try {
           const st = fs.lstatSync(d);
@@ -365,7 +370,8 @@ export function createIsolatedRunner({
         '  if [ -w "$p" ]; then echo "can write $p"; fi',
         '  if [ "$k" = all ] && [ -r "$p" ]; then echo "can read $p"; fi',
         // A tree checks run programs from: nothing in it may be writable (links checked at their target).
-        '  if [ "$k" = tree ]; then f=$(find "$p" -xdev -writable -print -quit 2>/dev/null); [ -n "$f" ] && echo "can write $f"; fi',
+        // Every finding (up to 50 per tree), not just the first, so one run shows all there is to fix.
+        '  if [ "$k" = tree ]; then find "$p" -xdev -writable -print 2>/dev/null | head -n 50 | sed "s/^/can write /"; fi',
         'done',
         // Every process of pocp's user: the worker must neither read its environment (the job's
         // tokens are in the runner's) nor signal it.
