@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { git, packetId, pocp, read, sampleRepo, write, writeConfig } from './helpers.js';
 import { TWEAK_ADD, commit } from './fixtures.js';
-import { createIsolatedRunner, IsolationError, POCP_ROOT, uidProcesses, workerEnv } from '../src/isolate.js';
+import { createIsolatedRunner, dropOthersWrite, IsolationError, POCP_ROOT, uidProcesses, workerEnv } from '../src/isolate.js';
 
 const ON_GITHUB_LINUX = process.platform === 'linux' && Boolean(process.env.RUNNER_TEMP);
 const SKIP = ON_GITHUB_LINUX ? false : 'needs a Linux GitHub Actions runner (passwordless sudo, useradd, setpriv, prlimit)';
@@ -66,6 +66,20 @@ test('a worker gets no tokens or job files in its environment, even ones run.env
     GITHUB_OUTPUT: '/f', GITHUB_ENV: '/f', GITHUB_STEP_SUMMARY: '/f', POCP_SIGN_KEY: '/k', SSH_AUTH_SOCK: '/s', GITHUB_EVENT_PATH: '/e',
   }, ['MY_VAR', 'GITHUB_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'RUNNER_TEMP', 'GITHUB_OUTPUT', 'POCP_SIGN_KEY'], { home: '/tmp/w/home', tmp: '/tmp/w/tmp', name: 'pocp-w1' });
   assert.deepEqual(env, { PATH: '/usr/bin', LANG: 'C.UTF-8', CI: 'true', MY_VAR: 'x', HOME: '/tmp/w/home', USER: 'pocp-w1', LOGNAME: 'pocp-w1', TMPDIR: '/tmp/w/tmp', TMP: '/tmp/w/tmp', TEMP: '/tmp/w/tmp' });
+});
+
+test('dropOthersWrite takes group and other write off what this user owns, without following links', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tool-'));
+  write(dir, 'bin/node', 'x');
+  fs.chmodSync(path.join(dir, 'bin', 'node'), 0o777);
+  fs.chmodSync(path.join(dir, 'bin'), 0o777);
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'outside-'));
+  fs.chmodSync(outside, 0o777);
+  fs.symlinkSync(outside, path.join(dir, 'link'));
+  dropOthersWrite(dir, process.getuid());
+  assert.equal(fs.statSync(path.join(dir, 'bin', 'node')).mode & 0o777, 0o755);
+  assert.equal(fs.statSync(path.join(dir, 'bin')).mode & 0o777, 0o755);
+  assert.equal(fs.statSync(outside).mode & 0o777, 0o777, 'a link is not followed');
 });
 
 test('uidProcesses counts a user\'s live processes by real or effective uid, not zombies', () => {
@@ -132,7 +146,8 @@ test('isolated: a check cannot write a sibling verifier file or its own snapshot
   const r = await check('echo "process.exit(0)" > "$T/src/pwned-$P.js"; echo "process.exit(0)" >> "$T/bin/pocp.js"; echo x > "$S/ok.sh"; echo tampered > ok.sh', {
     env: { PATH: process.env.PATH, T: POCP_ROOT, P: String(process.pid), S: snap }, envAllow: ['T', 'P', 'S'],
   });
-  assert.notEqual(r.exit, 0, r.output);
+  // Each of the three writes outside its copy is refused; the last line changes only its copy.
+  assert.equal(r.output.match(/Permission denied/g)?.length, 3, r.output);
   assert.equal(fs.existsSync(target), false);
   assert.equal(read(POCP_ROOT, 'bin/pocp.js'), before);
   assert.equal(read(snap, 'ok.sh'), 'echo honest output\n', 'pocp\'s snapshot is untouched (the check changed only its copy)');

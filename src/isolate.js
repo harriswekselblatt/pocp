@@ -91,6 +91,30 @@ export function uidProcesses(uid, procDir = '/proc') {
   return n;
 }
 
+/** Take group and other write off every file and folder under `dir` that `uid` owns (links skipped). */
+export function dropOthersWrite(dir, uid) {
+  const fix = (p, st) => {
+    if (st.uid === uid && !st.isSymbolicLink() && (st.mode & 0o022)) fs.chmodSync(p, st.mode & ~0o022 & 0o7777);
+  };
+  const walk = (d) => {
+    let st;
+    try {
+      st = fs.lstatSync(d);
+    } catch {
+      return;
+    }
+    fix(d, st);
+    if (!st.isDirectory()) return;
+    for (const name of fs.readdirSync(d)) {
+      const p = path.join(d, name);
+      const s2 = fs.lstatSync(p);
+      if (s2.isDirectory()) walk(p);
+      else fix(p, s2);
+    }
+  };
+  walk(dir);
+}
+
 const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 // The worker's shell, started as the worker with the command as $0 and its folder as $1 (pocp
@@ -262,6 +286,19 @@ export function createIsolatedRunner({
           if (st.uid === me && (st.mode & 0o077)) fs.chmodSync(d, st.mode & 0o700);
         } catch { /* the probe decides */ }
       }
+      // The node verify runs on must not be replaceable by a worker. actions/setup-node unpacks
+      // Node into the tool cache writable by everyone, so take group and other write off the
+      // installation and the folders above it that this user owns. The probe checks the rest.
+      const nodeHome = path.resolve(path.dirname(process.execPath), '..');
+      dropOthersWrite(nodeHome, me);
+      const nodeAncestors = [];
+      for (let d = nodeHome; d !== path.dirname(d); d = path.dirname(d)) nodeAncestors.push(d);
+      for (const d of nodeAncestors) {
+        try {
+          const st = fs.lstatSync(d);
+          if (st.uid === me && st.isDirectory() && (st.mode & 0o022)) fs.chmodSync(d, st.mode & ~0o022 & 0o7777);
+        } catch { /* the probe decides */ }
+      }
       const fileCommandDirs = CI_STEP_VARS.map((k) => process.env[k]).filter(Boolean).map((f) => path.dirname(f));
       const targets = [
         ...privateDirs.map((p) => ({ path: p, deny: 'all' })),
@@ -272,6 +309,7 @@ export function createIsolatedRunner({
         { path: path.join(POCP_ROOT, 'bin', 'pocp.js'), deny: 'write' },
         { path: process.execPath, deny: 'write' },
         { path: path.dirname(process.execPath), deny: 'write' },
+        ...nodeAncestors.filter((d) => !fs.lstatSync(d).isSymbolicLink() && !(fs.lstatSync(d).mode & 0o1000)).map((d) => ({ path: d, deny: 'write' })),
         ...(root ? [{ path: root, deny: 'write' }, { path: path.join(root, '.proof'), deny: 'write' }, { path: path.join(root, '.git'), deny: 'write' }] : []),
         { path: '/var/run/docker.sock', deny: 'all' },
         ...protect,

@@ -151,6 +151,9 @@ read as a result. Each check runs like this (`src/isolate.js`):
   (`node_modules` by default) are then moved out, stripped of set-id bits, owned by root and
   made read-only, and every check's snapshot links to them: a check can use them but can't
   change them for the next check. An install that fails fails the verify.
+- **Its own Node can't be swapped.** `actions/setup-node` unpacks Node into the tool cache
+  writable by every user. Before anything else, verify takes group and other write off its own
+  Node installation and the folders above it that the job's user owns.
 - **It fails closed.** Before running any pull-request code, verify runs a probe as a worker
   that must find it can't write the verifier, the repository, `.proof`, `.git` or `node`, can't
   read or write `$HOME`, `RUNNER_TEMP`, the step files or the Docker socket, can't read the
@@ -170,6 +173,9 @@ What the isolated worker doesn't cover:
   namespaces on top. POCP doesn't do that yet.
 - **Memory, disk and CPU.** Only time and the number of processes are bounded. A check can
   exhaust the runner; that can make the job fail or time out, never verify.
+- **Other tools in the tool cache.** Only verify's own Node is locked down. Another tool the
+  setup actions unpacked writable by everyone (a second Node, Python, …) can be changed by one
+  check and used by the next check of the same pull request; it can't change verify.
 - **Shared scratch places.** `/tmp`, `/var/tmp` and `/dev/shm` are shared by every user. A check
   can leave a file there that a later check of the same pull request reads, if it makes it
   readable to all. verify's own temporary folders there are private, with random names.
