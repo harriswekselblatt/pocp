@@ -1,0 +1,75 @@
+{
+  "pocp": 1,
+  "id": "p-18bd471e",
+  "intent": "Temporary CI job that runs the test suite the way verify --isolate does, to show why it fails there",
+  "touches": [
+    ".github/workflows/test.yml"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "author"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-11-08T17:22:11.451Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:00ccf02d8076f82d1743cba1ba4214f485a879b3f78087d5e1068a16692d36a1",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T17:22:12.360Z",
+      "duration_ms": 456969,
+      "stdout_sha256": "392ec08d0f8f3b0e655d1db62300b16a9ff97a5fb4581cba14a85ec2de01f828",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-47ab0696",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-08T17:22:11.451Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T17:22:11.451Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T17:22:11.451Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-11-08T17:29:49.758Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:00ccf02d8076f82d1743cba1ba4214f485a879b3f78087d5e1068a16692d36a1"
+    }
+  ]
+}
