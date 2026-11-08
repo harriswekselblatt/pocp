@@ -98,7 +98,7 @@ function runAction({ exit, exitDetail, env = {} }) {
   for (let i = start + 1; i < lines.length && (!lines[i].trim() || lines[i].match(/^\s*/)[0].length >= indent); i++) body.push(lines[i].slice(indent));
   const r = spawnSync('bash', ['-e', '-c', body.join('\n')], {
     encoding: 'utf8', cwd: dir,
-    env: { PATH: process.env.PATH, RANGE_INPUT: '', PR_BASE: 'b', PR_HEAD: 'h', EVENT_NAME: 'pull_request', RERUN: 'all', CI_RESULTS: '', ACCEPT_POLICY: 'false', ACCEPT_TESTS: 'false', ACCEPT_INCONCLUSIVE: 'false', ACCEPT_UNCOVERED: 'false', EXIT_DETAIL: exitDetail ? 'true' : 'false', COVERAGE: 'true', POCP_CMD: fake, GITHUB_OUTPUT: out, ...env },
+    env: { PATH: process.env.PATH, RANGE_INPUT: '', PR_BASE: 'b', PR_HEAD: 'h', EVENT_NAME: 'pull_request', RERUN: 'all', CI_RESULTS: '', ACCEPT_POLICY: 'false', ACCEPT_TESTS: 'false', ACCEPT_INCONCLUSIVE: 'false', ACCEPT_UNCOVERED: 'false', EXIT_DETAIL: exitDetail ? 'true' : 'false', COVERAGE: 'true', ISOLATE: 'true', INSTALL: '', POCP_CMD: fake, GITHUB_OUTPUT: out, ...env },
   });
   const res = { code: r.status, output: fs.readFileSync(out, 'utf8'), args: fs.existsSync(argsFile) ? JSON.parse(fs.readFileSync(argsFile, 'utf8')) : null, err: r.stderr, out: r.stdout };
   fs.rmSync(dir, { recursive: true, force: true });
@@ -119,6 +119,24 @@ test('action.yml: with exit-detail it records verify\'s code and exits with it; 
   assert.ok(!old.args.includes('--exit-detail'));
   const approved = runAction({ exit: 0, exitDetail: true, env: { ACCEPT_INCONCLUSIVE: 'abc123', ACCEPT_UNCOVERED: 'abc123' } });
   assert.ok(approved.args.includes('--accept-inconclusive=abc123') && approved.args.includes('--accept-uncovered=abc123'));
+});
+
+test('action.yml: isolate (default true) passes --isolate, install passes --install, and anything else fails closed', () => {
+  const on = runAction({ exit: 0, exitDetail: false });
+  assert.ok(on.args.includes('--isolate'), 'isolated by default');
+  assert.ok(!on.args.includes('--install'));
+  const install = runAction({ exit: 0, exitDetail: false, env: { INSTALL: 'npm ci' } });
+  assert.deepEqual(install.args.slice(install.args.indexOf('--install'), install.args.indexOf('--install') + 2), ['--install', 'npm ci']);
+  const off = runAction({ exit: 0, exitDetail: false, env: { ISOLATE: 'false' } });
+  assert.ok(!off.args.includes('--isolate'));
+  assert.match(off.out, /::warning title=POCP isolation::isolate is false/);
+  for (const bad of ['', 'yes', 'True']) {
+    const r = runAction({ exit: 0, exitDetail: false, env: { ISOLATE: bad } });
+    assert.equal(r.code, 2, `isolate '${bad}'`);
+    assert.equal(r.args, null, 'verify never ran');
+  }
+  const wf = read('examples/github/pocp.yml');
+  assert.match(wf, /^\s+isolate: true\b/m, 'the generated workflow asks for isolation explicitly');
 });
 
 test('action.yml: an explicit range wins; with no pull request and no range it fails clearly instead of verifying ".."', () => {

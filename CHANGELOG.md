@@ -22,8 +22,15 @@ that verified before are now held for review, on purpose.
 - **Green comes only from verify's exit status.** In `pocp.yml` the verify step's output now only
   chooses between waiting, inconclusive and failed. Update your `pocp.yml` (`pocp init --github
   --force`): the reporter needs its `pocp-run` and `verified` steps, and keeps a run from an older
-  workflow pending. This closes one channel, not the whole gap: the pull request's checks still
-  run as the same user as the verifier (docs/THREAT-MODEL.md).
+  workflow pending.
+- **Isolated checks: `verify --isolate`.** On Linux runners with passwordless sudo, every check
+  verify runs (re-runs, the test guard's runs, and `--install`'s dependency install) runs as a
+  fresh unprivileged user that can't reach the verifier, the job's files and tokens, or verify's
+  processes, and everything it starts is killed when it ends. If isolation can't be set up,
+  verify fails. The action's new `isolate` input defaults to `true`, and the example workflow
+  asks for it; install dependencies with the new `install` input instead of an earlier step.
+  Without it, verify says its checks ran with the cooperative runner, which isn't the secure
+  profile. docs/THREAT-MODEL.md lists what this does and doesn't cover.
 - **Approval labels count only when a writer applied them**, last, after the head's first run.
 - **The reporter never leaves or revives a stale green.** A newer run that doesn't say which pull
   request it checked holds the status; a base, label or shared-head change seen right before

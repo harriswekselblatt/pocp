@@ -636,6 +636,10 @@ export function createPocp(opts = {}) {
     const env = buildEnv({ mode: cfg.run.env, allow: cfg.run.env_allow, extra: { POCP: '1', POCP_OBLIGATION: ob.id }, keepCiFiles });
     const res = await runner.run(ob.run, {
       cwd: ob.cwd ? path.join(dir, ob.cwd) : dir,
+      // The snapshot the check runs in, and the variables run.env_allow passes: the isolated
+      // runner copies the snapshot for each check and gives it only those variables.
+      root: dir,
+      envAllow: cfg.run.env_allow || [],
       env,
       timeoutMs: ob.timeout_ms || cfg.run.timeout_ms,
       killGraceMs: cfg.run.kill_grace_ms,

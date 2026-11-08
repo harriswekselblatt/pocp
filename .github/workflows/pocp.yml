@@ -1,19 +1,25 @@
 # POCP verifying its own pull requests with the POCP from the base branch: a change to the
 # verifier is judged by the verifier it would replace, never by its own code. The pull request
 # is checked out in pr/ and the base commit in verifier/; only verifier/bin/pocp.js runs verify.
-# (The pull request's code still runs in the re-runs, as in any project; see
-# docs/THREAT-MODEL.md.) Approval labels count only on label events, for the head at that
-# moment; pocp-labels.yml removes them on every push.
+# Approval labels count only on label events, for the head at that moment; pocp-labels.yml
+# removes them on every push.
+#
+# The pull request's code still runs: verify re-runs its checks. With --isolate (used whenever
+# the base branch's verifier supports it), each check runs as a fresh unprivileged Linux user
+# created for that one run: it can't write verifier/, pr/ or its .proof run records, can't read
+# or write RUNNER_TEMP (where the step's output files are) or $HOME, never sees a token, can't
+# signal verify, and everything it starts is killed when it ends. If that can't be set up,
+# verify fails; it never falls back to running checks as this job's user. docs/THREAT-MODEL.md
+# says exactly what this does and doesn't cover.
 #
 # The job's steps tell the trusted reporter (pocp-status.yml, docs/STATUS.md) what verify found:
 # "verified" runs only when the verify step itself exited 0; otherwise exactly one of waiting /
 # inconclusive / failed runs. An approval-* step runs for each approval passed to verify. The
 # reporter trusts these steps only when the pull request changes no CI file.
 #
-# Green comes only from verify's exit status (the step's outcome), which the checks verify runs
-# can't write. The step's `code` output can: they run as the same user as this job, and the file
-# GitHub reads outputs from is on the same disk. So the code only chooses between waiting,
-# inconclusive and failed; it never makes a run green.
+# Green comes only from verify's exit status (the step's outcome). The step's `code` output only
+# chooses between waiting, inconclusive and failed; it never makes a run green. (Isolated checks
+# can't reach the output file; this rule also covers a base verifier without isolation.)
 #
 # POCP_STATUS_LIVE (a repository variable, set by an admin; a pull request can't change it):
 # - unset: waiting and inconclusive still fail the job, as before, because "verify" is the
@@ -65,14 +71,14 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
-      # This repo has no dependencies to install.
+      # This repo has no dependencies to install. (Anything installed here, before verify, would
+      # run the pull request's install scripts as this job's user: use verify --install instead.)
       # An approval is passed only to a verifier that supports it. With the label on and a
       # verifier that doesn't, the step fails and says so: an approval is never dropped.
       # The step exits with verify's exit code, so its outcome is verify's result; it keeps going
       # (continue-on-error) so the steps below can report a wait. It also records the code as an
-      # output, which only picks waiting / inconclusive / failed: a check that writes to the
-      # output file can't make the run green. (`run` comes first so tools that find POCP's step
-      # by its `- run:` line, such as the tamper bench, still do.)
+      # output, which only picks waiting / inconclusive / failed, never green. (`run` comes first
+      # so tools that find POCP's step by its `- run:` line, such as the tamper bench, still do.)
       - run: |
           set -- --rerun --require-coverage --accept-policy-change="$APPROVE_POLICY" --accept-test-change="$APPROVE_TESTS"
           if [ "$APPROVE_COVERAGE" != "false" ]; then
@@ -92,6 +98,13 @@ jobs:
             fi
           fi
           if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--exit-detail'; then set -- "$@" --exit-detail; fi
+          # Isolated checks (see the top of this file). This repo has no dependencies to install;
+          # a project with some passes --install "<command>" too, so its install runs isolated.
+          if node ../verifier/bin/pocp.js help 2>&1 | grep -q -- '--isolate'; then
+            set -- "$@" --isolate
+          else
+            echo "::warning title=POCP isolation::the base branch's verifier predates --isolate, so this run's checks ran as the job's own user (not the secure profile)"
+          fi
           set +e
           node ../verifier/bin/pocp.js verify "$RANGE" "$@"
           code=$?

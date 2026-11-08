@@ -19,6 +19,9 @@ import { formatDoctor, runDoctor } from './doctor.js';
 import { githubClient, reportStatus, STATUS_CONTEXT } from './status-report.js';
 import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatApprovals, listApprovals, VERIFY_EXIT } from './approvals.js';
 import { COMMANDS, commandHelp, parseArgs, UsageError } from './cli-args.js';
+import { COOPERATIVE } from './runner.js';
+import { createIsolatedRunner, IsolationError } from './isolate.js';
+import { createRevCheckout } from './workspace.js';
 
 export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
 
@@ -94,6 +97,8 @@ Checking
                                      out, killed); --accept-test-change doesn't cover that; only for that head
                                      --exit-detail: exit 4 when only an approval is missing, 5 when something
                                      didn't finish (re-run it), 1 for any other failure
+                                     --isolate: each check runs as a fresh unprivileged user (Linux, sudo); if
+                                     that can't be set up, verify fails. --install <cmd>: dependencies too
   blame <file>                       packets that changed a file
 
 Misses
@@ -222,6 +227,7 @@ function writeGithubSummary(result, rows, commitProblems, ms, { annotations = tr
     '|---|---|---|',
     ...rows.map((c) => `| ${c.kind === 'net' ? 'net change ' : ''}\`${c.commit.slice(0, 12)}\` | ${c.packets.map((p) => p.id).join(', ') || '—'} | ${c.ok ? 'ok' : esc(commitProblems(c).join('; '))} |`),
   ];
+  if (result.isolation) lines.push('', result.isolation.secure ? 'Checks ran isolated: each as a fresh unprivileged user.' : 'Checks ran as the job\'s own user (cooperative runner): not the hosted secure profile.');
   if (result.approval?.only) lines.push('', `Waiting only for a maintainer: ${result.approval.needs.map((n) => `\`${n.label}\``).join(' and ')} (see \`pocp approvals\`).`);
   const reruns = [...(result.reruns || []), ...(result.net?.reruns || [])];
   if (reruns.length) {
@@ -260,11 +266,12 @@ function applyFailureMessage(r, plan) {
 }
 
 
-async function buildEngine(flags) {
+async function buildEngine(flags, { runner } = {}) {
   const hostSpec = flags['no-host'] ? null : flags.host || process.env.POCP_HOST;
   const host = await loadHost(hostSpec);
   return createPocp({
     cwd: process.cwd(),
+    runner,
     by: flags.by,
     policy: host?.policy,
     events: host?.events,
@@ -402,7 +409,11 @@ export async function main(argv = process.argv.slice(2)) {
       return EXIT.ok;
     }
 
-    const engine = await buildEngine(flags);
+    // verify --isolate: the pull request's code runs only as separate unprivileged users
+    // (src/isolate.js). Without it, checks run as this user: the cooperative runner.
+    if (flags.install && !(cmd === 'verify' && flags.isolate)) throw new UsageError('--install needs verify --isolate (without isolation, install dependencies before running pocp)');
+    const isolated = cmd === 'verify' && flags.isolate ? createIsolatedRunner() : null;
+    const engine = await buildEngine(flags, { runner: isolated || undefined });
 
     // POCP only acts where a checkout has adopted it. Git hooks are shared by every checkout
     // of a repository, so a branch that set POCP up must not affect checkouts that haven't:
@@ -623,6 +634,26 @@ export async function main(argv = process.argv.slice(2)) {
       }
       case 'verify': {
         const started = Date.now();
+        // Before any of the pull request's code runs: set up and probe the isolation. If it
+        // can't be set up, this throws and verify fails; it never falls back.
+        const isolation = isolated ? isolated.isolation : COOPERATIVE;
+        if (isolated) {
+          await isolated.prepare({ root: engine.root });
+          if (flags.install) {
+            const headRev = rest[0] && rest[0].includes('..') ? rest[0].split(/\.\.\.?/)[1] || 'HEAD' : rest[0] || 'HEAD';
+            const cfg = engine.config();
+            const co = createRevCheckout(engine.root, resolveRev(engine.root, headRev), { links: [] });
+            try {
+              const logFile = engine.store.kind === 'fs' ? path.join(engine.store.runsDir(), 'install.log') : null;
+              const r = await isolated.installDeps(flags.install, { dir: co.dir, links: cfg.snapshot.link, timeoutMs: cfg.run.timeout_ms, killGraceMs: cfg.run.kill_grace_ms, logFile, logCapBytes: cfg.run.log_cap_bytes, envAllow: cfg.run.env_allow || [] });
+              errWrite(`pocp: installed dependencies isolated (${flags.install}): ${r.installed.join(', ') || 'no dependency folders'}\n`);
+            } finally {
+              co.cleanup();
+            }
+          } else if ((engine.config().snapshot.link || []).some((l) => fs.existsSync(path.join(engine.root, l)))) {
+            errWrite('pocp: note: isolated checks can\'t read this checkout, so dependency folders installed in it aren\'t visible to them; install with verify --install <cmd>\n');
+          }
+        }
         let ignoredCi = 0;
         const ciResults = list(flags['ci-results']).flatMap((file) => {
           const r = readCiResults(file, { root: engine.root });
@@ -675,6 +706,9 @@ export async function main(argv = process.argv.slice(2)) {
           ...c.packets.filter((p) => !p.ok).map((p) => `${p.id}: ${p.problems.join('; ')}`),
           ...(c.coverage?.uncovered.length ? [`not covered: ${c.coverage.uncovered.join(', ')}`] : []),
         ];
+        // How the checks verify ran were run: isolated, or the cooperative runner, which is not
+        // the hosted secure profile. Shown whenever a check ran.
+        const isolationLine = (reruns) => (isolated || reruns.some((x) => x.duration_ms !== undefined && !x.reused) ? [`  checks: ${isolation.mode}: ${isolation.detail}`] : []);
         let result;
         let human;
         let rows;
@@ -687,6 +721,7 @@ export async function main(argv = process.argv.slice(2)) {
             ...result.commits.map((c) => `  ${c.ok ? 'ok ' : 'BAD'} ${c.commit.slice(0, 12)}${c.ok ? '' : `: ${commitProblems(c).join(' | ')}`}`),
             ...(result.net ? [`  ${result.net.ok ? 'ok ' : 'BAD'} net change ${result.net.base.slice(0, 12)}..${result.net.commit.slice(0, 12)}${result.net.ok ? '' : `: ${commitProblems(result.net).join(' | ')}`}`] : []),
             ...(result.notes || []).map((n) => `  note: ${n}`),
+            ...isolationLine([...result.reruns, ...(result.net?.reruns || [])]),
             ...rerunLines([...result.reruns, ...(result.net?.reruns || [])]),
             ...(result.ok ? [] : nextSteps([...rows, { findings: rangeFindings(result) }])),
           ].join('\n');
@@ -699,10 +734,12 @@ export async function main(argv = process.argv.slice(2)) {
             ...result.warnings.map((w) => `  warning: ${w}`),
             ...result.packets.map((p) => `  ${p.id}: ${p.ok ? 'ok' : p.problems.join('; ')}${p.evidence && Object.keys(p.evidence).length ? ` · evidence: ${evidenceSummary(p.evidence)}` : ''}`),
             ...(result.coverage?.uncovered.length ? [`  not covered: ${result.coverage.uncovered.join(', ')}`] : []),
+            ...isolationLine(result.reruns),
             ...rerunLines(result.reruns),
             ...(result.ok ? [] : nextSteps([result])),
           ].join('\n');
         }
+        result.isolation = { mode: isolation.mode, secure: isolation.secure };
         if (!result.ok) result.approval = approvalSummary([...rows.flatMap((c) => c.findings || []), ...rangeFindings(result)], (result.rerun_failures || []).filter((x) => x.blocking !== false));
         writeGithubSummary(result, rows, commitProblems, Date.now() - started, { annotations: !json });
         out(json, result, human);
@@ -823,8 +860,9 @@ export async function main(argv = process.argv.slice(2)) {
     }
   } catch (err) {
     const usage = err instanceof UsageError || err instanceof ValidationError || err instanceof CiResultsError || err instanceof ApprovalsError;
-    const known = usage || err instanceof PocpError || err instanceof GitError || err?.name === 'StoreError';
-    const code = usage ? EXIT.usage : err instanceof PocpError ? EXIT.blocked : known ? EXIT.usage : EXIT.internal;
+    const known = usage || err instanceof PocpError || err instanceof IsolationError || err instanceof GitError || err?.name === 'StoreError';
+    // An isolation failure is a failed verify (exit 1), never a wait or an inconclusive result.
+    const code = usage ? EXIT.usage : err instanceof PocpError || err instanceof IsolationError ? EXIT.blocked : known ? EXIT.usage : EXIT.internal;
     if (json) out(true, { ok: false, error: err.message, details: err.details });
     else {
       errWrite(`pocp: ${err.message}\n`);
