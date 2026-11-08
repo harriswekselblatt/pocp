@@ -5,13 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { digest } from './hash.js';
+import { PocpBaseError } from './errors.js';
 
 export const PROOF_DIR = '.proof';
 
-export class GitError extends Error {
+export class GitError extends PocpBaseError {
   constructor(message, { args, stderr, status } = {}) {
     super(message);
-    this.name = 'GitError';
     this.args = args;
     this.stderr = stderr;
     this.status = status;
@@ -19,12 +19,7 @@ export class GitError extends Error {
 }
 
 /** The repository's git state changed while it was isolated (see isolateGit). */
-export class GitTamperError extends GitError {
-  constructor(message) {
-    super(message);
-    this.name = 'GitTamperError';
-  }
-}
+export class GitTamperError extends GitError {}
 
 // ---------------------------------------------------------------------- hardening
 //

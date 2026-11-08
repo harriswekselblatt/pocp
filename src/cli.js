@@ -1,30 +1,32 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createPocp, PocpError, VERSION } from './engine.js';
+import { createPocp, VERSION } from './engine.js';
 import { computeMetrics } from './metrics.js';
 import { runMutantEval } from './mutants.js';
 import { replayFixes, simulateGate } from './history.js';
 import { applyGithubProtection, checkGithubProtection, requiredChecksPlan } from './ci-github.js';
 import { formatLayout, hooksHealth, initProofDir, installHooks, SELF_BIN, uninstallHooks, writeGithubWorkflows } from './init.js';
 import { loadHost } from './host.js';
-import { ValidationError, describeObligation } from './obligations.js';
+import { describeObligation } from './obligations.js';
 import { ruleWarnings, validateRules } from './rules.js';
 import { validateConfig, withDefaults } from './store.js';
-import { GitError, git, ignoreRepoEnv, resolveRev } from './git.js';
+import { git, ignoreRepoEnv, resolveRev } from './git.js';
 import { shortDigest } from './hash.js';
-import { CiResultsError, readCiResults } from './ci-results.js';
+import { readCiResults } from './ci-results.js';
 import { DONT_REWRITE, remedyLines, verifyRemedy } from './remedies.js';
 import { formatFix, runFix } from './fix.js';
 import { formatDoctor, runDoctor } from './doctor.js';
 import { githubClient, reportStatus, STATUS_CONTEXT } from './status-report.js';
-import { ApprovalsError, approvalAnnotation, approvalSummary, approvePr, formatApprovals, listApprovals, VERIFY_EXIT } from './approvals.js';
+import { approvalAnnotation, approvalSummary, approvePr, formatApprovals, listApprovals, VERIFY_EXIT } from './approvals.js';
 import { COMMANDS, commandHelp, parseArgs, UsageError } from './cli-args.js';
 import { COOPERATIVE } from './runner.js';
-import { createIsolatedRunner, IsolationError } from './isolate.js';
+import { createIsolatedRunner } from './isolate.js';
 import { createRevCheckout } from './workspace.js';
 import { failedOutputLines } from './output-tail.js';
 
-export const EXIT = { ok: 0, blocked: 1, usage: 2, internal: 3 };
+import { EXIT, exitCodeFor, isKnownError } from './errors.js';
+
+export { EXIT };
 
 export { parseArgs };
 
@@ -863,15 +865,15 @@ export async function main(argv = process.argv.slice(2)) {
         throw new UsageError(`unknown command "${cmd}" (try "pocp help")`);
     }
   } catch (err) {
-    const usage = err instanceof UsageError || err instanceof ValidationError || err instanceof CiResultsError || err instanceof ApprovalsError;
-    const known = usage || err instanceof PocpError || err instanceof IsolationError || err instanceof GitError || err?.name === 'StoreError';
-    // An isolation failure is a failed verify (exit 1), never a wait or an inconclusive result.
-    const code = usage ? EXIT.usage : err instanceof PocpError || err instanceof IsolationError ? EXIT.blocked : known ? EXIT.usage : EXIT.internal;
+    // The exit code comes from the error's category (src/errors.js). An isolation failure is
+    // blocked (exit 1): a failed verify, never a wait or an inconclusive result.
+    const known = isKnownError(err);
+    const code = exitCodeFor(err);
     if (json) out(true, { ok: false, error: err.message, details: err.details });
     else {
       errWrite(`pocp: ${err.message}\n`);
       if (err.details?.problems) for (const p of err.details.problems) errWrite(`  ${p.detail}: ${(p.files || []).join(', ')}\n`);
-      if (/clean mode refused/.test(err.message)) errWrite('  next: pocp fix (proves a snapshot of exactly what is staged), or pocp prove --mode snapshot\n');
+      if (err.code === 'clean_mode_refused') errWrite('  next: pocp fix (proves a snapshot of exactly what is staged), or pocp prove --mode snapshot\n');
       if (!known && process.env.POCP_DEBUG) errWrite(`${err.stack}\n`);
     }
     return code;

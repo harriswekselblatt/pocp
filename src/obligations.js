@@ -1,4 +1,5 @@
 import { digestJson } from './hash.js';
+import { PocpBaseError } from './errors.js';
 
 export const KINDS = Object.freeze(['test', 'command', 'probe', 'manual']);
 export const RUNNABLE = Object.freeze(new Set(['test', 'command', 'probe']));
@@ -6,12 +7,7 @@ export const RUNNABLE = Object.freeze(new Set(['test', 'command', 'probe']));
 // from the repo, so it is neither runnable nor manual, and only the guard can create it.
 export const GUARD_KIND = 'guard';
 
-export class ValidationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
+export class ValidationError extends PocpBaseError {}
 
 export function isRunnable(ob) {
   return RUNNABLE.has(ob?.kind);

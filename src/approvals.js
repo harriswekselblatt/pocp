@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL, verifyRemedy } from './remedies.js';
+import { PocpBaseError } from './errors.js';
 
 // `pocp approvals`: every open pull request whose POCP verify fails only because it waits for
 // a maintainer's label, in one list, and a deliberate way for that maintainer to give each one.
@@ -126,12 +127,7 @@ function gh(args) {
   return { ok: r.status === 0, stdout: r.stdout || '', json, message: json?.message || (r.stderr || '').trim() || `gh exited ${r.status}` };
 }
 
-export class ApprovalsError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'ApprovalsError';
-  }
-}
+export class ApprovalsError extends PocpBaseError {}
 
 function ghJson(args) {
   const r = gh(args);

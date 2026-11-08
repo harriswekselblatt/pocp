@@ -81,7 +81,7 @@ export async function runFix(engine, { intent, test, mode, actor } = {}) {
       try {
         r = await engine.prove({ ids: toProve, mode, retryFailed: false });
       } catch (err) {
-        if (mode || !/clean mode refused/.test(err.message)) throw err;
+        if (mode || err?.code !== 'clean_mode_refused') throw err;
         usedMode = 'snapshot';
         r = await engine.prove({ ids: toProve, mode: 'snapshot', retryFailed: false });
         actions.push({ action: 'note', detail: 'the working folder differs from what is staged, so a snapshot of exactly the staged code was proven' });

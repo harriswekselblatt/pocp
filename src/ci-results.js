@@ -12,16 +12,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { git } from './git.js';
+import { PocpBaseError } from './errors.js';
 
 // Environment variables that identify one CI run (and attempt). ci-run records them.
 export const RUN_KEYS = Object.freeze(['GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT', 'CI_PIPELINE_ID', 'BUILDKITE_BUILD_ID']);
 
-export class CiResultsError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'CiResultsError';
-  }
-}
+export class CiResultsError extends PocpBaseError {}
 
 /** The CI run this process is part of: { KEY: value } for each RUN_KEYS variable that is set. */
 export function currentRun(env = process.env) {
