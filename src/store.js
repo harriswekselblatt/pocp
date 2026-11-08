@@ -4,6 +4,7 @@ import path from 'node:path';
 import { PROOF_DIR } from './git.js';
 import { DEFAULT_GUARD_MODE, DEFAULT_GUARD_MUTANTS, DEFAULT_GUARD_SEED, effectiveGuardGlobs } from './guard.js';
 import { globProblem } from './glob.js';
+import { PocpBaseError } from './errors.js';
 
 // Every finding verify can report. A repository chooses which ones fail verification
 // (`verify.fail_on`); the rest are reported as warnings. `invalid_policy` always fails.
@@ -86,12 +87,7 @@ export function rulesWithDefaults(rules) {
   return r;
 }
 
-export class StoreError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'StoreError';
-  }
-}
+export class StoreError extends PocpBaseError {}
 
 // The record format this version reads and writes (`"pocp": 1` in every file).
 export const FORMAT = 1;

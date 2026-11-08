@@ -29,15 +29,17 @@ import { fileURLToPath } from 'node:url';
 import { onCleanup } from './exit.js';
 import { CI_STEP_VARS, runWith } from './runner.js';
 import { useDependencyRoot } from './workspace.js';
+import { PocpBaseError } from './errors.js';
 
 /** The folder pocp runs from (the verifier checkout, or the action's copy). */
 export const POCP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-export class IsolationError extends Error {
+/** Isolation was asked for but can't be set up: a failed verify, never a wait. */
+export class IsolationError extends PocpBaseError {
+  static category = 'blocked';
+
   constructor(message, details) {
-    super(message);
-    this.name = 'IsolationError';
-    this.code = 'isolation_unavailable';
+    super(message, { code: 'isolation_unavailable' });
     this.details = details;
   }
 }

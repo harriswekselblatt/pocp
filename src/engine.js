@@ -19,6 +19,7 @@ import { ranAndFailed, runOutcome, unfinishedReason } from './run-result.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { gateRemedies, pendingApprovals } from './remedies.js';
 import { outputTail } from './output-tail.js';
+import { PocpBaseError } from './errors.js';
 
 // One version source: package.json, read relative to this module so it is right wherever pocp is installed.
 export const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -41,10 +42,12 @@ export function protectedChangeText(files) {
   return [ci.length ? `CI configuration changed (${ci.join(', ')})` : '', other.length ? `protected files changed (${other.join(', ')})` : ''].filter(Boolean).join('; ');
 }
 
-export class PocpError extends Error {
-  constructor(message, details = {}) {
-    super(message);
-    this.name = 'PocpError';
+/** POCP refused or blocked something (exit 1). `details` goes into --json output as is. */
+export class PocpError extends PocpBaseError {
+  static category = 'blocked';
+
+  constructor(message, details = {}, { code = null } = {}) {
+    super(message, { code });
     this.details = details;
   }
 }
@@ -739,7 +742,7 @@ export function createPocp(opts = {}) {
       const problems = cleanProblems(scopeGlobs);
       if (problems.length) {
         for (const p of packets) savePacket(p);
-        throw new PocpError('clean mode refused: the working folder does not match what is staged. Stage or stash the changes, or use --mode snapshot.', { problems });
+        throw new PocpError('clean mode refused: the working folder does not match what is staged. Stage or stash the changes, or use --mode snapshot.', { problems }, { code: 'clean_mode_refused' });
       }
     }
 
@@ -2388,7 +2391,7 @@ export function createPocp(opts = {}) {
       return Promise.reject(new PocpError('this is a shallow clone: verify needs the full history to read the base\'s rules (fetch with fetch-depth: 0 on GitHub Actions, GIT_DEPTH: 0 on GitLab, or run git fetch --unshallow)', { code: 'shallow_history' }));
     }
     return g.withGitIsolation(root, fn).catch((err) => {
-      throw err instanceof g.GitTamperError ? new PocpError(err.message, { code: 'git_tampered' }) : err;
+      throw err instanceof g.GitTamperError ? new PocpError(err.message, { code: 'git_tampered' }, { code: 'git_tampered' }) : err;
     });
   }
 

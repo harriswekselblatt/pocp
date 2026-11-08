@@ -1,8 +1,9 @@
 // The command-line schema: every command, the options it accepts and their types. The parser
 // and per-command help are both generated from this table, so an option that is accepted is
 // always documented and an option that is documented is always accepted.
+import { PocpBaseError } from './errors.js';
 
-export class UsageError extends Error {}
+export class UsageError extends PocpBaseError {}
 
 const bool = (desc) => ({ type: 'boolean', desc });
 const str = (arg, desc) => ({ type: 'string', arg, desc });
