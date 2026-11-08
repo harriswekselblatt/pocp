@@ -160,7 +160,7 @@ const CASES = [
   },
   {
     name: 'adoption',
-    about: 'adopting POCP through the hooks: gate passes, but today the CI verify (--require-coverage) fails on uncovered .proof files',
+    about: 'adopting POCP through the hooks: the gate passes, and so does the CI verify (--require-coverage)',
     build() {
       const dir = tmpRepo();
       write(dir, 'src/math.js', TWEAK_ADD);

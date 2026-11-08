@@ -50,6 +50,13 @@ that verified before are now held for review, on purpose.
 
 ### Fixed
 
+- **The pull request that adopts POCP verifies in CI.** Committing what `pocp init --hooks`
+  creates passed the gate, but `verify --require-coverage` (the shipped CI invocation) then
+  failed it: the new `.proof/config.json` and `.proof/rules.json` counted as an uncovered policy
+  change. Creating the first policy is now adoption in verify too, as it already was in the gate,
+  but only when neither the commit's parent nor the policy that judges it has any policy file.
+  Removing, corrupting or editing an existing policy, CI file changes, and the rest of an adoption
+  commit are checked as before.
 - Adding several approval labels at once no longer leaves the `pocp` status stuck on "Waiting
   for verify." Each label starts a run and all but one are cancelled while queued; the reporter
   took the newest of those step-less runs as the latest word. A run cancelled before its verify

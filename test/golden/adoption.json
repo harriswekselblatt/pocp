@@ -1,6 +1,6 @@
 {
   "case": "adoption",
-  "about": "adopting POCP through the hooks: gate passes, but today the CI verify (--require-coverage) fails on uncovered .proof files",
+  "about": "adopting POCP through the hooks: the gate passes, and so does the CI verify (--require-coverage)",
   "runs": [
     {
       "args": [
@@ -40,51 +40,29 @@
         "--exit-detail",
         "--json"
       ],
-      "exit": 1,
+      "exit": 0,
       "json": {
         "pocp": 1,
         "range": "<commit:before pocp>..HEAD",
-        "ok": false,
+        "ok": true,
         "commits": [
           {
             "commit": "<commit:adopt pocp>",
             "subject": "sha256:9a6241c838a189bae9d0f9604e46b5b062936cd653f48f720ee28e6af566a07e",
-            "ok": false,
+            "ok": true,
             "packets": [],
             "coverage": {
-              "required_files": [
-                ".proof/config.json",
-                ".proof/rules.json"
-              ],
-              "uncovered": [
-                ".proof/config.json",
-                ".proof/rules.json"
-              ],
-              "reasons": [
-                {
-                  "code": "policy_change",
-                  "detail": "POCP policy changed (.proof/rules.json, .proof/config.json)",
-                  "files": [
-                    ".proof/rules.json",
-                    ".proof/config.json"
-                  ],
-                  "removed_requirements": []
-                }
-              ]
+              "required_files": [],
+              "uncovered": [],
+              "reasons": []
             },
             "reruns": [],
             "notes": [
               "commit has no Proof-Of-Change trailers",
-              "not covered by a packet: .proof/config.json, .proof/rules.json"
+              "this commit adopts POCP (no earlier policy): its policy files are not a policy change"
             ],
             "warnings": [],
-            "findings": [
-              {
-                "code": "uncovered",
-                "detail": "not covered by a packet: .proof/config.json, .proof/rules.json",
-                "blocking": true
-              }
-            ],
+            "findings": [],
             "policy": {
               "from": "<commit:before pocp>",
               "weakened": [],
@@ -116,12 +94,6 @@
         "isolation": {
           "mode": "cooperative",
           "secure": false
-        },
-        "approval": {
-          "only": false,
-          "needs": [],
-          "outcome": "failed",
-          "unfinished_reruns": 0
         }
       },
       "stderr": ""

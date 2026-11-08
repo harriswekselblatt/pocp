@@ -1266,6 +1266,11 @@ export function createPocp(opts = {}) {
     return { rules: rulesObj, config: cfgObj, hasRules: Boolean(rawRules && !rawRules.__invalid), problems, unenrolled };
   }
 
+  /** No revision, or one where git lists no policy file: POCP isn't enrolled there yet. */
+  function notEnrolled(rev) {
+    return !rev || policyAt(rev).unenrolled;
+  }
+
   function readJsonAt(rev, rel) {
     const raw = g.showFile(root, rev, rel);
     if (raw === null) return null;
@@ -1541,7 +1546,12 @@ export function createPocp(opts = {}) {
         hostName,
       });
       const parent = g.parentOf(root, commit);
-      const pc = policyChange(commitChangeList, rulesAt, parent ? readRulesAt(parent) : null);
+      // Adopting POCP is not a policy change (as in the gate): this commit creates the first
+      // policy, so there is nothing earlier to loosen. Only when neither its parent nor the
+      // policy that judges it has any policy file; removing or corrupting a policy is not this.
+      const adopting = notEnrolled(parent) && notEnrolled(baseRev);
+      const pc = adopting ? null : policyChange(commitChangeList, rulesAt, parent ? readRulesAt(parent) : null);
+      if (adopting && commitChangeList.some((c) => POLICY_FILES.includes(c.path))) out.notes.push('this commit adopts POCP (no earlier policy): its policy files are not a policy change');
       if (pc) {
         trig.required_files = [...new Set([...trig.required_files, ...pc.files])].sort();
         trig.reasons.push(pc.reason);
@@ -2155,7 +2165,8 @@ export function createPocp(opts = {}) {
         config: cfgAt,
         hostName,
       });
-      const pc = policyChange(changes, rulesAt, readRulesAt(netBase));
+      // A range that adopts POCP (no policy at its base) creates the first policy: not a change.
+      const pc = notEnrolled(netBase) ? null : policyChange(changes, rulesAt, readRulesAt(netBase));
       if (pc) {
         trig.required_files = [...new Set([...trig.required_files, ...pc.files])].sort();
         trig.reasons.push(pc.reason);
