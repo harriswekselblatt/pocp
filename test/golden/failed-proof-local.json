@@ -1,0 +1,228 @@
+{
+  "case": "failed-proof-local",
+  "about": "broken code: gate blocks, fix runs the check and reports the failure",
+  "runs": [
+    {
+      "args": [
+        "gate",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "decision": "blocked",
+        "subject": "sha256:0155c6821b37f681da1e7bf3b5d93c06102920599118225c5bd0716882259680",
+        "files": [
+          "src/math.js"
+        ],
+        "required_files": [
+          "src/math.js"
+        ],
+        "reasons": [
+          {
+            "code": "requirement",
+            "detail": "1 file(s) have required checks",
+            "files": [
+              "src/math.js"
+            ]
+          }
+        ],
+        "uncovered": [
+          "src/math.js"
+        ],
+        "unpacketed": [
+          "src/math.js"
+        ],
+        "packets": [],
+        "problems": [],
+        "warnings": [],
+        "guard_mode": "block",
+        "suggestion": {
+          "touches": [
+            "src/math.js"
+          ],
+          "obligations": [
+            {
+              "from": "math-tests",
+              "kind": "test",
+              "run": "node test/math.check.mjs",
+              "source": "rule:math-tests"
+            }
+          ],
+          "note": "Required checks for these files are added automatically when the packet opens.",
+          "command": "pocp open --intent '<what this change does>' --touch 'src/math.js'"
+        },
+        "remedies": [
+          {
+            "code": "no_packet",
+            "what": "1 staged file(s) are not covered by any packet: src/math.js",
+            "why": "a rule requires checks for them. A packet records what the change is and the checks that prove it.",
+            "next": "pocp fix --intent \"<what this change does>\"",
+            "by": "pocp fix"
+          }
+        ],
+        "pending_approvals": []
+      },
+      "stderr": ""
+    },
+    {
+      "args": [
+        "gate"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "pocp: commit blocked\n  why: 1 file(s) have required checks\n  not covered by any packet: src/math.js\n  suggested packet:\n    pocp open --intent '<what this change does>' --touch 'src/math.js'\n    Required checks for these files are added automatically when the packet opens.\n  what to do:\n    what: 1 staged file(s) are not covered by any packet: src/math.js\n      why: a rule requires checks for them. A packet records what the change is and the checks that prove it.\n      next: pocp fix --intent \"<what this change does>\"\n  \"pocp fix\" takes every step above marked pocp fix, then commit again.\n"
+    },
+    {
+      "args": [
+        "fix",
+        "--intent",
+        "break add",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "ok": false,
+        "decision": "blocked",
+        "nothing_staged": false,
+        "nothing_to_prove": false,
+        "actions": [
+          {
+            "action": "open",
+            "packet": "<packet:1>",
+            "files": [
+              "src/math.js"
+            ],
+            "checks": [
+              "o1 (rule:math-tests)"
+            ]
+          },
+          {
+            "action": "prove",
+            "packets": [
+              "<packet:1>"
+            ],
+            "mode": "clean",
+            "ran": 1,
+            "checks": 1,
+            "ms": 0,
+            "failed": [
+              {
+                "packet": "<packet:1>",
+                "obligation": "o1",
+                "log": ".proof/runs/<run:1>.log",
+                "before": false
+              }
+            ],
+            "handed": []
+          }
+        ],
+        "needs_agent": [
+          {
+            "code": "failed_proof",
+            "what": "o1 fails on this exact code · log .proof/runs/<run:1>.log",
+            "why": "a required check fails, so the change would break what it protects.",
+            "next": "fix the code (not the tests), stage it, and run pocp fix again",
+            "by": "agent"
+          },
+          {
+            "code": "failed_proof",
+            "what": "<packet:1>: o1 failed on this exact code",
+            "why": "a required check fails, so the change would break what it protects.",
+            "next": "fix the code (not the tests), stage it, then pocp fix. The log path is in \"pocp show\" or the prove output.",
+            "by": "agent"
+          }
+        ],
+        "needs_person": [],
+        "advice": null,
+        "gate": {
+          "decision": "blocked",
+          "subject": "sha256:0155c6821b37f681da1e7bf3b5d93c06102920599118225c5bd0716882259680"
+        }
+      },
+      "stderr": ""
+    },
+    {
+      "args": [
+        "gate",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "decision": "blocked",
+        "subject": "sha256:0155c6821b37f681da1e7bf3b5d93c06102920599118225c5bd0716882259680",
+        "files": [
+          "src/math.js"
+        ],
+        "required_files": [
+          "src/math.js"
+        ],
+        "reasons": [
+          {
+            "code": "requirement",
+            "detail": "1 file(s) have required checks",
+            "files": [
+              "src/math.js"
+            ]
+          }
+        ],
+        "uncovered": [
+          "src/math.js"
+        ],
+        "unpacketed": [],
+        "packets": [
+          {
+            "id": "<packet:1>",
+            "intent": "break add",
+            "covers": [
+              "src/math.js"
+            ],
+            "evaluation": {
+              "id": "<packet:1>",
+              "subject": "sha256:0155c6821b37f681da1e7bf3b5d93c06102920599118225c5bd0716882259680",
+              "missing_required": [],
+              "unproven": [],
+              "failed": [
+                "o1"
+              ],
+              "unfinished": [],
+              "unattested": [],
+              "counts": {
+                "runnable": 1,
+                "manual": 0,
+                "proven": 0,
+                "attested": 0
+              },
+              "guard": [],
+              "no_obligations": false,
+              "ok": false
+            },
+            "packet_file_staged": true
+          }
+        ],
+        "problems": [
+          {
+            "code": "failed_proof",
+            "detail": "packet <packet:1> has failing checks: o1",
+            "packet": "<packet:1>"
+          }
+        ],
+        "warnings": [],
+        "guard_mode": "block",
+        "remedies": [
+          {
+            "code": "failed_proof",
+            "what": "<packet:1>: o1 failed on this exact code",
+            "why": "a required check fails, so the change would break what it protects.",
+            "next": "fix the code (not the tests), stage it, then pocp fix. The log path is in \"pocp show\" or the prove output.",
+            "by": "agent"
+          }
+        ],
+        "pending_approvals": []
+      },
+      "stderr": ""
+    }
+  ]
+}

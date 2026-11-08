@@ -1,0 +1,26 @@
+{
+  "case": "shallow-clone",
+  "about": "verify refuses a shallow clone",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "ok": false,
+        "error": "this is a shallow clone: verify needs the full history to read the base's rules (fetch with fetch-depth: 0 on GitHub Actions, GIT_DEPTH: 0 on GitLab, or run git fetch --unshallow)",
+        "details": {
+          "code": "shallow_history"
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}

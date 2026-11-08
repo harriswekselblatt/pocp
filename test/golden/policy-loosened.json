@@ -1,0 +1,305 @@
+{
+  "case": "policy-loosened",
+  "about": "a PR removes the rule that judges it: a loosening, with and without approval for the head",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": false,
+        "commits": [
+          {
+            "commit": "<commit:drop the rule>",
+            "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+            "ok": false,
+            "packets": [
+              {
+                "id": "<packet:1>",
+                "ok": false,
+                "problems": [
+                  "repo rules at this commit do not match the policy the packet was proven under",
+                  "required obligation missing: math-tests"
+                ],
+                "warnings": [],
+                "findings": [
+                  {
+                    "code": "policy_mismatch",
+                    "detail": "repo rules at this commit do not match the policy the packet was proven under",
+                    "blocking": true
+                  },
+                  {
+                    "code": "missing_required",
+                    "detail": "required obligation missing: math-tests",
+                    "blocking": true
+                  }
+                ],
+                "counts": {
+                  "runnable": 1,
+                  "manual": 0,
+                  "proven": 1,
+                  "attested": 0
+                },
+                "signatures": {
+                  "valid": 0,
+                  "invalid": 0,
+                  "unsigned": 1,
+                  "untrusted": 0
+                },
+                "evidence": {
+                  "o1": "rerun"
+                }
+              }
+            ],
+            "coverage": {
+              "required_files": [
+                ".proof/rules.json",
+                "src/math.js"
+              ],
+              "uncovered": [],
+              "reasons": [
+                {
+                  "code": "requirement",
+                  "detail": "1 file(s) have required checks",
+                  "files": [
+                    "src/math.js"
+                  ]
+                },
+                {
+                  "code": "policy_change",
+                  "detail": "POCP policy changed (.proof/rules.json)",
+                  "files": [
+                    ".proof/rules.json"
+                  ],
+                  "removed_requirements": []
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [
+              "policy loosened without approval: requirement \"math-tests\" removed or changed; broad_files raised from 6; cross_area loosened (re-run with --accept-policy-change once a maintainer approves)"
+            ],
+            "warnings": [],
+            "findings": [
+              {
+                "code": "policy_loosened",
+                "detail": "policy loosened without approval: requirement \"math-tests\" removed or changed; broad_files raised from 6; cross_area loosened (re-run with --accept-policy-change once a maintainer approves)",
+                "blocking": true
+              },
+              {
+                "code": "policy_mismatch",
+                "detail": "repo rules at this commit do not match the policy the packet was proven under",
+                "blocking": true,
+                "packet": "<packet:1>"
+              },
+              {
+                "code": "missing_required",
+                "detail": "required obligation missing: math-tests",
+                "blocking": true,
+                "packet": "<packet:1>"
+              }
+            ],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [
+                "requirement \"math-tests\" removed or changed",
+                "broad_files raised from 6",
+                "cross_area loosened"
+              ],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [
+          {
+            "run": "true",
+            "cwd": null,
+            "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+            "digest": "sha256:04481601758ee66a5366b439a574e107dd45a3b9e8b1f189964578937ae4e244",
+            "packets": [
+              "<packet:1>"
+            ],
+            "status": "passed",
+            "exit": 0,
+            "timed_out": false,
+            "duration_ms": 0
+          }
+        ],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        },
+        "approval": {
+          "only": false,
+          "needs": [
+            {
+              "label": "pocp-approve-policy",
+              "kind": "policy",
+              "reasons": [
+                "policy loosened without approval: requirement \"math-tests\" removed or changed; broad_files raised from 6; cross_area loosened (re-run with --accept-policy-change once a maintainer approves)"
+              ],
+              "files": [
+                ".proof/rules.json",
+                ".proof/config.json",
+                ".proof/allowed_signers",
+                ".proof/exceptions.json"
+              ]
+            }
+          ],
+          "outcome": "failed",
+          "unfinished_reruns": 0
+        }
+      },
+      "stderr": ""
+    },
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--accept-policy-change=<commit:drop the rule>",
+        "--json"
+      ],
+      "exit": 0,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": true,
+        "commits": [
+          {
+            "commit": "<commit:drop the rule>",
+            "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+            "ok": true,
+            "packets": [
+              {
+                "id": "<packet:1>",
+                "ok": true,
+                "problems": [],
+                "warnings": [],
+                "findings": [],
+                "counts": {
+                  "runnable": 1,
+                  "manual": 0,
+                  "proven": 1,
+                  "attested": 0
+                },
+                "signatures": {
+                  "valid": 0,
+                  "invalid": 0,
+                  "unsigned": 1,
+                  "untrusted": 0
+                },
+                "evidence": {
+                  "o1": "rerun"
+                }
+              }
+            ],
+            "coverage": {
+              "required_files": [
+                ".proof/rules.json"
+              ],
+              "uncovered": [],
+              "reasons": [
+                {
+                  "code": "policy_change",
+                  "detail": "POCP policy changed (.proof/rules.json); requirements removed: math-tests",
+                  "files": [
+                    ".proof/rules.json"
+                  ],
+                  "removed_requirements": [
+                    "math-tests"
+                  ]
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [
+              "policy loosened and accepted: requirement \"math-tests\" removed or changed; broad_files raised from 6; cross_area loosened"
+            ],
+            "warnings": [],
+            "findings": [],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [
+                "requirement \"math-tests\" removed or changed",
+                "broad_files raised from 6",
+                "cross_area loosened"
+              ],
+              "accepted": true,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [
+          {
+            "run": "true",
+            "cwd": null,
+            "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+            "digest": "sha256:04481601758ee66a5366b439a574e107dd45a3b9e8b1f189964578937ae4e244",
+            "packets": [
+              "<packet:1>"
+            ],
+            "status": "passed",
+            "exit": 0,
+            "timed_out": false,
+            "duration_ms": 0
+          }
+        ],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}

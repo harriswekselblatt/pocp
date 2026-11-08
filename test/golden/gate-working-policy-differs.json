@@ -1,0 +1,19 @@
+{
+  "case": "gate-working-policy-differs",
+  "about": "today gate reads the working copy's policy, not the staged one (a planned change will judge the staged policy)",
+  "runs": [
+    {
+      "args": [
+        "gate",
+        "--json"
+      ],
+      "exit": 2,
+      "json": {
+        "pocp": 1,
+        "ok": false,
+        "error": "invalid JSON in <repo>/.proof/config.json: Expected property name or '}' in JSON at position 2 (line 1 column 3)"
+      },
+      "stderr": ""
+    }
+  ]
+}

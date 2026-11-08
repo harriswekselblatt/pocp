@@ -1,0 +1,109 @@
+{
+  "case": "missing-packet",
+  "about": "a commit made with --no-verify has no proof; coverage fails",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": false,
+        "commits": [
+          {
+            "commit": "<commit:skip the hooks>",
+            "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+            "ok": false,
+            "packets": [],
+            "coverage": {
+              "required_files": [
+                "src/math.js"
+              ],
+              "uncovered": [
+                "src/math.js"
+              ],
+              "reasons": [
+                {
+                  "code": "requirement",
+                  "detail": "1 file(s) have required checks",
+                  "files": [
+                    "src/math.js"
+                  ]
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [
+              "commit has no Proof-Of-Change trailers",
+              "not covered by a packet: src/math.js"
+            ],
+            "warnings": [],
+            "findings": [
+              {
+                "code": "uncovered",
+                "detail": "not covered by a packet: src/math.js",
+                "blocking": true
+              }
+            ],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        },
+        "approval": {
+          "only": false,
+          "needs": [],
+          "outcome": "failed",
+          "unfinished_reruns": 0
+        }
+      },
+      "stderr": ""
+    },
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail"
+      ],
+      "exit": 1,
+      "stdout": "NOT verified: 1 commit(s) in <commit:baseline>..HEAD · <duration>\n  BAD <commit:skip the hooks>: not covered: src/math.js\n  what to do:\n    uncovered: this commit was made without the proof its files need (were the hooks skipped or not installed? see \"pocp doctor\"). next: ask a maintainer how to repair the commit; for new commits run \"pocp fix\" before \"git commit\"   (needs a person)\n    Do not squash, force-push, rewrite history or commit with --no-verify to get past this: push the commit as it is and ask for the approval.\n",
+      "stderr": ""
+    }
+  ]
+}

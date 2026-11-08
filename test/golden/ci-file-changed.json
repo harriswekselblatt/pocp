@@ -1,0 +1,142 @@
+{
+  "case": "ci-file-changed",
+  "about": "a change to a CI workflow needs the same approval as a policy change",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 4,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": false,
+        "commits": [
+          {
+            "commit": "<commit:add a workflow>",
+            "subject": "sha256:4c9fcc72c6c8c1537d3b02c06c7bf8c72aba8f8345d0f7554296a11b767f50eb",
+            "ok": false,
+            "packets": [
+              {
+                "id": "<packet:1>",
+                "ok": true,
+                "problems": [],
+                "warnings": [],
+                "findings": [],
+                "counts": {
+                  "runnable": 1,
+                  "manual": 0,
+                  "proven": 1,
+                  "attested": 0
+                },
+                "signatures": {
+                  "valid": 0,
+                  "invalid": 0,
+                  "unsigned": 1,
+                  "untrusted": 0
+                },
+                "evidence": {
+                  "o1": "rerun"
+                }
+              }
+            ],
+            "coverage": {
+              "required_files": [
+                ".github/workflows/ci.yml"
+              ],
+              "uncovered": [],
+              "reasons": [
+                {
+                  "code": "ci_config",
+                  "detail": "CI configuration changed (.github/workflows/ci.yml)",
+                  "files": [
+                    ".github/workflows/ci.yml"
+                  ]
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [
+              "CI configuration changed (.github/workflows/ci.yml); re-run with --accept-policy-change once a maintainer approves"
+            ],
+            "warnings": [],
+            "findings": [
+              {
+                "code": "ci_config_changed",
+                "detail": "CI configuration changed (.github/workflows/ci.yml); re-run with --accept-policy-change once a maintainer approves",
+                "blocking": true
+              }
+            ],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [
+          {
+            "run": "node test/math.check.mjs",
+            "cwd": null,
+            "subject": "sha256:4c9fcc72c6c8c1537d3b02c06c7bf8c72aba8f8345d0f7554296a11b767f50eb",
+            "digest": "sha256:24c1232c8d290accca09310efa0da2a8a0ea4899eb5edbe1c902d5388625165e",
+            "packets": [
+              "<packet:1>"
+            ],
+            "status": "passed",
+            "exit": 0,
+            "timed_out": false,
+            "duration_ms": 0
+          }
+        ],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        },
+        "approval": {
+          "only": true,
+          "needs": [
+            {
+              "label": "pocp-approve-policy",
+              "kind": "policy",
+              "reasons": [
+                "CI configuration changed (.github/workflows/ci.yml); re-run with --accept-policy-change once a maintainer approves"
+              ],
+              "files": [
+                ".github/workflows/ci.yml"
+              ]
+            }
+          ],
+          "outcome": "waiting",
+          "unfinished_reruns": 0
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}

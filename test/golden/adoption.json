@@ -1,0 +1,130 @@
+{
+  "case": "adoption",
+  "about": "adopting POCP through the hooks: gate passes, but today the CI verify (--require-coverage) fails on uncovered .proof files",
+  "runs": [
+    {
+      "args": [
+        "gate",
+        "--json"
+      ],
+      "exit": 0,
+      "json": {
+        "pocp": 1,
+        "decision": "pass",
+        "subject": "sha256:9a6241c838a189bae9d0f9604e46b5b062936cd653f48f720ee28e6af566a07e",
+        "files": [],
+        "required_files": [],
+        "reasons": [],
+        "uncovered": [],
+        "unpacketed": [],
+        "packets": [],
+        "problems": [],
+        "warnings": [
+          {
+            "code": "adopting",
+            "detail": "this commit adopts POCP (no earlier policy): the rules take effect for the commits after it"
+          }
+        ],
+        "guard_mode": "block",
+        "remedies": [],
+        "pending_approvals": []
+      },
+      "stderr": ""
+    },
+    {
+      "args": [
+        "verify",
+        "<commit:before pocp>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:before pocp>..HEAD",
+        "ok": false,
+        "commits": [
+          {
+            "commit": "<commit:adopt pocp>",
+            "subject": "sha256:9a6241c838a189bae9d0f9604e46b5b062936cd653f48f720ee28e6af566a07e",
+            "ok": false,
+            "packets": [],
+            "coverage": {
+              "required_files": [
+                ".proof/config.json",
+                ".proof/rules.json"
+              ],
+              "uncovered": [
+                ".proof/config.json",
+                ".proof/rules.json"
+              ],
+              "reasons": [
+                {
+                  "code": "policy_change",
+                  "detail": "POCP policy changed (.proof/rules.json, .proof/config.json)",
+                  "files": [
+                    ".proof/rules.json",
+                    ".proof/config.json"
+                  ],
+                  "removed_requirements": []
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [
+              "commit has no Proof-Of-Change trailers",
+              "not covered by a packet: .proof/config.json, .proof/rules.json"
+            ],
+            "warnings": [],
+            "findings": [
+              {
+                "code": "uncovered",
+                "detail": "not covered by a packet: .proof/config.json, .proof/rules.json",
+                "blocking": true
+              }
+            ],
+            "policy": {
+              "from": "<commit:before pocp>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        },
+        "approval": {
+          "only": false,
+          "needs": [],
+          "outcome": "failed",
+          "unfinished_reruns": 0
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "case": "no-merge-base",
+  "about": "unrelated history: the net change cannot be computed, so verify refuses",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "main..other",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "ok": false,
+        "error": "main and other share no history here, so the net change can't be computed (fetch the full history of both)",
+        "details": {
+          "code": "no_merge_base"
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}

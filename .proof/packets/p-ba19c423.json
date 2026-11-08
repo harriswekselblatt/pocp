@@ -1,0 +1,427 @@
+{
+  "pocp": 1,
+  "id": "p-ba19c423",
+  "intent": "Phase 0 baseline: golden characterization tests and security invariants for the refactor",
+  "touches": [
+    "test/golden.test.js",
+    "test/golden/adoption.json",
+    "test/golden/ci-file-changed.json",
+    "test/golden/corrupt-packet.json",
+    "test/golden/failed-proof-local.json",
+    "test/golden/gate-working-policy-differs.json",
+    "test/golden/invalid-policy.json",
+    "test/golden/missing-packet.json",
+    "test/golden/multi-commit-merge-tip.json",
+    "test/golden/no-merge-base.json",
+    "test/golden/policy-loosened.json",
+    "test/golden/proven-commit.json",
+    "test/golden/shallow-clone.json",
+    "test/golden/test-added.json",
+    "test/golden/test-edit-fast.json",
+    "test/golden/test-edit-old-tests-fail-deep.json",
+    "test/golden/unfinished-proof-local.json",
+    "test/security-invariants.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/golden.test.js",
+        "test/golden/adoption.json",
+        "test/golden/ci-file-changed.json",
+        "test/golden/corrupt-packet.json",
+        "test/golden/failed-proof-local.json",
+        "test/golden/gate-working-policy-differs.json",
+        "test/golden/invalid-policy.json",
+        "test/golden/missing-packet.json",
+        "test/golden/multi-commit-merge-tip.json",
+        "test/golden/no-merge-base.json",
+        "test/golden/policy-loosened.json",
+        "test/golden/proven-commit.json",
+        "test/golden/shallow-clone.json",
+        "test/golden/test-added.json",
+        "test/golden/test-edit-fast.json",
+        "test/golden/test-edit-old-tests-fail-deep.json",
+        "test/golden/unfinished-proof-local.json",
+        "test/security-invariants.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/golden.test.js, test/golden/adoption.json, test/golden/ci-file-changed.json, test/golden/corrupt-packet.json, test/golden/failed-proof-local.json, test/golden/gate-working-policy-differs.json, test/golden/invalid-policy.json, test/golden/missing-packet.json and 10 more): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-08T20:47:38.069Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:12d5d0763fb735186cdb214a3b0c94a206f5e481c29cc2cfca1d31ee7bb4b71b",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T20:47:38.531Z",
+      "duration_ms": 2482,
+      "stdout_sha256": "daddff83a3b13865a225b4ab23d760e1f1cba34535b262e84f0c9e829a439b1c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-abf3c911",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:12d5d0763fb735186cdb214a3b0c94a206f5e481c29cc2cfca1d31ee7bb4b71b",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T20:47:41.090Z",
+      "duration_ms": 43829,
+      "stdout_sha256": "cd94d0bae9f0cd47724c45bc5a5f0a88bb5324e6f563e3ab91c4753c5ba4dc84",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-a39d5d1f",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:12d5d0763fb735186cdb214a3b0c94a206f5e481c29cc2cfca1d31ee7bb4b71b",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T20:48:25.020Z",
+      "duration_ms": 266841,
+      "stdout_sha256": "6c05faa83196e21959a991b0d0209cc83e9542f6c93cdf7dcc0d416c3c53168b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-d8ce921d",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:26373a4290f50fc62c05cafd561c7654a0b6a5cff47dbc564d4fc4925b7d97fd",
+      "subject": "sha256:12d5d0763fb735186cdb214a3b0c94a206f5e481c29cc2cfca1d31ee7bb4b71b",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-08T20:52:52.043Z",
+      "duration_ms": 388346,
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "needs-review",
+        "passed": false,
+        "summary": "the old tests pass on the new code; a person must review the test change (test/golden.test.js: a test file was added (it runs with the others and can change their outcome); test/golden/adoption.json: a test file was added (it runs with the others and can change their outcome); test/golden/ci-file-changed.json: a test file was added (it runs with the others and can change their outcome); and 15 more): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)",
+        "base": "e610b0dfd8ff998bc7592587c40a2f28e7fb050a",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "-test/golden.test.js",
+            "-test/golden/adoption.json",
+            "-test/golden/ci-file-changed.json",
+            "-test/golden/corrupt-packet.json",
+            "-test/golden/failed-proof-local.json",
+            "-test/golden/gate-working-policy-differs.json",
+            "-test/golden/invalid-policy.json",
+            "-test/golden/missing-packet.json",
+            "-test/golden/multi-commit-merge-tip.json",
+            "-test/golden/no-merge-base.json",
+            "-test/golden/policy-loosened.json",
+            "-test/golden/proven-commit.json",
+            "-test/golden/shallow-clone.json",
+            "-test/golden/test-added.json",
+            "-test/golden/test-edit-fast.json",
+            "-test/golden/test-edit-old-tests-fail-deep.json",
+            "-test/golden/unfinished-proof-local.json",
+            "-test/security-invariants.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2762
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 47574
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 335886
+            }
+          ],
+          "left_out": [
+            "test/golden.test.js",
+            "test/golden/adoption.json",
+            "test/golden/ci-file-changed.json",
+            "test/golden/corrupt-packet.json",
+            "test/golden/failed-proof-local.json",
+            "test/golden/gate-working-policy-differs.json",
+            "test/golden/invalid-policy.json",
+            "test/golden/missing-packet.json",
+            "test/golden/multi-commit-merge-tip.json",
+            "test/golden/no-merge-base.json",
+            "test/golden/policy-loosened.json",
+            "test/golden/proven-commit.json",
+            "test/golden/shallow-clone.json",
+            "test/golden/test-added.json",
+            "test/golden/test-edit-fast.json",
+            "test/golden/test-edit-old-tests-fail-deep.json",
+            "test/golden/unfinished-proof-local.json",
+            "test/security-invariants.test.js"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "test/golden.test.js is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "off",
+          "budget": 0,
+          "seed": 1
+        },
+        "structural": {
+          "result": "needs-review",
+          "reasons": [
+            {
+              "file": "test/golden.test.js",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/adoption.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/ci-file-changed.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/corrupt-packet.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/failed-proof-local.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/gate-working-policy-differs.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/invalid-policy.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/missing-packet.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/multi-commit-merge-tip.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/no-merge-base.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/policy-loosened.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/proven-commit.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/shallow-clone.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/test-added.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/test-edit-fast.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/test-edit-old-tests-fail-deep.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/golden/unfinished-proof-local.json",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "test/security-invariants.test.js",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            }
+          ]
+        },
+        "duration_ms": 388346,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-08T20:47:38.069Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T20:47:38.069Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-08T20:59:21.146Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:12d5d0763fb735186cdb214a3b0c94a206f5e481c29cc2cfca1d31ee7bb4b71b"
+    },
+    {
+      "at": "2026-11-08T20:59:21.901Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:12d5d0763fb735186cdb214a3b0c94a206f5e481c29cc2cfca1d31ee7bb4b71b"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:26373a4290f50fc62c05cafd561c7654a0b6a5cff47dbc564d4fc4925b7d97fd",
+      "subject": "sha256:12d5d0763fb735186cdb214a3b0c94a206f5e481c29cc2cfca1d31ee7bb4b71b",
+      "by": "harriswekselblatt",
+      "at": "2026-11-08T20:59:21.901Z",
+      "to": "ci-approval",
+      "reason": "the old tests pass on the new code; a person must review the test change (test/golden.test.js: a test file was added (it runs with the others and can change their outcome); test/golden/adoption.json: a test file was added (it runs with the others and can change their outcome); test/golden/ci-file-changed.json: a test file was added (it runs with the others and can change their outcome); and 15 more): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)"
+    }
+  ]
+}

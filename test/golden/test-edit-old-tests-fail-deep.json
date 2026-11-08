@@ -1,0 +1,247 @@
+{
+  "case": "test-edit-old-tests-fail-deep",
+  "about": "deep mode: code broken and its test assertion removed; the old test fails on the new code, before any mutant is sampled (old-tests regression coverage)",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 4,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": false,
+        "commits": [
+          {
+            "commit": "<commit:drop the add assertion>",
+            "subject": "sha256:e33e2bb948d829c828fc8da51b9aa7a47b18c54c76f5c011e71073084809629b",
+            "ok": false,
+            "packets": [
+              {
+                "id": "<packet:1>",
+                "ok": true,
+                "problems": [],
+                "warnings": [],
+                "findings": [],
+                "counts": {
+                  "runnable": 2,
+                  "manual": 0,
+                  "proven": 1,
+                  "attested": 0
+                },
+                "signatures": {
+                  "valid": 0,
+                  "invalid": 0,
+                  "unsigned": 2,
+                  "untrusted": 0
+                },
+                "evidence": {
+                  "o1": "rerun",
+                  "o2": "mechanical:rerun-failed"
+                }
+              }
+            ],
+            "coverage": {
+              "required_files": [
+                "src/math.js",
+                "test/math.check.mjs"
+              ],
+              "uncovered": [],
+              "reasons": [
+                {
+                  "code": "requirement",
+                  "detail": "1 file(s) have required checks",
+                  "files": [
+                    "src/math.js"
+                  ]
+                },
+                {
+                  "code": "test_change",
+                  "detail": "existing tests or test setup changed",
+                  "files": [
+                    "test/math.check.mjs"
+                  ]
+                }
+              ]
+            },
+            "reruns": [
+              {
+                "run": "test guard (o2, 10 mutants, seed <seed>)",
+                "kind": "guard",
+                "packets": [
+                  "<packet:1>"
+                ],
+                "status": "failed",
+                "verdict": "behavior-changed",
+                "summary": "the old tests fail on the new code (\"node test/math.check.mjs\" exit 1): behavior changed, so a person must approve it",
+                "duration_ms": 0
+              }
+            ],
+            "notes": [
+              "existing tests or test setup changed (test/math.check.mjs); the mechanical check did not pass: the old tests fail on the new code (\"node test/math.check.mjs\" exit 1): behavior changed, so a person must approve it. Re-run with --accept-test-change once a person approves"
+            ],
+            "warnings": [],
+            "findings": [
+              {
+                "code": "test_change",
+                "detail": "existing tests or test setup changed (test/math.check.mjs); the mechanical check did not pass: the old tests fail on the new code (\"node test/math.check.mjs\" exit 1): behavior changed, so a person must approve it. Re-run with --accept-test-change once a person approves",
+                "blocking": true
+              }
+            ],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": {
+              "mode": "block",
+              "files": [
+                "test/math.check.mjs"
+              ],
+              "signals": [
+                {
+                  "file": "test/math.check.mjs",
+                  "status": "M",
+                  "kind": "test",
+                  "removed_asserts": 0,
+                  "added_skips": 0
+                }
+              ],
+              "mechanical": [
+                {
+                  "packet": "<packet:1>",
+                  "obligation": "o2",
+                  "files": [
+                    "test/math.check.mjs"
+                  ],
+                  "evidence": "rerun",
+                  "passed": false,
+                  "verdict": "behavior-changed",
+                  "summary": "the old tests fail on the new code (\"node test/math.check.mjs\" exit 1): behavior changed, so a person must approve it",
+                  "checks_from": "rules",
+                  "unfinished": false,
+                  "result": {
+                    "pocp": 1,
+                    "verdict": "behavior-changed",
+                    "passed": false,
+                    "summary": "the old tests fail on the new code (\"node test/math.check.mjs\" exit 1): behavior changed, so a person must approve it",
+                    "base": "<commit:baseline>",
+                    "checks": [
+                      {
+                        "id": "math-tests",
+                        "run": "node test/math.check.mjs"
+                      }
+                    ],
+                    "old_tests": {
+                      "result": "fail",
+                      "restored": [
+                        "test/math.check.mjs"
+                      ],
+                      "runs": [
+                        {
+                          "check": "math-tests",
+                          "passed": false,
+                          "exit": 1,
+                          "duration_ms": 0
+                        }
+                      ]
+                    },
+                    "new_tests": {
+                      "result": "pass",
+                      "runs": [
+                        {
+                          "check": "math-tests",
+                          "passed": true,
+                          "exit": 0,
+                          "duration_ms": 0
+                        }
+                      ]
+                    },
+                    "baseline": {
+                      "result": "pass",
+                      "runs": [
+                        {
+                          "check": "math-tests",
+                          "passed": true,
+                          "exit": 0,
+                          "duration_ms": 0
+                        }
+                      ]
+                    },
+                    "detection": {
+                      "result": "not-run",
+                      "budget": 10,
+                      "seed": 0
+                    },
+                    "duration_ms": 0,
+                    "checks_from": "rules"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "reruns": [
+          {
+            "run": "node test/math.check.mjs",
+            "cwd": null,
+            "subject": "sha256:e33e2bb948d829c828fc8da51b9aa7a47b18c54c76f5c011e71073084809629b",
+            "digest": "sha256:24c1232c8d290accca09310efa0da2a8a0ea4899eb5edbe1c902d5388625165e",
+            "packets": [
+              "<packet:1>"
+            ],
+            "status": "passed",
+            "reused": "already run on this commit by this verify",
+            "duration_ms": 0
+          }
+        ],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        },
+        "approval": {
+          "only": true,
+          "needs": [
+            {
+              "label": "pocp-approve-tests",
+              "kind": "tests",
+              "reasons": [
+                "existing tests or test setup changed (test/math.check.mjs); the mechanical check did not pass: the old tests fail on the new code (\"node test/math.check.mjs\" exit 1): behavior changed, so a person must approve it. Re-run with --accept-test-change once a person approves"
+              ],
+              "files": [
+                "test/math.check.mjs"
+              ]
+            }
+          ],
+          "outcome": "waiting",
+          "unfinished_reruns": 0
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}
