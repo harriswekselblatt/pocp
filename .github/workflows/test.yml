@@ -37,23 +37,6 @@ jobs:
           package-manager-cache: false
       - run: node --version && git --version && ssh -V
       - run: npm test
-  # TEMPORARY (removed before merge): runs the suite the way `pocp verify --isolate` does.
-  isolated-diag:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          package-manager-cache: false
-      - name: suite isolated, one run
-        run: node .github/diag-isolated-suite.mjs 1
-      - name: suite isolated, three side by side (as verify runs it)
-        if: always()
-        run: node .github/diag-isolated-suite.mjs 3
   eval:
     # The independent evaluation's own tests (eval/). macOS runs only in the nightly matrix.
     strategy:
