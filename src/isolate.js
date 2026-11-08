@@ -91,28 +91,37 @@ export function uidProcesses(uid, procDir = '/proc') {
   return n;
 }
 
-/** Take group and other write off every file and folder under `dir` that `uid` owns (links skipped). */
-export function dropOthersWrite(dir, uid) {
-  const fix = (p, st) => {
-    if (st.uid === uid && !st.isSymbolicLink() && (st.mode & 0o022)) fs.chmodSync(p, st.mode & ~0o022 & 0o7777);
-  };
-  const walk = (d) => {
+/**
+ * Is `dir` safe to run programs from while workers run? It and every folder above it must be
+ * owned by root or `uid` (workers have no groups of ours). A folder a worker can write, or
+ * rename a parent of, could get a planted `git` or `sudo` run by pocp.
+ */
+export function trustedDir(dir, uid) {
+  let d;
+  try {
+    d = fs.realpathSync(dir);
+  } catch {
+    return false;
+  }
+  // The folder itself must not be writable by others at all. A folder above it may be, if it is
+  // sticky (/tmp): others can add entries there but not rename or remove ours.
+  for (let self = true; ; self = false) {
     let st;
     try {
       st = fs.lstatSync(d);
     } catch {
-      return;
+      return false;
     }
-    fix(d, st);
-    if (!st.isDirectory()) return;
-    for (const name of fs.readdirSync(d)) {
-      const p = path.join(d, name);
-      const s2 = fs.lstatSync(p);
-      if (s2.isDirectory()) walk(p);
-      else fix(p, s2);
-    }
-  };
-  walk(dir);
+    if (!st.isDirectory() || (st.uid !== 0 && st.uid !== uid)) return false;
+    if ((st.mode & 0o002) && (self || !(st.mode & 0o1000))) return false;
+    if (d === path.dirname(d)) return true;
+    d = path.dirname(d);
+  }
+}
+
+/** The entries of a PATH string that `trustedDir` accepts, in order. */
+export function trustedPath(value, uid) {
+  return String(value || '').split(':').filter((d) => d && path.isAbsolute(d) && trustedDir(d, uid));
 }
 
 const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -140,6 +149,7 @@ export function createIsolatedRunner({
   platform = process.platform,
 } = {}) {
   let prepared = false;
+  let workerPath = null; // the PATH pocp and the checks use once prepared: safe folders only
   const usedUids = new Set();
 
   const asRoot = (args, { input, timeout = 60_000 } = {}) => {
@@ -251,6 +261,7 @@ export function createIsolatedRunner({
   /** Run `command` as the sandbox's user in `cwd` (inside sb.work); always destroys the sandbox. */
   async function runIn(sb, command, cwd, opts) {
     const env = workerEnv(opts.env, opts.envAllow || [], sb);
+    if (workerPath) env.PATH = workerPath;
     let res;
     try {
       res = await runWith(launcherFor(sb), command, { ...opts, cwd, env });
@@ -277,26 +288,56 @@ export function createIsolatedRunner({
      * shouldn't. `protect` adds paths: { path, deny: 'write' | 'all' }.
      */
     async prepare({ root, protect = [] } = {}) {
+      if (platform !== 'linux') throw new IsolationError(`isolation unavailable: isolated checks need Linux (this is ${platform})`);
+      const me = typeof process.getuid === 'function' ? process.getuid() : -1;
+      // Programs are found through PATH, by pocp (git, sudo, ssh-keygen, id, getent) and by every
+      // check (node, npm, python, ...). On GitHub's runners /opt is writable by everyone, and the
+      // tool cache under it, first on PATH, is unpacked writable by everyone: one worker (the
+      // install, a mutant run) could plant a `node` that always exits 0 for every later check.
+      // So, before any pull-request code runs:
+      // 1. pocp looks programs up only in folders no other user can change (trustedPath);
+      // 2. as root, it takes other-write off every PATH folder's contents, the tool cache, and
+      //    the folders above them (sticky ones like /tmp aside);
+      // 3. pocp and the checks both get only the PATH folders that are now safe;
+      // 4. the probe, as a worker, must find nothing writable in any of them.
+      const jobPath = process.env.PATH || '';
+      if (workerPath === null) process.env.PATH = trustedPath(jobPath, me).join(':');
       requirePlatform();
-      const me = process.getuid();
+      const pathDirs = [...new Set(jobPath.split(':').filter((d) => d && path.isAbsolute(d)).map((d) => {
+        try {
+          return fs.realpathSync(d);
+        } catch {
+          return null;
+        }
+      }).filter(Boolean))];
+      const sticky = (d) => {
+        try {
+          return Boolean(fs.statSync(d).mode & 0o1000);
+        } catch {
+          return true;
+        }
+      };
+      const toolTrees = [...pathDirs.filter((d) => !sticky(d)), ...(process.env.RUNNER_TOOL_CACHE ? [process.env.RUNNER_TOOL_CACHE] : []), path.resolve(path.dirname(process.execPath), '..')];
+      const above = new Set();
+      for (const t of toolTrees) for (let d = path.dirname(t); d !== path.dirname(d); d = path.dirname(d)) above.add(d);
+      const lockTrees = toolTrees.filter((t) => fs.existsSync(t));
+      if (lockTrees.length) asRoot(['find', ...lockTrees, '-xdev', '-perm', '-0002', '!', '-type', 'l', '-exec', 'chmod', 'o-w', '{}', '+'], { timeout: 300_000 });
+      const openAbove = [...above].filter((d) => {
+        try {
+          const st = fs.lstatSync(d);
+          return st.isDirectory() && (st.mode & 0o002) && !(st.mode & 0o1000);
+        } catch {
+          return false;
+        }
+      });
+      if (openAbove.length) asRoot(['chmod', 'o-w', '--', ...openAbove]);
+      workerPath = trustedPath(jobPath, me).join(':');
+      process.env.PATH = workerPath;
       const privateDirs = [os.homedir(), process.env.RUNNER_TEMP].filter(Boolean);
       for (const d of privateDirs) {
         try {
           const st = fs.statSync(d);
           if (st.uid === me && (st.mode & 0o077)) fs.chmodSync(d, st.mode & 0o700);
-        } catch { /* the probe decides */ }
-      }
-      // The node verify runs on must not be replaceable by a worker. actions/setup-node unpacks
-      // Node into the tool cache writable by everyone, so take group and other write off the
-      // installation and the folders above it that this user owns. The probe checks the rest.
-      const nodeHome = path.resolve(path.dirname(process.execPath), '..');
-      dropOthersWrite(nodeHome, me);
-      const nodeAncestors = [];
-      for (let d = nodeHome; d !== path.dirname(d); d = path.dirname(d)) nodeAncestors.push(d);
-      for (const d of nodeAncestors) {
-        try {
-          const st = fs.lstatSync(d);
-          if (st.uid === me && st.isDirectory() && (st.mode & 0o022)) fs.chmodSync(d, st.mode & ~0o022 & 0o7777);
         } catch { /* the probe decides */ }
       }
       const fileCommandDirs = CI_STEP_VARS.map((k) => process.env[k]).filter(Boolean).map((f) => path.dirname(f));
@@ -307,9 +348,9 @@ export function createIsolatedRunner({
         { path: POCP_ROOT, deny: 'write' },
         { path: path.join(POCP_ROOT, 'src'), deny: 'write' },
         { path: path.join(POCP_ROOT, 'bin', 'pocp.js'), deny: 'write' },
-        { path: process.execPath, deny: 'write' },
-        { path: path.dirname(process.execPath), deny: 'write' },
-        ...nodeAncestors.filter((d) => !fs.lstatSync(d).isSymbolicLink() && !(fs.lstatSync(d).mode & 0o1000)).map((d) => ({ path: d, deny: 'write' })),
+        ...workerPath.split(':').filter(Boolean).map((d) => ({ path: d, deny: 'tree' })),
+        ...lockTrees.map((d) => ({ path: d, deny: 'tree' })),
+        ...[...above].map((d) => ({ path: d, deny: 'write' })),
         ...(root ? [{ path: root, deny: 'write' }, { path: path.join(root, '.proof'), deny: 'write' }, { path: path.join(root, '.git'), deny: 'write' }] : []),
         { path: '/var/run/docker.sock', deny: 'all' },
         ...protect,
@@ -319,6 +360,8 @@ export function createIsolatedRunner({
         '  [ -e "$p" ] || [ -L "$p" ] || continue',
         '  if [ -w "$p" ]; then echo "can write $p"; fi',
         '  if [ "$k" = all ] && [ -r "$p" ]; then echo "can read $p"; fi',
+        // A tree checks run programs from: nothing in it may be writable (links checked at their target).
+        '  if [ "$k" = tree ]; then f=$(find "$p" -xdev -writable -print -quit 2>/dev/null); [ -n "$f" ] && echo "can write $f"; fi',
         'done',
         // Every process of pocp's user: the worker must neither read its environment (the job's
         // tokens are in the runner's) nor signal it.
@@ -337,7 +380,7 @@ export function createIsolatedRunner({
       let res;
       try {
         const sb = makeSandbox(empty);
-        res = await runIn(sb, command, sb.work, { env: { PATH: process.env.PATH, POCP_CONTROLLER_UID: String(me) }, envAllow: ['POCP_CONTROLLER_UID'], timeoutMs: 60_000, killGraceMs: 1_000 });
+        res = await runIn(sb, command, sb.work, { env: { PATH: process.env.PATH, POCP_CONTROLLER_UID: String(me) }, envAllow: ['POCP_CONTROLLER_UID'], timeoutMs: 300_000, killGraceMs: 1_000 });
       } finally {
         fs.rmSync(empty, { recursive: true, force: true });
       }

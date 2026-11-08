@@ -13,10 +13,14 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { git, packetId, pocp, read, sampleRepo, write, writeConfig } from './helpers.js';
+import { git, packetId, pocp as runPocp, read, sampleRepo, write, writeConfig } from './helpers.js';
 import { TWEAK_ADD, commit } from './fixtures.js';
-import { createIsolatedRunner, dropOthersWrite, IsolationError, POCP_ROOT, uidProcesses, workerEnv } from '../src/isolate.js';
+import { createIsolatedRunner, IsolationError, POCP_ROOT, trustedDir, trustedPath, uidProcesses, workerEnv } from '../src/isolate.js';
 
+// The isolated runner narrows this process's PATH to folders no worker can change; a pocp this
+// test starts gets the job's own PATH, as it would in a workflow step, and narrows it itself.
+const JOB_PATH = process.env.PATH;
+const pocp = (dir, args, { env = {} } = {}) => runPocp(dir, args, { env: { PATH: JOB_PATH, ...env } });
 const ON_GITHUB_LINUX = process.platform === 'linux' && Boolean(process.env.RUNNER_TEMP);
 const SKIP = ON_GITHUB_LINUX ? false : 'needs a Linux GitHub Actions runner (passwordless sudo, useradd, setpriv, prlimit)';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -68,18 +72,25 @@ test('a worker gets no tokens or job files in its environment, even ones run.env
   assert.deepEqual(env, { PATH: '/usr/bin', LANG: 'C.UTF-8', CI: 'true', MY_VAR: 'x', HOME: '/tmp/w/home', USER: 'pocp-w1', LOGNAME: 'pocp-w1', TMPDIR: '/tmp/w/tmp', TMP: '/tmp/w/tmp', TEMP: '/tmp/w/tmp' });
 });
 
-test('dropOthersWrite takes group and other write off what this user owns, without following links', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tool-'));
-  write(dir, 'bin/node', 'x');
-  fs.chmodSync(path.join(dir, 'bin', 'node'), 0o777);
-  fs.chmodSync(path.join(dir, 'bin'), 0o777);
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'outside-'));
-  fs.chmodSync(outside, 0o777);
-  fs.symlinkSync(outside, path.join(dir, 'link'));
-  dropOthersWrite(dir, process.getuid());
-  assert.equal(fs.statSync(path.join(dir, 'bin', 'node')).mode & 0o777, 0o755);
-  assert.equal(fs.statSync(path.join(dir, 'bin')).mode & 0o777, 0o755);
-  assert.equal(fs.statSync(outside).mode & 0o777, 0o777, 'a link is not followed');
+test('trustedDir: pocp runs programs only from folders no other user can change', () => {
+  const me = process.getuid();
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'path-'));
+  const ok = path.join(base, 'ok');
+  const open = path.join(base, 'open');
+  const under = path.join(open, 'bin');
+  const sticky = path.join(base, 'sticky');
+  const inSticky = path.join(sticky, 'bin');
+  for (const d of [ok, under, inSticky]) fs.mkdirSync(d, { recursive: true });
+  fs.chmodSync(open, 0o777);
+  fs.chmodSync(sticky, 0o1777);
+  assert.equal(trustedDir(ok, me), true);
+  assert.equal(trustedDir(open, me), false, 'writable by others');
+  assert.equal(trustedDir(under, me), false, 'a parent others can write could be renamed away');
+  assert.equal(trustedDir(sticky, me), false, 'others can add files to a sticky folder');
+  assert.equal(trustedDir(inSticky, me), true, 'but not rename ours in it');
+  assert.equal(trustedDir(path.join(base, 'missing'), me), false);
+  assert.equal(trustedDir(ok, me + 1), false, 'owned by someone else');
+  assert.deepEqual(trustedPath(`${under}:${ok}::relative:${open}`, me), [ok]);
 });
 
 test('uidProcesses counts a user\'s live processes by real or effective uid, not zombies', () => {
@@ -221,6 +232,26 @@ test('isolated: nothing a check started survives it: a detached child is killed,
   fs.rmSync(markers, { recursive: true, force: true });
 });
 
+test('isolated: a check cannot plant a program a later check runs (PATH folders and the tool cache are locked)', { skip: SKIP }, async () => {
+  // An earlier run whose own result decides nothing (the install, a mutant run) plants a node
+  // that always exits 0; a later required check must still run the real one.
+  const wrapper = 'printf "#!/bin/sh\\nexit 0\\n"';
+  const r = await check([
+    'for d in $(echo "$PATH" | tr ":" " ") "$TC" "$TC/node" /opt /usr/local/bin; do',
+    `  ${wrapper} > "$d/node" 2>/dev/null && chmod +x "$d/node" && echo "planted $d/node"`,
+    'done',
+    'n=$(command -v node)',
+    `[ -n "$n" ] && ${wrapper} > "$n" 2>/dev/null && echo "overwrote $n"`,
+    'for d in /opt/* "$TC"/*; do mv "$d" "$d.gone" 2>/dev/null && echo "moved $d"; done',
+    'mkdir -p /opt/evil/bin 2>/dev/null && echo "made /opt/evil"',
+    'exit 0',
+  ].join('\n'), { env: { TC: process.env.RUNNER_TOOL_CACHE || '/opt/hostedtoolcache' }, envAllow: ['TC'] });
+  assert.equal(r.exit, 0, r.output);
+  assert.doesNotMatch(r.output, /planted|overwrote|moved|made/, r.output);
+  const later = await check('command -v node; node -e "process.exit(3)"');
+  assert.equal(later.exit, 3, `the real node ran: ${later.output}`);
+});
+
 test('isolated: a timed-out check is killed with everything it started', { skip: SKIP }, async () => {
   const started = Date.now();
   const r = await check('setsid sleep 60 </dev/null >/dev/null 2>&1 &\ntrap "" TERM\nsleep 60', { timeoutMs: 800, killGraceMs: 300 });
@@ -298,9 +329,9 @@ test('isolated verify: honest code verifies; a check that fails and tries to for
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'out-')), 'step-output');
   fs.writeFileSync(out, '');
   const verifierBefore = read(POCP_ROOT, 'bin/pocp.js');
-  const attack = { ATTACK: '1', OUT: out, VERIFIER: POCP_ROOT, POCP_UID: String(process.getuid()) };
+  const attack = { PATH: JOB_PATH, ATTACK: '1', OUT: out, VERIFIER: POCP_ROOT, POCP_UID: String(process.getuid()) };
 
-  const honest = pocp(dir, ['verify', 'HEAD', '--rerun', '--isolate', '--json']);
+  const honest = pocp(dir, ['verify', 'HEAD', '--rerun', '--isolate', '--json'], { env: { PATH: JOB_PATH } });
   assert.equal(honest.code, 0, honest.stdout + honest.stderr);
   assert.deepEqual(honest.json.isolation, { mode: 'user', secure: true });
 
