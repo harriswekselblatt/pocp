@@ -33,9 +33,17 @@ inputs:
     required: false
     default: 'false'
   exit-detail:
-    description: "'true' to also report verify's result as the `code` output: 0 verified, 4 only an approval is missing, 5 something didn't finish, anything else a failure. The step still fails on anything but verified, so give it `continue-on-error: true` and use the verified / waiting / inconclusive / failed steps in examples/github/pocp.yml. Only the step's outcome means verified: the checks verify runs share the job's user and disk and could write to the output file, so the code may only choose between waiting, inconclusive and failed. (Up to v1.0.0 the step passed with exit-detail; a workflow written for that still never turns a failure green, but shows a wait as a failure until it is updated.) 'false' (the default): no code output."
+    description: "'true' to also report verify's result as the `code` output: 0 verified, 4 only an approval is missing, 5 something didn't finish, anything else a failure. The step still fails on anything but verified, so give it `continue-on-error: true` and use the verified / waiting / inconclusive / failed steps in examples/github/pocp.yml. Only the step's outcome means verified: the code may only choose between waiting, inconclusive and failed (without isolation, the checks share the job's user and could write to the output file). (Up to v1.0.0 the step passed with exit-detail; a workflow written for that still never turns a failure green, but shows a wait as a failure until it is updated.) 'false' (the default): no code output."
     required: false
     default: 'false'
+  isolate:
+    description: "'true' (the default, the secure profile): run every check verify re-runs as a fresh unprivileged Linux user that can't reach the verifier, this job's files and tokens, or verify's processes. Needs a Linux runner with passwordless sudo (GitHub-hosted Ubuntu runners have it); if isolation can't be set up, the step fails rather than run checks as the job's user. Toolchains must be installed outside $HOME (setup-node and the other setup actions are). 'false': the cooperative runner, checks run as the job's user (not a security boundary; see docs/THREAT-MODEL.md)."
+    required: false
+    default: 'true'
+  install:
+    description: "Command that installs dependencies (for example: npm ci), run isolated at the pull request's head before the checks. The folders .proof/config.json's snapshot.link names (node_modules by default) are then sealed read-only and linked into every check. Needs isolate. Don't install dependencies in an earlier step: that runs the pull request's install scripts as the job's user."
+    required: false
+    default: ''
   require-coverage:
     description: Fail commits whose changed files needed a packet but had none.
     required: false
@@ -67,6 +75,8 @@ runs:
         ACCEPT_UNCOVERED: ${{ inputs.accept-uncovered }}
         EXIT_DETAIL: ${{ inputs.exit-detail }}
         COVERAGE: ${{ inputs.require-coverage }}
+        ISOLATE: ${{ inputs.isolate }}
+        INSTALL: ${{ inputs.install }}
         POCP_CMD: ${{ inputs.pocp-command }}
       run: |
         if [ -n "$RANGE_INPUT" ]; then RANGE=$RANGE_INPUT
@@ -84,6 +94,13 @@ runs:
         [ -n "$ACCEPT_INCONCLUSIVE" ] && [ "$ACCEPT_INCONCLUSIVE" != "false" ] && args+=("--accept-inconclusive=$ACCEPT_INCONCLUSIVE")
         [ -n "$ACCEPT_UNCOVERED" ] && [ "$ACCEPT_UNCOVERED" != "false" ] && args+=("--accept-uncovered=$ACCEPT_UNCOVERED")
         [ "$COVERAGE" = "true" ] && args+=(--require-coverage)
+        # Isolation fails closed: an unknown value is an error, not a quiet "false".
+        case "$ISOLATE" in
+          true) args+=(--isolate) ;;
+          false) echo "::warning title=POCP isolation::isolate is false: the checks run as this job's own user (cooperative runner), not the secure profile" ;;
+          *) echo "::error title=POCP verify::isolate must be 'true' or 'false', not '$ISOLATE'"; exit 2 ;;
+        esac
+        [ -n "$INSTALL" ] && args+=(--install "$INSTALL")
         # pocp-command is split into words, without globbing or any other shell expansion.
         cmd=()
         if [ -n "$POCP_CMD" ]; then read -r -a cmd <<< "$POCP_CMD"; fi

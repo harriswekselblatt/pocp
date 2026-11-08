@@ -5,10 +5,18 @@ import crypto from 'node:crypto';
 import { onCleanup } from './exit.js';
 import { blobBuffer, checkoutIndexTo, checkoutRevTo, indexEntries, isProofPath } from './git.js';
 
+// Where dependency folders (snapshot.link) are linked from: the repository, or, under
+// `pocp verify --isolate --install`, the sealed copy the isolated install made (src/isolate.js),
+// because an isolated check can't read the repository's checkout.
+let depsRoot = null;
+export function useDependencyRoot(dir) {
+  depsRoot = dir;
+}
+
 function linkDeps(root, dir, links = []) {
   for (const rel of links) {
     if (!rel || rel.includes('..') || path.isAbsolute(rel)) continue;
-    const src = path.join(root, rel);
+    const src = path.join(depsRoot || root, rel);
     const dest = path.join(dir, rel);
     if (fs.existsSync(src) && !fs.existsSync(dest)) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });

@@ -12,10 +12,12 @@
 # those steps and sets the "pocp" commit status: green, yellow (waiting for a maintainer, or a
 # check didn't finish) or red.
 #
-# What this does not give you: a re-run *is* the pull request's code, running in this job. POCP
-# keeps its own git calls away from what that code can change and takes "verified" only from
-# verify's exit status, not from a file the checks could write, but code that runs in a job can,
-# with enough effort, interfere with anything else in it. docs/THREAT-MODEL.md says exactly what is and isn't independent.
+# The pull request's code runs in this job: verify re-runs its checks. With `isolate: true` (the
+# default), each check, and the `install` command, runs as a fresh unprivileged Linux user made
+# for that one run. It can't write the action's files or this checkout (its .proof run records
+# included), can't read or write RUNNER_TEMP or $HOME, never sees a token, can't signal verify,
+# and everything it starts is killed when it ends. If that can't be set up, verify fails rather
+# than run checks as the job's user. docs/THREAT-MODEL.md says exactly what is and isn't covered.
 #
 # POCP_STATUS_LIVE (a repository variable an admin sets; a pull request can't change it):
 # - unset (start here): waits still fail this job, so "verify" can stay your required check
@@ -63,14 +65,18 @@ jobs:
           fetch-depth: 0                                    # verify reads the whole range of commits
           persist-credentials: false                        # no token left in .git/config for the PR's code
       # ▶ Your toolchain (examples: actions/setup-node, actions/setup-python, actions/setup-go).
-      # ▶ Install dependencies without running the PR's install scripts where you can
-      #   (for example `npm ci --ignore-scripts`): anything that runs before verify is PR code.
+      #   Isolated checks can't read $HOME, so the toolchain must live outside it (the setup-*
+      #   actions install to the runner's tool cache, which is fine).
+      # ▶ Don't install dependencies in a step here: that runs the PR's install scripts as this
+      #   job's user. Give the command to verify's `install` input instead (below).
       - uses: harriswekselblatt/pocp@POCP_REF                  # pin a release or commit; the action runs its bundled pocp
         name: verify
         id: verify
         continue-on-error: true    # the step fails unless verified; the steps below report why
         with:
           rerun: all
+          isolate: true              # each check runs as a fresh unprivileged user (Linux runners)
+          # install: npm ci          # ▶ your install command: runs isolated, before the checks
           exit-detail: true
           accept-policy-change: ${{ env.APPROVE_POLICY }}
           accept-test-change: ${{ env.APPROVE_TESTS }}

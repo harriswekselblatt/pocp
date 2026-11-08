@@ -113,8 +113,44 @@ export function groupAlive(pgid) {
 // Each pocp exit path that can run code also kills the group (see onCleanup below).
 const WATCHDOG = '(while read -r _; do :; done; kill -9 0) <&3 >/dev/null 2>&1 &\nexec 3<&-\nexec /bin/sh -c "$0"';
 
+// How a check starts and stops: the default launcher runs it as this user, in its own process
+// group. src/isolate.js supplies one that runs it as a separate unprivileged user.
+//   spawn(command, { cwd, env }) -> ChildProcess, with stdout/stderr piped
+//   watch(child)                 -> the stream that keeps the watchdog alive (read, never written)
+//   kill(child, signal)          -> signal everything the check started
+//   alive(child)                 -> is anything the check started still running?
+export const processLauncher = Object.freeze({
+  spawn: (command, { cwd, env }) => spawn('/bin/sh', ['-c', WATCHDOG, command], { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe', 'pipe'] }),
+  watch: (child) => child.stdio[3],
+  kill: killGroup,
+  alive: (child) => groupAlive(child.pid),
+});
+
 /**
- * Default Runner. Runs `command` with /bin/sh in its own process group.
+ * Default Runner: the cooperative runner. Runs `command` with /bin/sh in its own process group,
+ * as the same user as pocp. That is fine on a developer's machine, but it is not a security
+ * boundary: a check could change pocp's own files or signal it. `pocp verify --isolate` uses the
+ * isolated runner in src/isolate.js instead (the hosted secure profile, docs/THREAT-MODEL.md).
+ */
+export function createProcessRunner() {
+  return {
+    kind: 'process',
+    isolation: COOPERATIVE,
+    run(command, opts = {}) {
+      return runWith(processLauncher, command, opts);
+    },
+  };
+}
+
+/** What `pocp verify` reports about how the checks it re-ran were run. */
+export const COOPERATIVE = Object.freeze({
+  mode: 'cooperative',
+  secure: false,
+  detail: 'checks ran as the same user as pocp (cooperative runner): fine for local use, not the hosted secure profile',
+});
+
+/**
+ * Run `command` through `launcher`.
  * Output is hashed in full, logged up to `logCapBytes`, and kept in memory up to the
  * same cap so `expect` can be matched.
  *
@@ -125,170 +161,175 @@ const WATCHDOG = '(while read -r _; do :; done; kill -9 0) <&3 >/dev/null 2>&1 &
  * still holds stdout/stderr gets `pipeGraceMs` to let go before the pipes are destroyed, so the
  * run settles promptly. It settles exactly once.
  */
-export function createProcessRunner() {
-  return {
-    kind: 'process',
-    run(command, { cwd, env, timeoutMs = 600_000, killGraceMs = 5_000, pipeGraceMs = 250, logFile = null, logCapBytes = 10 * 1024 * 1024 } = {}) {
-      return new Promise((resolve) => {
-        const startedAt = Date.now();
-        const hashes = { stdout: crypto.createHash('sha256'), stderr: crypto.createHash('sha256') };
-        // One decoder per stream: a multi-byte character split across chunks is decoded whole.
-        // Hashes and the log stay over the raw bytes.
-        const decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') };
-        let captured = '';
-        let capturedBytes = 0;
-        let truncated = false;
-        let log = null;
-        if (logFile) {
-          log = fs.openSync(logFile, 'w');
-          fs.writeSync(log, `$ ${command}\n# cwd: ${cwd}\n\n`);
-        }
-        const take = (stream) => (chunk) => {
-          hashes[stream].update(chunk);
-          if (capturedBytes < logCapBytes) {
-            const room = logCapBytes - capturedBytes;
-            const part = chunk.length > room ? chunk.subarray(0, room) : chunk;
-            if (part.length < chunk.length) truncated = true;
-            capturedBytes += part.length;
-            captured += decoders[stream].write(part);
-            if (log) fs.writeSync(log, part);
-          } else {
-            truncated = true;
-          }
-        };
+export function runWith(launcher, command, { cwd, env, timeoutMs = 600_000, killGraceMs = 5_000, pipeGraceMs = 250, logFile = null, logCapBytes = 10 * 1024 * 1024 } = {}) {
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const hashes = { stdout: crypto.createHash('sha256'), stderr: crypto.createHash('sha256') };
+    // One decoder per stream: a multi-byte character split across chunks is decoded whole.
+    // Hashes and the log stay over the raw bytes.
+    const decoders = { stdout: new StringDecoder('utf8'), stderr: new StringDecoder('utf8') };
+    let captured = '';
+    let capturedBytes = 0;
+    let truncated = false;
+    let log = null;
+    if (logFile) {
+      log = fs.openSync(logFile, 'w');
+      fs.writeSync(log, `$ ${command}\n# cwd: ${cwd}\n\n`);
+    }
+    const take = (stream) => (chunk) => {
+      hashes[stream].update(chunk);
+      if (capturedBytes < logCapBytes) {
+        const room = logCapBytes - capturedBytes;
+        const part = chunk.length > room ? chunk.subarray(0, room) : chunk;
+        if (part.length < chunk.length) truncated = true;
+        capturedBytes += part.length;
+        captured += decoders[stream].write(part);
+        if (log) fs.writeSync(log, part);
+      } else {
+        truncated = true;
+      }
+    };
 
-        let child;
+    let child;
+    try {
+      child = launcher.spawn(command, { cwd, env });
+    } catch (err) {
+      if (log) fs.closeSync(log);
+      resolve({ exit: null, signal: null, timed_out: false, error: err.message, duration_ms: 0, output: '', truncated: false,
+        stdout_sha256: hashes.stdout.digest('hex'), stderr_sha256: hashes.stderr.digest('hex') });
+      return;
+    }
+    // If pocp itself is interrupted, stop the check's whole process group too.
+    const unregister = onCleanup(() => launcher.kill(child, 'SIGKILL'));
+    // Keep the watchdog's pipe open and drained; it is never written. A readable end is resumed
+    // so its close is seen; a writable end (the isolated worker's stdin) only needs errors ignored.
+    const watched = launcher.watch(child);
+    watched?.on?.('error', () => {});
+    if (typeof watched?.resume === 'function') watched.resume(); // read the watchdog pipe so its end (when the group empties) is seen
+    child.stdout.on('data', take('stdout'));
+    child.stderr.on('data', take('stderr'));
+
+    let exitInfo = null;
+    let timedOut = false;
+    let settled = false;
+    let closed = false;
+    let reaped = false;
+    let reaping = false;
+    let graceTimer = null;
+    let pipeTimer = null;
+    let timer = null;
+
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      unregister();
+      clearTimeout(timer);
+      clearTimeout(graceTimer);
+      clearTimeout(pipeTimer);
+      // Output cut off at the cap keeps a partial character out; output read to the end
+      // flushes whatever the decoders still hold.
+      if (!truncated) captured += decoders.stdout.end() + decoders.stderr.end();
+      const info = exitInfo || { code: null, signal: null };
+      if (log) {
+        if (truncated) fs.writeSync(log, `\n\n# output truncated at ${logCapBytes} bytes\n`);
+        fs.writeSync(log, `\n# exit=${info.code} signal=${info.signal} timed_out=${timedOut}\n`);
+        fs.closeSync(log);
+      }
+      resolve({
+        exit: info.code,
+        signal: info.signal,
+        timed_out: timedOut,
+        error: info.error,
+        duration_ms: Date.now() - startedAt,
+        output: captured,
+        truncated,
+        stdout_sha256: hashes.stdout.digest('hex'),
+        stderr_sha256: hashes.stderr.digest('hex'),
+      });
+    };
+    const maybeSettle = () => {
+      if (closed && reaped) settle();
+    };
+    const destroyPipes = () => {
+      for (const s of [child.stdout, child.stderr, launcher.watch(child)]) {
         try {
-          child = spawn('/bin/sh', ['-c', WATCHDOG, command], { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe', 'pipe'] });
-        } catch (err) {
-          if (log) fs.closeSync(log);
-          resolve({ exit: null, signal: null, timed_out: false, error: err.message, duration_ms: 0, output: '', truncated: false,
-            stdout_sha256: hashes.stdout.digest('hex'), stderr_sha256: hashes.stderr.digest('hex') });
+          s?.destroy();
+        } catch { /* already closed */ }
+      }
+    };
+
+    // The execution deadline. When it fires, the command's exit may already be waiting in
+    // the event loop (timers run before I/O), so look again after I/O before calling it a
+    // timeout: a command that exited in time is never recorded as timed out.
+    timer = setTimeout(() => setImmediate(() => {
+      if (exitInfo || settled) return;
+      timedOut = true;
+      launcher.kill(child, 'SIGTERM');
+      // SIGKILL after the grace period, and again every period until the run settles: an
+      // isolated check's processes are found by user, and one could still be starting.
+      const again = () => {
+        launcher.kill(child, 'SIGKILL');
+        graceTimer = setTimeout(again, killGraceMs);
+      };
+      graceTimer = setTimeout(again, killGraceMs);
+    }), timeoutMs);
+
+    // Started when the command exits. The group is only released once it is empty: a
+    // process that ignores SIGTERM gets SIGKILL after the grace period, and until then the
+    // onCleanup handler above still covers pocp exiting. Then stdout/stderr get a short
+    // grace to close; a descendant that left the group but still holds them can't keep the
+    // run open (they are destroyed).
+    const reap = () => {
+      if (reaping) return;
+      reaping = true;
+      const deadline = Date.now() + killGraceMs;
+      let killed = false;
+      const started = Date.now();
+      const tick = () => {
+        if (settled) return;
+        if (!launcher.alive(child)) {
+          reaped = true;
+          if (!closed) {
+            pipeTimer = setTimeout(() => {
+              destroyPipes();
+              closed = true;
+              maybeSettle();
+            }, pipeGraceMs);
+          }
+          maybeSettle();
           return;
         }
-        // If pocp itself is interrupted, stop the check's whole process group too.
-        const unregister = onCleanup(() => killGroup(child, 'SIGKILL'));
-        child.stdio[3].resume(); // read the watchdog pipe so its end (when the group empties) is seen
-        child.stdout.on('data', take('stdout'));
-        child.stderr.on('data', take('stderr'));
+        if (!killed && Date.now() >= deadline) {
+          killed = true;
+          launcher.kill(child, 'SIGKILL');
+        }
+        setTimeout(tick, Date.now() - started < 200 ? (launcher.pollMs ?? 2) : 25);
+      };
+      tick();
+    };
 
-        let exitInfo = null;
-        let timedOut = false;
-        let settled = false;
-        let closed = false;
-        let reaped = false;
-        let reaping = false;
-        let graceTimer = null;
-        let pipeTimer = null;
-        let timer = null;
-
-        const settle = () => {
-          if (settled) return;
-          settled = true;
-          unregister();
-          clearTimeout(timer);
-          clearTimeout(graceTimer);
-          clearTimeout(pipeTimer);
-          // Output cut off at the cap keeps a partial character out; output read to the end
-          // flushes whatever the decoders still hold.
-          if (!truncated) captured += decoders.stdout.end() + decoders.stderr.end();
-          const info = exitInfo || { code: null, signal: null };
-          if (log) {
-            if (truncated) fs.writeSync(log, `\n\n# output truncated at ${logCapBytes} bytes\n`);
-            fs.writeSync(log, `\n# exit=${info.code} signal=${info.signal} timed_out=${timedOut}\n`);
-            fs.closeSync(log);
-          }
-          resolve({
-            exit: info.code,
-            signal: info.signal,
-            timed_out: timedOut,
-            error: info.error,
-            duration_ms: Date.now() - startedAt,
-            output: captured,
-            truncated,
-            stdout_sha256: hashes.stdout.digest('hex'),
-            stderr_sha256: hashes.stderr.digest('hex'),
-          });
-        };
-        const maybeSettle = () => {
-          if (closed && reaped) settle();
-        };
-        const destroyPipes = () => {
-          for (const s of [child.stdout, child.stderr, child.stdio[3]]) {
-            try {
-              s?.destroy();
-            } catch { /* already closed */ }
-          }
-        };
-
-        // The execution deadline. When it fires, the command's exit may already be waiting in
-        // the event loop (timers run before I/O), so look again after I/O before calling it a
-        // timeout: a command that exited in time is never recorded as timed out.
-        timer = setTimeout(() => setImmediate(() => {
-          if (exitInfo || settled) return;
-          timedOut = true;
-          killGroup(child, 'SIGTERM');
-          graceTimer = setTimeout(() => killGroup(child, 'SIGKILL'), killGraceMs);
-        }), timeoutMs);
-
-        // Started when the command exits. The group is only released once it is empty: a
-        // process that ignores SIGTERM gets SIGKILL after the grace period, and until then the
-        // onCleanup handler above still covers pocp exiting. Then stdout/stderr get a short
-        // grace to close; a descendant that left the group but still holds them can't keep the
-        // run open (they are destroyed).
-        const reap = () => {
-          if (reaping) return;
-          reaping = true;
-          const deadline = Date.now() + killGraceMs;
-          let killed = false;
-          const started = Date.now();
-          const tick = () => {
-            if (settled) return;
-            if (!groupAlive(child.pid)) {
-              reaped = true;
-              if (!closed) {
-                pipeTimer = setTimeout(() => {
-                  destroyPipes();
-                  closed = true;
-                  maybeSettle();
-                }, pipeGraceMs);
-              }
-              maybeSettle();
-              return;
-            }
-            if (!killed && Date.now() >= deadline) {
-              killed = true;
-              killGroup(child, 'SIGKILL');
-            }
-            setTimeout(tick, Date.now() - started < 200 ? 2 : 25);
-          };
-          tick();
-        };
-
-        child.on('exit', (code, signal) => {
-          exitInfo = exitInfo?.error ? { ...exitInfo, code, signal } : { code, signal };
-          // The command is done: its execution deadline no longer applies.
-          clearTimeout(timer);
-          // Clean up anything the command left running in its group (and the watchdog).
-          killGroup(child, 'SIGTERM');
-          reap();
-        });
-        child.on('error', (err) => {
-          exitInfo = exitInfo || { code: null, signal: null, error: err.message };
-          // It never started (no pid): there is no group to reap and no exit to wait for.
-          if (!child.pid) {
-            clearTimeout(timer);
-            reaped = true;
-            destroyPipes();
-            closed = true;
-            setImmediate(maybeSettle);
-          }
-        });
-        child.on('close', () => {
-          closed = true;
-          maybeSettle();
-        });
-      });
-    },
-  };
+    child.on('exit', (code, signal) => {
+      exitInfo = exitInfo?.error ? { ...exitInfo, code, signal } : { code, signal };
+      // The command is done: its execution deadline no longer applies.
+      clearTimeout(timer);
+      // Clean up anything the command left running in its group (and the watchdog).
+      launcher.kill(child, 'SIGTERM');
+      reap();
+    });
+    child.on('error', (err) => {
+      exitInfo = exitInfo || { code: null, signal: null, error: err.message };
+      // It never started (no pid): there is no group to reap and no exit to wait for.
+      if (!child.pid) {
+        clearTimeout(timer);
+        reaped = true;
+        destroyPipes();
+        closed = true;
+        setImmediate(maybeSettle);
+      }
+    });
+    child.on('close', () => {
+      closed = true;
+      maybeSettle();
+    });
+  });
 }
