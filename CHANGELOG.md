@@ -34,6 +34,13 @@ that verified before are now held for review, on purpose.
 - Checks no longer inherit git's repository variables (`GIT_DIR`, `GIT_INDEX_FILE`, …) from hooks.
 - Workflows pin actions by commit SHA, set job timeouts, and drop checkout credentials.
 
+- **Branch protection covers the whole plan by default.** `ci.require_up_to_date` (GitHub's
+  "require branches to be up to date") is on unless a repository turns it off, and `pocp init`
+  writes it. `pocp doctor` now reports every gap `pocp ci required --check` does (admins exempt,
+  branches not up to date, pushes without a pull request), not only missing check names. Merge
+  queues aren't supported yet, and on a free plan's private repository POCP is advisory; both
+  are documented.
+
 ### Fixed
 
 - Committing the files `pocp init` creates no longer fails as a policy loosening.

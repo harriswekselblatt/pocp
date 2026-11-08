@@ -81,7 +81,7 @@ Pushing workflow files needs a GitHub login with the `workflow` permission (for 
 Then:
 
 1. **Create the approval labels.** `pocp doctor` lists any that are missing, with the `gh label create` commands. A maintainer approves a change by adding its label: `pocp-approve-tests`, `pocp-approve-policy`, `pocp-approve-inconclusive`, `pocp-approve-coverage` or `pocp-approve-workflow`. [docs/STATUS.md](STATUS.md) says what each covers.
-2. **Start in report-only mode.** Keep `verify` as your required check, and watch the `pocp` status on a few pull requests.
+2. **Start in report-only mode.** Keep `verify` as your required check, and watch the `pocp` status on a few pull requests. `pocp ci required --apply` sets branch protection from `.proof/config.json`: the required checks, pull requests only, admins included, and branches up to date before merging (so the merged code is the code that was verified; when `main` moves, a pull request needs "Update branch" before it merges). Each is on by default and can be turned off in `ci`.
 3. **Go live in one sitting.** Set the repository variable `POCP_STATUS_LIVE` to `true`, *and* require `pocp` instead of `verify`. Waiting for approval then shows yellow, with no red ✗ and no failure email. Merging is still blocked until the approval.
 
    Do the two steps together: once the variable is on, `verify` passes on a wait, so requiring `verify` alone would let an unapproved pull request merge.
@@ -92,7 +92,7 @@ If your repository has a second maintainer, keep the default `"ci": { "workflow_
 
 Then run `pocp doctor`. It checks the adoption pitfalls before they block anyone: hooks,
 the workflow's approval labels and whether they exist, whether a reporter sets the `pocp` status, Actions access when the POCP action
-is in a private repository, branch protection against `ci.required_checks`, and that this
+is in a private repository, branch protection against the whole plan (required checks, pull requests only, admins, up-to-date branches), and that this
 first pull request carries only `.proof/` and CI files (until it merges, CI judges with the
 base branch's rules, so any other change would get two verdicts). It changes nothing.
 
