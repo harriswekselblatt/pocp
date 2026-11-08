@@ -6,7 +6,10 @@
   "bin": { "pocp": "bin/pocp.js" },
   "exports": { ".": "./src/index.js", "./package.json": "./package.json" },
   "files": ["bin/", "src/", "docs/QUICKSTART.md", "docs/REFERENCE.md", "docs/STATUS.md", "docs/THREAT-MODEL.md", "examples/github/", "test/vectors.json", "SPEC.md", "SECURITY.md", "README.md", "LICENSE"],
-  "scripts": { "test": "node --test test/*.test.js" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:unit": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js test/git-object-reads.test.js test/guard-classify.test.js test/runner-env.test.js test/runner-git-env.test.js test/status-report.test.js test/status-report-integrity.test.js test/github-schema.test.js test/ci-up-to-date.test.js test/install-hint.test.js test/workflow-status.test.js"
+  },
   "engines": { "node": ">=20" },
   "keywords": ["git", "pre-commit", "proof", "verification", "ai-agents", "ci", "regression"],
   "license": "MIT",

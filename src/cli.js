@@ -652,6 +652,7 @@ export async function main(argv = process.argv.slice(2)) {
           acceptInconclusive: approval('accept-inconclusive'),
           acceptUncovered: approval('accept-uncovered'),
           allowedSignersFile: flags['allowed-signers'],
+          jobs: flags.jobs,
         };
         const rerunLines = (reruns) => reruns.map((x) => `  rerun ${x.status.padEnd(8)} ${x.run}${x.duration_ms !== undefined ? ` (${x.duration_ms}ms)` : ''}${x.kind === 'guard' && x.summary ? `: ${x.summary}` : ''}`);
         const nextSteps = (rows2) => {

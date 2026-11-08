@@ -59,11 +59,42 @@ process.on('exit', () => {
   forceRemove(TEST_TMP);
 });
 
-export function tmpRepo() {
+// Repositories a test starts from, built once per test process and copied for each test that
+// asks for one: building a sample repo (git init, a spawned pocp init, a commit) took about
+// 0.8s, and the suite asked for about 200. A copy is a separate repository (its own .git, no
+// path to the template in it), so no test can change what another one starts from.
+const templates = new Map();
+function fromTemplate(key, build) {
+  if (!templates.has(key)) {
+    const tpl = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pocp-template-')));
+    build(tpl);
+    templates.set(key, tpl);
+  }
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pocp-test-')));
-  sh(dir, 'git', ['init', '-q', '-b', 'main']);
-  sh(dir, 'git', ['config', 'commit.gpgsign', 'false']);
+  copyTree(templates.get(key), dir);
   return dir;
+}
+
+// A plain recursive copy: folders, files (with their modes, so hooks stay executable) and
+// symlinks as they are. Not fs.cpSync: on macOS, Node 22.23's cpSync now and then failed
+// with ENOENT creating .git/objects in the copy.
+function copyTree(src, dest) {
+  for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, ent.name);
+    const to = path.join(dest, ent.name);
+    if (ent.isSymbolicLink()) fs.symlinkSync(fs.readlinkSync(from), to);
+    else if (ent.isDirectory()) {
+      fs.mkdirSync(to);
+      copyTree(from, to);
+    } else fs.copyFileSync(from, to);
+  }
+}
+
+export function tmpRepo() {
+  return fromTemplate('empty', (dir) => {
+    sh(dir, 'git', ['init', '-q', '-b', 'main']);
+    sh(dir, 'git', ['config', 'commit.gpgsign', 'false']);
+  });
 }
 
 export function sh(cwd, cmd, args, { env = {}, allowFail = false, input } = {}) {
@@ -110,7 +141,12 @@ export function writeConfig(dir, config) {
 
 /** A repo with a tiny module, a test for it, pocp initialised, and one baseline commit. */
 export function sampleRepo({ hooks = false, rules, deep = true } = {}) {
-  const dir = tmpRepo();
+  return fromTemplate(JSON.stringify(['sample', hooks, deep, rules ?? null]), (dir) => buildSampleRepo(dir, { hooks, rules, deep }));
+}
+
+function buildSampleRepo(dir, { hooks, rules, deep }) {
+  sh(dir, 'git', ['init', '-q', '-b', 'main']);
+  sh(dir, 'git', ['config', 'commit.gpgsign', 'false']);
   write(dir, 'src/math.js', 'export function add(a, b) {\n  return a + b;\n}\n\nexport function isPositive(n) {\n  return n > 0;\n}\n');
   write(dir, 'test/math.check.mjs', [
     "import { add, isPositive } from '../src/math.js';",
@@ -132,7 +168,6 @@ export function sampleRepo({ hooks = false, rules, deep = true } = {}) {
   git(dir, 'add', '-A');
   // Baseline commit without hooks so the fixture starts clean.
   git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'baseline');
-  return dir;
 }
 
 export function packetId(stdout) {

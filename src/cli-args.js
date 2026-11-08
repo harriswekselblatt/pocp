@@ -170,6 +170,7 @@ export const COMMANDS = {
       'accept-uncovered': approval('commits .proof/exceptions.json lists may lack a packet; =<sha>: only for that head'),
       'accept-inconclusive': approval("a test change whose check didn't finish; =<sha>: only for that head"),
       'exit-detail': bool("exit 4 when only an approval is missing, 5 when something didn't finish"),
+      jobs: num('n', 'checks run at once (default: CPU cores - 1, at most 4)'),
     },
   },
   blame: { summary: 'packets that changed a file', usage: ['blame <file>'], engine: true, flags: {} },
