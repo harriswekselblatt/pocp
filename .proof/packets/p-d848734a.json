@@ -1,0 +1,76 @@
+{
+  "pocp": 1,
+  "id": "p-d848734a",
+  "intent": "Turn --isolate back on for POCP's own verify (as at a08f979) now that the suite passes isolated; remove the temporary diagnostic job",
+  "touches": [
+    ".github/workflows/pocp.yml",
+    ".github/workflows/test.yml"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "author"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-11-08T18:20:39.322Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:11389fe682284ae1eb8d37ee4e1f33ffc733eb438360cb899860488d13082868",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T18:20:39.836Z",
+      "duration_ms": 328689,
+      "stdout_sha256": "6277de5c43fe3bca18975f20cae95ee440cacac54e2f29bba22a55fc2de77750",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-7acc6f76",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-08T18:20:39.322Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T18:20:39.322Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T18:20:39.322Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-11-08T18:26:08.659Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:11389fe682284ae1eb8d37ee4e1f33ffc733eb438360cb899860488d13082868"
+    }
+  ]
+}
