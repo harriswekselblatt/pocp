@@ -1,0 +1,550 @@
+{
+  "pocp": 1,
+  "id": "p-a13c47bd",
+  "intent": "Branch protection covers the whole plan by default: up-to-date branches on, doctor reports every gap, docs cover tradeoffs, merge queues and free private repos",
+  "touches": [
+    "src/ci-github.js",
+    "src/doctor.js",
+    "src/init.js",
+    "src/store.js",
+    "test/ci-up-to-date.test.js",
+    "test/e2e-cli.test.js",
+    "test/e2e-doctor.test.js",
+    "test/e2e-test-setup.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/ci-up-to-date.test.js",
+        "test/e2e-cli.test.js",
+        "test/e2e-doctor.test.js",
+        "test/e2e-test-setup.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/ci-up-to-date.test.js, test/e2e-cli.test.js, test/e2e-doctor.test.js, test/e2e-test-setup.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-08T06:09:43.217Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T06:09:47.480Z",
+      "duration_ms": 13061,
+      "stdout_sha256": "679a302288dcf10b89b482816fd5e20c0e67a94b70a938a9451cb0a004293672",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-cfd19705",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T06:10:01.016Z",
+      "duration_ms": 284348,
+      "stdout_sha256": "950096881ea90284a79039b2faae9714d36ea0daadc1e0f96ef1f6dbc1dfbc5b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-de53b8fd",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": true,
+      "passed": false,
+      "started_at": "2026-11-08T06:14:46.083Z",
+      "duration_ms": 600151,
+      "stdout_sha256": "ed36d837a48ee7d9020ddd319cabee2e2a1699f753623064ecec490abba90690",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b62518ec",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:79bb413cb79f444b1a0b34a36e4d018adfc5caab1f92be31f089249c4c79b363",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-08T06:24:46.687Z",
+      "duration_ms": 798542,
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "inconclusive",
+        "passed": false,
+        "summary": "the checks fail on the new code (\"npm test --silent\" exit 1, timed out), so there is nothing to compare",
+        "base": "ebee847e02528b0a18858d50e875a07efeb1692f",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/ci-up-to-date.test.js",
+            "test/e2e-cli.test.js",
+            "test/e2e-doctor.test.js",
+            "test/e2e-test-setup.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": false,
+              "exit": 1,
+              "scope": "changed-tests",
+              "duration_ms": 102175,
+              "failed_tests": [
+                "ci required --apply on an unprotected branch sets fresh protection",
+                "ci required --apply falls back to contexts when GitHub rejects checks alone",
+                "doctor checks Action access, labels and branch protection on GitHub (read-only)",
+                "ci required --check: reports what the branch does not enforce, and never writes"
+              ]
+            }
+          ],
+          "changed_tests": {
+            "result": "escalated",
+            "files": [
+              "test/ci-up-to-date.test.js",
+              "test/e2e-cli.test.js",
+              "test/e2e-doctor.test.js",
+              "test/e2e-test-setup.test.js"
+            ],
+            "runs": [
+              {
+                "side": "new-code",
+                "check": "unit-tests",
+                "args": [
+                  "node",
+                  "--test",
+                  "test/ci-up-to-date.test.js",
+                  "test/e2e-cli.test.js",
+                  "test/e2e-doctor.test.js",
+                  "test/e2e-test-setup.test.js"
+                ],
+                "outcome": "fail",
+                "exit": 1,
+                "duration_ms": 102175,
+                "tests": {
+                  "passed": 33,
+                  "failed": 4,
+                  "skipped": 0
+                },
+                "failed_tests": [
+                  "ci required --apply on an unprotected branch sets fresh protection",
+                  "ci required --apply falls back to contexts when GitHub rejects checks alone",
+                  "doctor checks Action access, labels and branch protection on GitHub (read-only)",
+                  "ci required --check: reports what the branch does not enforce, and never writes"
+                ]
+              },
+              {
+                "side": "base",
+                "check": "unit-tests",
+                "args": [
+                  "node",
+                  "--test",
+                  "test/ci-up-to-date.test.js",
+                  "test/e2e-cli.test.js",
+                  "test/e2e-doctor.test.js",
+                  "test/e2e-test-setup.test.js"
+                ],
+                "outcome": "pass",
+                "exit": 0,
+                "duration_ms": 86452,
+                "tests": {
+                  "passed": 37,
+                  "failed": 0,
+                  "skipped": 0
+                }
+              }
+            ]
+          },
+          "scope": "changed-tests"
+        },
+        "new_tests": {
+          "result": "fail",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "timed_out": true,
+              "duration_ms": 605018
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [],
+          "scope": "changed-tests"
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "unfinished": true,
+        "duration_ms": 798542,
+        "checks_from": "rules"
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T06:38:24.428Z",
+      "duration_ms": 536134,
+      "stdout_sha256": "48568175e5bfd318fa6999ba05ba349c732e878e0b8f8b2186151fb8d999ee4e",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-7054d246",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:79bb413cb79f444b1a0b34a36e4d018adfc5caab1f92be31f089249c4c79b363",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-08T06:47:20.803Z",
+      "duration_ms": 98692,
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (the old versions of test/ci-up-to-date.test.js, test/e2e-cli.test.js, test/e2e-doctor.test.js, test/e2e-test-setup.test.js, run alone, fail on the new code and pass on the base); failing: ci required --apply on an unprotected branch sets fresh protection; ci required --apply falls back to contexts when GitHub rejects checks alone; doctor checks Action access, labels and branch protection on GitHub (read-only); ci required --check: reports what the branch does not enforce, and never writes: behavior changed, so a person must approve it",
+        "base": "ebee847e02528b0a18858d50e875a07efeb1692f",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/ci-up-to-date.test.js",
+            "test/e2e-cli.test.js",
+            "test/e2e-doctor.test.js",
+            "test/e2e-test-setup.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": false,
+              "exit": 1,
+              "scope": "changed-tests",
+              "duration_ms": 54123,
+              "failed_tests": [
+                "ci required --apply on an unprotected branch sets fresh protection",
+                "ci required --apply falls back to contexts when GitHub rejects checks alone",
+                "doctor checks Action access, labels and branch protection on GitHub (read-only)",
+                "ci required --check: reports what the branch does not enforce, and never writes"
+              ]
+            }
+          ],
+          "changed_tests": {
+            "result": "escalated",
+            "files": [
+              "test/ci-up-to-date.test.js",
+              "test/e2e-cli.test.js",
+              "test/e2e-doctor.test.js",
+              "test/e2e-test-setup.test.js"
+            ],
+            "runs": [
+              {
+                "side": "new-code",
+                "check": "unit-tests",
+                "args": [
+                  "node",
+                  "--test",
+                  "test/ci-up-to-date.test.js",
+                  "test/e2e-cli.test.js",
+                  "test/e2e-doctor.test.js",
+                  "test/e2e-test-setup.test.js"
+                ],
+                "outcome": "fail",
+                "exit": 1,
+                "duration_ms": 54123,
+                "tests": {
+                  "passed": 33,
+                  "failed": 4,
+                  "skipped": 0
+                },
+                "failed_tests": [
+                  "ci required --apply on an unprotected branch sets fresh protection",
+                  "ci required --apply falls back to contexts when GitHub rejects checks alone",
+                  "doctor checks Action access, labels and branch protection on GitHub (read-only)",
+                  "ci required --check: reports what the branch does not enforce, and never writes"
+                ]
+              },
+              {
+                "side": "base",
+                "check": "unit-tests",
+                "args": [
+                  "node",
+                  "--test",
+                  "test/ci-up-to-date.test.js",
+                  "test/e2e-cli.test.js",
+                  "test/e2e-doctor.test.js",
+                  "test/e2e-test-setup.test.js"
+                ],
+                "outcome": "pass",
+                "exit": 0,
+                "duration_ms": 42239,
+                "tests": {
+                  "passed": 37,
+                  "failed": 0,
+                  "skipped": 0
+                }
+              }
+            ]
+          },
+          "scope": "changed-tests"
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [],
+          "scope": "changed-tests"
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 98692,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-08T06:09:43.217Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T06:09:43.217Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-08T06:24:46.525Z",
+      "event": "proof_failed",
+      "obligation": "o3",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656"
+    },
+    {
+      "at": "2026-11-08T06:38:05.923Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656"
+    },
+    {
+      "at": "2026-11-08T06:38:06.003Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656"
+    },
+    {
+      "at": "2026-11-08T06:38:06.552Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656"
+    },
+    {
+      "at": "2026-11-08T06:49:00.138Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656"
+    },
+    {
+      "at": "2026-11-08T06:49:00.236Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:79bb413cb79f444b1a0b34a36e4d018adfc5caab1f92be31f089249c4c79b363",
+      "subject": "sha256:c99e862c1b19b150d1f8444420990e409a48380cdb4dc568069814b88931f656",
+      "by": "harriswekselblatt",
+      "at": "2026-11-08T06:38:06.552Z",
+      "to": "ci-approval",
+      "reason": "the checks fail on the new code (\"npm test --silent\" exit 1, timed out), so there is nothing to compare"
+    }
+  ]
+}

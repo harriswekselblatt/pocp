@@ -256,6 +256,9 @@ export function initProofDir(cwd, { deep = false } = {}) {
   };
   const config = { pocp: 1, packet_ttl_days: 14, run: { mode: 'clean', timeout_ms: 600000, env: 'inherit' }, snapshot: { link: ['node_modules'] } };
   config.guard = { mutants: deep ? DEFAULT_GUARD_MUTANTS : 0 };
+  // Written out so the choice is visible: GitHub then requires a pull request to include the
+  // latest base before it merges (pocp ci required --apply), so what merges is what was verified.
+  config.ci = { require_up_to_date: true };
   if (layout.extra.length) {
     Object.assign(config.guard, {
       extra_test_globs: layout.extra,

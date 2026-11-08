@@ -102,7 +102,11 @@ test('doctor checks Action access, labels and branch protection on GitHub (read-
   assert.match(labels.fix, /gh label create pocp-approve-tests --repo me\/site/);
   const prot = check(r, 'branch-protection')[0];
   assert.equal(prot.status, 'problem');
-  assert.match(prot.what, /does not require: verify/);
+  assert.match(prot.what, /check "verify" is not required/);
+  // Everything else the plan asks of the branch is reported too, not just the check names.
+  assert.match(prot.what, /admins can merge past the required checks/);
+  assert.match(prot.what, /without being up to date/);
+  assert.match(prot.what, /pushed without a pull request/);
   assert.equal(prot.fix, 'pocp ci required --apply');
   assert.equal(check(r, 'required-checks')[0].status, 'ok');
   assert.equal(check(r, 'guard-mode')[0].status, 'ok');
@@ -130,4 +134,27 @@ test('doctor: required checks must include the verify job; free private repos ar
   assert.match(check(r, 'branch-protection')[0].why, /advisory/);
   assert.equal(check(r, 'labels')[0].status, 'ok');
   assert.equal(check(r, 'action-access')[0].status, 'ok');
+});
+
+test('doctor: a branch that enforces the whole plan is ok; opting out of up-to-date branches is a warning', () => {
+  const full = { required_status_checks: { strict: true, contexts: ['verify', 'test'] }, required_pull_request_reviews: {}, enforce_admins: { enabled: true } };
+  for (const [config, expectWarning] of [[{}, false], [{ require_up_to_date: false }, true]]) {
+    const dir = sampleRepo({ hooks: true });
+    write(dir, '.github/workflows/pocp.yml', WORKFLOW);
+    writeConfig(dir, { ci: { branch: 'main', required_checks: ['verify', 'test'], ...config } });
+    git(dir, 'add', '-A');
+    git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'ci');
+    git(dir, 'remote', 'add', 'origin', 'https://github.com/me/site.git');
+    const gh = fakeGh(dir, {
+      'repo view': { body: { nameWithOwner: 'me/site', isPrivate: false } },
+      'repos/acme/pocp': { body: { private: false } },
+      'repos/me/site/labels?per_page=100': { body: [{ name: 'pocp-approve-policy' }, { name: 'pocp-approve-tests' }] },
+      'repos/me/site/branches/main/protection': { body: { ...full, required_status_checks: { ...full.required_status_checks, strict: !expectWarning } } },
+    });
+    const r = pocp(dir, ['doctor', '--json'], { env: { POCP_GH: gh } });
+    assert.equal(check(r, 'branch-protection')[0].status, 'ok', JSON.stringify(check(r, 'branch-protection')));
+    const warn = check(r, 'up-to-date');
+    assert.equal(warn.length, expectWarning ? 1 : 0, JSON.stringify(warn));
+    if (expectWarning) assert.match(warn[0].why, /not the code that was verified/);
+  }
 });

@@ -42,8 +42,9 @@ export function requiredChecksPlan(root, config) {
     require_pull_request: ci.require_pull_request !== false,
     enforce_admins: ci.enforce_admins !== false,
     // Branches must be up to date with the base before merging (GitHub's "strict"): otherwise
-    // what merges is the pull request combined with base commits nobody verified with it.
-    require_up_to_date: ci.require_up_to_date === true,
+    // what merges is the pull request combined with base commits nobody verified with it. On
+    // unless a repository turns it off explicitly (doctor and --check then report the gap).
+    require_up_to_date: ci.require_up_to_date !== false,
   };
 }
 
