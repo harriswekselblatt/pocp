@@ -78,22 +78,37 @@ function fromTemplate(key, build) {
 // A plain recursive copy: folders, files (with their modes, so hooks stay executable) and
 // symlinks as they are. Not fs.cpSync: on macOS, Node 22.23's cpSync now and then failed
 // with ENOENT creating .git/objects in the copy.
-function copyTree(src, dest) {
+//
+// Lock files are skipped, and an entry that disappears while it is copied is left out: git
+// creates and removes locks (index.lock, objects/maintenance.lock from its background
+// maintenance) while it works, and a copied lock would only make git refuse to run in the copy.
+export function copyTree(src, dest) {
   for (const ent of fs.readdirSync(src, { withFileTypes: true })) {
+    if (ent.name.endsWith('.lock')) continue;
     const from = path.join(src, ent.name);
     const to = path.join(dest, ent.name);
-    if (ent.isSymbolicLink()) fs.symlinkSync(fs.readlinkSync(from), to);
-    else if (ent.isDirectory()) {
-      fs.mkdirSync(to);
-      copyTree(from, to);
-    } else fs.copyFileSync(from, to);
+    try {
+      if (ent.isSymbolicLink()) fs.symlinkSync(fs.readlinkSync(from), to);
+      else if (ent.isDirectory()) {
+        fs.mkdirSync(to);
+        copyTree(from, to);
+      } else fs.copyFileSync(from, to);
+    } catch (err) {
+      if (err.code !== 'ENOENT' || fs.existsSync(from)) throw err;
+    }
   }
+}
+
+// Template repositories are copied while tests run: git must not start background work in
+// them (auto maintenance or gc after a commit), which would change .git during a copy.
+function quietRepo(dir) {
+  for (const [k, v] of [['commit.gpgsign', 'false'], ['maintenance.auto', 'false'], ['gc.auto', '0']]) sh(dir, 'git', ['config', k, v]);
 }
 
 export function tmpRepo() {
   return fromTemplate('empty', (dir) => {
     sh(dir, 'git', ['init', '-q', '-b', 'main']);
-    sh(dir, 'git', ['config', 'commit.gpgsign', 'false']);
+    quietRepo(dir);
   });
 }
 
@@ -146,7 +161,7 @@ export function sampleRepo({ hooks = false, rules, deep = true } = {}) {
 
 function buildSampleRepo(dir, { hooks, rules, deep }) {
   sh(dir, 'git', ['init', '-q', '-b', 'main']);
-  sh(dir, 'git', ['config', 'commit.gpgsign', 'false']);
+  quietRepo(dir);
   write(dir, 'src/math.js', 'export function add(a, b) {\n  return a + b;\n}\n\nexport function isPositive(n) {\n  return n > 0;\n}\n');
   write(dir, 'test/math.check.mjs', [
     "import { add, isPositive } from '../src/math.js';",
