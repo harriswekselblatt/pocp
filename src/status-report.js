@@ -119,6 +119,26 @@ export function runIdentity(job, number, baseSha) {
   return markers[0].conclusion === 'success' ? 'match' : 'unknown';
 }
 
+// Every step the trusted workflow runs to evaluate a pull request.
+const POCP_STEPS = new Set(['verify', 'verified', 'waiting', 'inconclusive', 'failed', ...Object.keys(APPROVAL_MARKERS)]);
+const isPocpStep = (s) => POCP_STEPS.has(s.name) || String(s.name || '').startsWith(MARKER_PREFIX);
+
+/**
+ * Whether a run was cancelled before its verify job evaluated anything: the run and its verify
+ * job both finished cancelled, and none of the workflow's own steps has a result other than
+ * skipped (a job cancelled while queued has no steps at all). Seen live: adding several approval
+ * labels at once starts a run per label, and the concurrency group cancels all but one. Such a
+ * run says nothing, like a skipped one. A run whose marker or verify step has any result (even
+ * cancelled, or none yet) may have been this pull request's evaluation, so it still counts, and
+ * a run with no verify job (not created, or the job list unreadable) is never called silent.
+ */
+export function cancelledBeforeVerify(run) {
+  const job = run?.job;
+  if (!run || run.status !== 'completed' || run.conclusion !== 'cancelled') return false;
+  if (!job || job.status !== 'completed' || job.conclusion !== 'cancelled' || !Array.isArray(job.steps)) return false;
+  return job.steps.filter(isPocpStep).every((s) => s.conclusion === 'skipped');
+}
+
 /** Why the pull request's file list can't show which files changed, or null when it's complete. */
 export function filesIncomplete(files, changedFiles) {
   const n = (files || []).length;
@@ -184,7 +204,9 @@ export function decideStatus(facts) {
     .filter((r) => r.workflow_id === facts.workflow.id && r.path === facts.workflow.path)
     .filter((r) => r.event === 'pull_request' && r.repository === facts.repository && r.head_sha === sha)
     // A run whose verify job was skipped (a label event the workflow ignores) says nothing.
-    .filter((r) => r.conclusion !== 'skipped' && !(r.job && r.job.conclusion === 'skipped'));
+    .filter((r) => r.conclusion !== 'skipped' && !(r.job && r.job.conclusion === 'skipped'))
+    // Nor does a run cancelled before its verify job evaluated anything (cancelledBeforeVerify).
+    .filter((r) => !cancelledBeforeVerify(r));
   // A run still queued or running (a new run, or a re-run attempt of an older one) may replace
   // what finished before it: wait for it. Which pull request it is for isn't readable yet.
   const underway = ofHead.filter((r) => r.status !== 'completed');
