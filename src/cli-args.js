@@ -171,6 +171,8 @@ export const COMMANDS = {
       'accept-inconclusive': approval("a test change whose check didn't finish; =<sha>: only for that head"),
       'exit-detail': bool("exit 4 when only an approval is missing, 5 when something didn't finish"),
       jobs: num('n', 'checks run at once (default: CPU cores - 1, at most 4)'),
+      isolate: bool('run each check as a fresh unprivileged user (Linux, passwordless sudo); fail if that is not possible'),
+      install: str('cmd', 'with --isolate: install dependencies at the head, isolated, before the checks'),
     },
   },
   blame: { summary: 'packets that changed a file', usage: ['blame <file>'], engine: true, flags: {} },

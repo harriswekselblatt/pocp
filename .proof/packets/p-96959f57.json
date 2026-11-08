@@ -1,0 +1,471 @@
+{
+  "pocp": 1,
+  "id": "p-96959f57",
+  "intent": "Isolate pull-request code from the verifier in CI: verify --isolate runs each check (and --install's dependency install) as a fresh unprivileged Linux user, failing closed if that can't be set up",
+  "touches": [
+    ".github/workflows/pocp.yml",
+    "action.yml",
+    "src/cli-args.js",
+    "src/cli.js",
+    "src/engine.js",
+    "src/isolate.js",
+    "src/runner.js",
+    "src/workspace.js",
+    "test/adopter-workflows.test.js",
+    "test/isolation.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/adopter-workflows.test.js",
+        "test/isolation.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/adopter-workflows.test.js, test/isolation.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-08T05:53:14.316Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T05:53:16.357Z",
+      "duration_ms": 9501,
+      "stdout_sha256": "56991400b616c3ab62785fcc4deb811a799cf02110b6a679d2a39c3a6d02dd29",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-3b59bac9",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T05:53:26.051Z",
+      "duration_ms": 167941,
+      "stdout_sha256": "9956983ad4f24a825d82078ce1d8aeb7d606aa2476849688c647cac62f921ea5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-4219662f",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": true,
+      "passed": false,
+      "started_at": "2026-11-08T05:56:14.232Z",
+      "duration_ms": 600184,
+      "stdout_sha256": "78921984e371adfe4963f6d258b6868823b6b94c93ca2e14c925a92b0b8f675c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-2dc2d103",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:c7894783b2c2d76695c5b8f96bd758a42f637a5269b871128d35ccccb7642865",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-08T06:06:15.299Z",
+      "duration_ms": 1370360,
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "inconclusive",
+        "passed": false,
+        "summary": "the checks fail on the new code (\"npm test --silent\" exit null, timed out), so there is nothing to compare",
+        "base": "ebee847e02528b0a18858d50e875a07efeb1692f",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/adopter-workflows.test.js",
+            "-test/isolation.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 5233
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 155070
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "timed_out": true,
+              "duration_ms": 601627,
+              "failed_tests": [
+                "action.yml: with exit-detail it records verify's code and exits with it; without, it behaves as before",
+                "action.yml: an explicit range wins; with no pull request and no range it fails clearly instead of verifying \"..\"",
+                "action.yml: pocp-command is split into words without glob or variable expansion"
+              ]
+            }
+          ],
+          "left_out": [
+            "test/isolation.test.js"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "test/isolation.test.js is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "fail",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": null,
+              "timed_out": true,
+              "signal": "SIGTERM",
+              "duration_ms": 600037
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "unfinished": true,
+        "duration_ms": 1370360,
+        "checks_from": "rules"
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T06:29:33.202Z",
+      "duration_ms": 589728,
+      "stdout_sha256": "53cb851e1559580e8d8b19a060da64966bd3763371ec19d1a14a06d49ab82e1b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-f4b70044",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:c7894783b2c2d76695c5b8f96bd758a42f637a5269b871128d35ccccb7642865",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-08T06:39:23.229Z",
+      "duration_ms": 1006306,
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: action.yml: with exit-detail it records verify's code and exits with it; without, it behaves as before; action.yml: an explicit range wins; with no pull request and no range it fails clearly instead of verifying \"..\"; action.yml: pocp-command is split into words without glob or variable expansion: behavior changed, so a person must approve it",
+        "base": "ebee847e02528b0a18858d50e875a07efeb1692f",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/adopter-workflows.test.js",
+            "-test/isolation.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 4761
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 130156
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 436387,
+              "failed_tests": [
+                "action.yml: with exit-detail it records verify's code and exits with it; without, it behaves as before",
+                "action.yml: an explicit range wins; with no pull request and no range it fails clearly instead of verifying \"..\"",
+                "action.yml: pocp-command is split into words without glob or variable expansion"
+              ]
+            }
+          ],
+          "left_out": [
+            "test/isolation.test.js"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "test/isolation.test.js is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 429969
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 1006306,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-08T05:53:14.316Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T05:53:14.316Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-08T06:06:14.954Z",
+      "event": "proof_failed",
+      "obligation": "o3",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766"
+    },
+    {
+      "at": "2026-11-08T06:29:06.793Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766"
+    },
+    {
+      "at": "2026-11-08T06:29:07.117Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766"
+    },
+    {
+      "at": "2026-11-08T06:29:08.170Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766"
+    },
+    {
+      "at": "2026-11-08T06:56:10.210Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766"
+    },
+    {
+      "at": "2026-11-08T06:56:10.289Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:c7894783b2c2d76695c5b8f96bd758a42f637a5269b871128d35ccccb7642865",
+      "subject": "sha256:1b80935c9048200fc1c4d8a93b37abf44da1ea0dbbaac3573931c1d1bd5bf766",
+      "by": "harriswekselblatt",
+      "at": "2026-11-08T06:29:08.170Z",
+      "to": "ci-approval",
+      "reason": "the checks fail on the new code (\"npm test --silent\" exit null, timed out), so there is nothing to compare"
+    }
+  ]
+}

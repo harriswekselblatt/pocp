@@ -54,8 +54,12 @@ written in the job (`--ci-results`, the faster mode) can be written by the pull 
 tests: see below.
 
 **A malicious pull request from a fork.** Obligations are shell commands from the repo, so
-`verify --rerun` runs the PR's code. *Your CI's isolation is the boundary:* run POCP where you
-would already run that PR's tests, with no secrets and read-only permissions.
+`verify --rerun` runs the PR's code. *Covered, on Linux runners with `verify --isolate` (the
+default in the example workflow and the action):* each check runs as a separate unprivileged
+user that can't reach the verifier, the job's files and tokens or verify's processes; see "The
+isolated worker" below for exactly what that covers. *Not covered:* without `--isolate` (local
+use, macOS, a runner without passwordless sudo) your CI's isolation is the boundary: run POCP
+where you would already run that PR's tests, with no secrets and read-only permissions.
 
 ## Trust labels
 
@@ -76,11 +80,13 @@ means the mechanical check did not pass and someone signed off instead.
 
 ## Pull-request code in the verifying job
 
-`verify --rerun` runs the pull request's code: that is what a re-run is. It runs as the CI
-job's user, on the same machine, and on GitHub-hosted runners with passwordless sudo. Nothing
-else in that job can be fully independent of it.
+`verify --rerun` runs the pull request's code: that is what a re-run is. The test guard runs it
+too, and so does installing its dependencies. On GitHub-hosted runners the job's user has
+passwordless sudo, so code that runs as that user can reach anything on the machine, the
+verifier included. `verify --isolate` keeps that code away from the verifier; without it, the
+limits under "The cooperative runner" below apply.
 
-What POCP does about it:
+What POCP does in every mode:
 
 - The verifier is loaded before any pull-request code runs: the action at a pinned commit, or
   the base branch's copy checked out in its own folder (as POCP's own workflow does).
@@ -103,25 +109,120 @@ What POCP does about it:
   its id must hold exactly the expected content.
 - The example workflows check out with `persist-credentials: false`, so no token is left in
   `.git/config`, and run with read-only permissions and no secrets.
+- "Verified" comes only from verify's exit status, never from a step output (see "How the job
+  reports the verdict").
 
-What it can't stop, because the code runs as the same user in the same job: with `ptrace` or
-sudo it can tamper with the verifier's process, the `node` binary or anything else on the
-machine; a process it starts in a new session can outlive its check and interfere with later
-re-runs; and new tests inside one check can sabotage the other tests of that same check (for
-example by rewriting their files before they run). So the re-run verdict is as trustworthy as
-running the pull request's tests in CI, which every project already relies on, plus the checks
-the pull request can't edit: base-branch rules, coverage, digests, signatures, the test guard.
+### The isolated worker (`verify --isolate`, the hosted secure profile)
+
+verify is the trusted controller: it reads the base's rules, builds every snapshot, starts each
+check, and reads back only what the kernel reports (exit status, signal, whether the time limit
+hit) and the bytes the check wrote to stdout and stderr. Nothing a check writes to a file is
+read as a result. Each check runs like this (`src/isolate.js`):
+
+- **A fresh user per run.** verify creates a Linux user for that one run (`useradd`, a random
+  uid never reused within the verify), with no sudo rights, and starts the check as that user
+  through `setpriv` with `no_new_privs`, no supplementary groups and no capabilities. Set-id
+  programs, sudo among them, give it nothing.
+- **Its own copy and its own folders.** The check runs in a private copy of the snapshot, owned
+  by its user, with its own `HOME` and `TMPDIR`. verify's own snapshot and every other check's
+  copy are out of its reach.
+- **No access to the job.** Before any pull-request code runs, verify makes `$HOME` and
+  `RUNNER_TEMP` private (mode 0700). A worker therefore can't write the verifier's checkout or
+  the action's files, the pull request's checkout or its `.proof` run records, `.git`, or the
+  step's file-command files (`GITHUB_OUTPUT`, `GITHUB_ENV`, `GITHUB_PATH`, `GITHUB_STATE`,
+  `GITHUB_STEP_SUMMARY`), and can't read them, `~/.git-credentials`, `~/.npmrc`, the runner's
+  own files or the scripts of earlier steps.
+- **No tokens.** Its environment is an allowlist (`PATH`, locale, `CI`, `GITHUB_ACTIONS`,
+  `NODE_ENV`, POCP's own variables and the names in `run.env_allow`), and `ACTIONS_*`,
+  `RUNNER_*`, `GITHUB_TOKEN`, the step-file variables, `POCP_SIGN_*` and `SSH_AUTH_SOCK` are
+  dropped even if `run.env_allow` lists them. A different user can't read another process's
+  environment through `/proc`, so the runner's tokens (`ACTIONS_RUNTIME_TOKEN` and the like)
+  stay out of reach.
+- **No signals.** A different, unprivileged user can't signal, trace or inspect verify or the
+  runner.
+- **Nothing survives it.** Every process the check starts runs as its user, so when the check
+  ends or times out, verify kills every process of that user (including a child that left the
+  process group with `setsid`) and checks none is left before it deletes the user and its
+  folders. If pocp itself dies, a watchdog in the worker does the same. RLIMIT_NPROC bounds how
+  many processes and threads it can have (4096 by default; `POCP_ISOLATE_NPROC`), and the
+  check's time limit (`run.timeout_ms`) bounds how long it runs.
+- **Dependencies too.** `verify --install "<command>"` (the action's `install` input) runs the
+  install the same way, in a copy of the head. The folders `snapshot.link` names
+  (`node_modules` by default) are then moved out, stripped of set-id bits, owned by root and
+  made read-only, and every check's snapshot links to them: a check can use them but can't
+  change them for the next check. An install that fails fails the verify.
+- **No check can plant a program for a later one.** On GitHub's runners `/opt` is writable by
+  every user, and the tool cache under it (first on `PATH`, unpacked by the setup actions
+  writable by everyone) holds the `node`, `npm` and `python` every check runs. Left that way,
+  one run whose own result decides nothing (the install, a mutant run) could plant a `node`
+  that always exits 0 and pass every later check. So before any pull-request code runs, verify
+  (as root) takes other-write off everything under each `PATH` folder and the tool cache, and
+  off the folders above them (sticky ones like `/tmp` aside). verify and the checks then use
+  only the `PATH` folders that are, along with every folder above them, owned by root or the
+  job's user and not writable by others, and the probe must find nothing in them a worker can
+  write. verify finds `git`, `sudo` and `ssh-keygen` there too.
+- **It fails closed.** Before running any pull-request code, verify runs a probe as a worker
+  that must find it can't write the verifier, the repository, `.proof`, `.git` or `node`, can't
+  read or write `$HOME`, `RUNNER_TEMP`, the step files or the Docker socket, can't read the
+  environment of or signal any process of the job's user, and can't use sudo. If it can do any
+  of that, or a worker can't be created, started or cleaned up at any point, verify fails
+  (exit 1: red, never waiting or inconclusive). It never falls back to running checks as the
+  job's user.
+
+What the isolated worker doesn't cover:
+
+- **The network.** A check can reach the network, including services on the runner and the
+  cloud provider's metadata endpoint. Nothing secret is in its reach on a GitHub-hosted runner
+  with the example workflow, but a self-hosted runner on a private network is a different
+  matter.
+- **The kernel.** Separate users are only as strong as the kernel that separates them; a local
+  privilege-escalation exploit would get through. A container or VM per check would add
+  namespaces on top. POCP doesn't do that yet.
+- **Memory, disk and CPU.** Only time and the number of processes are bounded. A check can
+  exhaust the runner; that can make the job fail or time out, never verify.
+- **Programs outside `PATH` and the tool cache.** A check can still write shared places such as
+  `/tmp` (below). A later check runs a program from there only if its own code chooses to,
+  which is the pull request's code at work in that check anyway.
+- **Shared scratch places.** `/tmp`, `/var/tmp` and `/dev/shm` are shared by every user. A check
+  can leave a file there that a later check of the same pull request reads, if it makes it
+  readable to all. verify's own temporary folders there are private, with random names.
+- **Process listings.** `/proc` shows every process's command line to every user. verify's own
+  holds nothing secret; don't put secrets on command lines in this job.
+- **Steps before verify.** A dependency install, `pocp ci-run` or anything else that runs the
+  pull request's code in an earlier step runs as the job's user, outside the boundary. Use
+  `--install`, and leave `--ci-results` off.
+- **Tests inside one check.** New tests can still sabotage the other tests of the same check
+  (for example by rewriting their files before they run), as in any test run.
+- **What a passing check means.** A check that exits 0 passed. The boundary keeps the pull
+  request's code from changing the verdict on its other checks; which checks run, and whether a
+  test change needs a person, is decided by the base's rules and the test guard.
+- **Other hosts.** It needs Linux with passwordless sudo, `useradd`, `setpriv` and `prlimit`
+  (GitHub's Ubuntu runners have all four). On macOS, or a runner without them, `--isolate`
+  fails. On a self-hosted runner, the probe checks the paths above; credentials kept elsewhere
+  on the machine aren't probed. Toolchains installed under `$HOME` (rustup, pipx) can't be
+  used by workers: install them outside it, as the `setup-*` actions do.
+- **Live proof.** The attack tests (`test/isolation.test.js`) run on GitHub's Ubuntu runners in
+  this repository's test workflow. A full fork-PR exercise against a live `pocp` status is
+  still outstanding.
+
+### The cooperative runner (without `--isolate`)
+
+Locally, and wherever `--isolate` isn't used, checks run as the same user as verify. verify
+says so in its output (`checks: cooperative: … not the hosted secure profile`), in its JSON
+(`"isolation": { "mode": "cooperative", "secure": false }`) and in the job summary. That is
+fine on a developer's machine, but it is not a security boundary: with `ptrace` or sudo the
+code can tamper with the verifier's process, the `node` binary or anything else on the machine;
+a process it starts in a new session can outlive its check and interfere with later re-runs;
+and it can write to the step's file-command files. The verdict is then as trustworthy as
+running the pull request's tests in CI, plus the checks the pull request can't edit: base-branch
+rules, coverage, digests, signatures, the test guard.
 
 **How the job reports the verdict.** Removing `GITHUB_OUTPUT` and the other step-file variables
-from a check's environment doesn't hide the files: they sit in the runner's temp directory,
-writable by the job's user. So the example workflows and POCP's own never take "verified" from
-a step output. The verify step exits with verify's exit code, and a `verified` step runs only
-when that step succeeded; the `code` output only chooses between waiting, inconclusive and
-failed. The same goes for the environment and path files: what a check writes to them can
-change later steps' environment, but not whether the verify step succeeded. What remains is the
-limit above: code that can use `ptrace` or sudo on the runner can tamper with the verifier's
-process or the runner itself, exit status included. Closing that needs the checks to run as a
-different user or in a separate container or job from the verifier, which POCP doesn't do yet.
+from a check's environment doesn't hide the files: they sit in the runner's temp directory.
+Under isolation a check can't reach them; without it, it can. Either way, the example workflows
+and POCP's own never take "verified" from a step output. The verify step exits with verify's
+exit code, and a `verified` step runs only when that step succeeded; the `code` output only
+chooses between waiting, inconclusive and failed.
 
 **Faster, trusting mode.** Running the tests first with `pocp ci-run` and passing
 `--ci-results` to verify skips the re-run of any check with a passing record. The tests run
@@ -132,10 +233,11 @@ readable by its child (same user; `/proc`, `ptrace`, sudo), and it would have to
 verify later in the same job, where the code that ran earlier can reach it too. Use this mode
 only where you accept that trust; it is not the default anywhere POCP documents.
 
-**The strongest practical setup.** A fresh, ephemeral runner; a verifier pinned and loaded
-before any pull-request code (the action at a pinned commit, or the base branch's copy);
-dependencies installed without lifecycle scripts; `verify --rerun` with no `--ci-results`; no
-secrets, a read-only token, `persist-credentials: false`; and that job required for merging.
+**The strongest practical setup.** A fresh, ephemeral GitHub-hosted Linux runner; a verifier
+pinned and loaded before any pull-request code (the action at a pinned commit, or the base
+branch's copy); `verify --rerun --isolate`, with dependencies installed through `--install` and
+no `--ci-results`; no secrets, a read-only token, `persist-credentials: false`; and that job
+required for merging.
 
 A job that runs no pull-request code at all can't be tampered with, and you might want verify
 to be that job, consuming results from a separate job that runs the checks. Today that
@@ -150,7 +252,8 @@ to exit 0. POCP doesn't implement that split yet.
 
 POCP's own repository verifies pull requests with the POCP from the base commit, checked out
 in a separate folder: a change to `src/` is judged by the verifier it would replace, not by its
-own code. The re-runs still run the pull request's code, with the limits above.
+own code. The re-runs still run the pull request's code: isolated (above) once the base branch's
+verifier supports `--isolate`, and as the job's user before that.
 
 ## Approvals
 
