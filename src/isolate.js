@@ -152,10 +152,10 @@ export function createIsolatedRunner({
   let workerPath = null; // the PATH pocp and the checks use once prepared: safe folders only
   const usedUids = new Set();
 
-  const asRoot = (args, { input, timeout = 60_000 } = {}) => {
+  const asRoot = (args, { input, timeout = 60_000, allowFail = false } = {}) => {
     const r = spawnSync(sudo, ['-n', '--', ...args], { encoding: 'utf8', input, timeout, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
     if (r.error) throw new IsolationError(`isolation unavailable: could not run ${sudo} ${args[0]}: ${r.error.message}`);
-    if (r.status !== 0) throw new IsolationError(`isolation unavailable: ${sudo} ${args[0]} failed (exit ${r.status}${r.signal ? `, ${r.signal}` : ''}): ${(r.stderr || '').trim().slice(0, 300)}`);
+    if (r.status !== 0 && !(allowFail && r.status !== null)) throw new IsolationError(`isolation unavailable: ${sudo} ${args[0]} failed (exit ${r.status}${r.signal ? `, ${r.signal}` : ''}): ${(r.stderr || '').trim().slice(0, 300)}`);
     return r.stdout;
   };
   const dropTo = (sb) => ['setpriv', `--reuid=${sb.uid}`, `--regid=${sb.gid}`, '--clear-groups', '--no-new-privs', '--inh-caps=-all', '--bounding-set=-all', '--'];
@@ -321,7 +321,11 @@ export function createIsolatedRunner({
       const above = new Set();
       for (const t of toolTrees) for (let d = path.dirname(t); d !== path.dirname(d); d = path.dirname(d)) above.add(d);
       const lockTrees = toolTrees.filter((t) => fs.existsSync(t));
-      if (lockTrees.length) asRoot(['find', ...lockTrees, '-xdev', '-perm', '-0002', '!', '-type', 'l', '-exec', 'chmod', 'o-w', '{}', '+'], { timeout: 300_000 });
+      // -L: a link in a PATH folder (x-www-browser, yarnpkg, ...) is judged and fixed at its
+      // target, wherever that is. Only files and folders: never a device such as /dev/null.
+      // Sticky folders (/tmp) are left alone. find's own complaints
+      // (a link loop, a dangling link) don't stop this; the probe below has the last word.
+      if (lockTrees.length) asRoot(['find', '-L', ...lockTrees, '-xdev', '(', '-type', 'f', '-o', '-type', 'd', ')', '-perm', '-0002', '!', '-perm', '-1000', '-exec', 'chmod', 'o-w', '{}', '+'], { timeout: 300_000, allowFail: true });
       const openAbove = [...above].filter((d) => {
         try {
           const st = fs.lstatSync(d);
@@ -385,7 +389,7 @@ export function createIsolatedRunner({
         fs.rmSync(empty, { recursive: true, force: true });
       }
       const lines = (res.output || '').split('\n').map((l) => l.trim()).filter(Boolean);
-      const findings = lines.filter((l) => l !== 'probe-ok');
+      const findings = [...new Set(lines.filter((l) => l !== 'probe-ok'))];
       if (res.exit !== 0 || lines[lines.length - 1] !== 'probe-ok' || findings.length) {
         const why = findings.length ? findings.join('; ') : `the probe did not finish (exit ${res.exit}${res.signal ? `, ${res.signal}` : ''}${res.timed_out ? ', timed out' : ''}${res.error ? `, ${res.error}` : ''})`;
         throw new IsolationError(`isolation unavailable: a worker ${findings.length ? 'could reach what it must not' : 'could not be started'}: ${why}`, { findings });

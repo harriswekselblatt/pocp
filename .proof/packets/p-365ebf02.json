@@ -1,0 +1,184 @@
+{
+  "pocp": 1,
+  "id": "p-365ebf02",
+  "intent": "Isolated runner lockdown follows symlinks to their targets (GitHub's image has world-writable link targets on PATH), files and folders only",
+  "touches": [
+    "src/isolate.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-08T08:04:32.290Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:51cc7a31acae609ca1be105cdec167eababfad34d4d17b106694bc3218985381",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T08:04:33.096Z",
+      "duration_ms": 3725,
+      "stdout_sha256": "4b7ba98af7cec76b4cd6becd01dea162726a9b539a2cf6db6aa27aeae9bd9757",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-37a3ebcc",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:51cc7a31acae609ca1be105cdec167eababfad34d4d17b106694bc3218985381",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T08:04:36.915Z",
+      "duration_ms": 116788,
+      "stdout_sha256": "f7c5eba02fd6b78076d057c9231cf8b9aa5b667e492a2ca4937197596726ef63",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-8bd9275e",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:51cc7a31acae609ca1be105cdec167eababfad34d4d17b106694bc3218985381",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": null,
+      "signal": "SIGTERM",
+      "timed_out": true,
+      "passed": false,
+      "started_at": "2026-11-08T08:06:33.833Z",
+      "duration_ms": 605055,
+      "stdout_sha256": "770a5dbca3cff7d8b4f8798f6c64d81888fa3e798729ee770fda1b7b26279033",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-ee956e96",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:51cc7a31acae609ca1be105cdec167eababfad34d4d17b106694bc3218985381",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T08:19:30.069Z",
+      "duration_ms": 522427,
+      "stdout_sha256": "2b49456a18fa962eff74b7ed67b477753fa3dacb53c07fd5495ca94751e417c4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-1647f393",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-08T08:04:32.290Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T08:04:32.290Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-08T08:16:39.022Z",
+      "event": "proof_failed",
+      "obligation": "o3",
+      "subject": "sha256:51cc7a31acae609ca1be105cdec167eababfad34d4d17b106694bc3218985381"
+    },
+    {
+      "at": "2026-11-08T08:16:39.103Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:51cc7a31acae609ca1be105cdec167eababfad34d4d17b106694bc3218985381"
+    },
+    {
+      "at": "2026-11-08T08:28:12.728Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:51cc7a31acae609ca1be105cdec167eababfad34d4d17b106694bc3218985381"
+    }
+  ]
+}
