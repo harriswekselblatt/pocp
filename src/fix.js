@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import * as g from './git.js';
 import * as P from './packets.js';
 import { DONT_REWRITE, UNFINISHED_PROOF } from './remedies.js';
 
@@ -190,8 +190,9 @@ function dedupe(list) {
 
 /** Paths in the index that differ from HEAD (what a commit now would change). */
 function stagedPaths(root) {
-  const r = spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: root, encoding: 'utf8' });
-  return r.status === 0 ? r.stdout.split('\n').filter(Boolean) : [];
+  // Through git.js, so it gets the same hardening as every other git call.
+  const out = g.git(root, ['diff', '--cached', '--name-only', '-z'], { allowFail: true, trim: false });
+  return out ? out.split('\0').filter(Boolean) : [];
 }
 
 /** Human output for a fix result. */

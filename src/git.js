@@ -447,6 +447,117 @@ export async function withGitIsolation(root, fn) {
   return value;
 }
 
+// ---------------------------------------------------------------------- object reads
+//
+// A full object id names fixed content: the same tree, file, parent or diff every time.
+// verify reads the same few of these many times per commit (the policy files at the commit
+// and at its base, the commit's tree for the subject hash, its parent), so answers about a
+// full id are remembered for the life of the process, per repository folder. Only full ids
+// count: a ref, HEAD or a short name can move. A failed read is never kept (it says nothing
+// final), and nothing about refs, the index or the working folder is ever kept. Values read
+// before the code under review ran are the ones kept, so a later change to the object store
+// can't alter them (and isolation still reports that change as tampering).
+const FULL_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+const OBJECT_READS_LIMIT = 50000;
+const objectReads = new Map();
+
+/** `read()` once per (repository, kind, key) when every id in `ids` is full; undefined = don't keep. */
+function remembered(cwd, kind, ids, key, read) {
+  if (!ids.every((id) => FULL_ID.test(id))) return read();
+  const k = `${cwd}\0${kind}\0${ids.join(' ')}\0${key}`;
+  if (objectReads.has(k)) return objectReads.get(k);
+  const value = read();
+  if (value === undefined) return value;
+  if (objectReads.size >= OBJECT_READS_LIMIT) objectReads.clear();
+  objectReads.set(k, value);
+  return value;
+}
+
+/** Forget every remembered object read (for tests that rewrite a repository's history in place). */
+export function forgetObjectReads() {
+  objectReads.clear();
+}
+
+/**
+ * Many objects in one git call (`cat-file --batch`): one answer per name, in order,
+ * { type, data } or null when git has no such object. Names containing a newline can't be
+ * sent this way (one name per line): the caller reads those one at a time.
+ */
+export function catFileBatch(cwd, names) {
+  if (!names.length) return [];
+  if (names.some((n) => /[\r\n]/.test(n))) throw new GitError('cat-file --batch: a name contains a line break');
+  const buf = exec(cwd, ['cat-file', '--batch'], { input: `${names.join('\n')}\n` });
+  const out = [];
+  let pos = 0;
+  for (let i = 0; i < names.length; i++) {
+    const nl = buf.indexOf(10, pos);
+    if (nl === -1) throw new GitError('cat-file --batch: output ended early');
+    const header = buf.subarray(pos, nl).toString('utf8');
+    pos = nl + 1;
+    const m = /^[0-9a-f]+ (\S+) (\d+)$/.exec(header);
+    if (!m) {
+      out.push(null); // "<name> missing" or "<name> ambiguous"
+      continue;
+    }
+    const size = Number(m[2]);
+    out.push({ type: m[1], data: buf.subarray(pos, pos + size) });
+    pos += size + 1;
+  }
+  return out;
+}
+
+/**
+ * Files at a commit, read together: Map(path -> Buffer, or null when the path isn't a file
+ * there). Same answers as showFileBuffer per path. With a full commit id the answers are
+ * remembered, so later reads of these paths at that commit cost no git call.
+ */
+export function readFilesAt(cwd, rev, paths) {
+  const wanted = [...new Set(paths)];
+  prefetchFilesAt(cwd, rev, wanted);
+  return new Map(wanted.map((p) => [p, showFileBuffer(cwd, rev, p)]));
+}
+
+/**
+ * Read and remember, in one git call, the files at a full commit (or tree) id that aren't
+ * remembered yet. Does nothing for any other name (a ref or HEAD can move).
+ */
+export function prefetchFilesAt(cwd, rev, paths) {
+  if (!FULL_ID.test(rev)) return;
+  const todo = paths.filter((p) => !/[\r\n]/.test(p) && !objectReads.has(fileKey(cwd, rev, p)));
+  if (!todo.length) return;
+  let answers;
+  try {
+    // The commit itself first: when it exists, "missing" for a path means the path is absent
+    // there (final), not that the read failed.
+    answers = catFileBatch(cwd, [rev, ...todo.map((p) => `${rev}:${p}`)]);
+  } catch (err) {
+    if (err instanceof GitTamperError) throw err;
+    return;
+  }
+  if (answers[0]?.type !== 'commit' && answers[0]?.type !== 'tree') return;
+  todo.forEach((p, i) => {
+    const a = answers[i + 1];
+    // A folder or a submodule at the path: left to git show, whose answer that is.
+    if (a && a.type !== 'blob') return;
+    remember(fileKey(cwd, rev, p), a ? Buffer.from(a.data) : null);
+  });
+}
+
+function fileKey(cwd, rev, p) {
+  return `${cwd}\0file\0${rev}\0${p}`;
+}
+
+function remember(k, value) {
+  if (objectReads.size >= OBJECT_READS_LIMIT) objectReads.clear();
+  objectReads.set(k, value);
+}
+
+/** A commit's first parent, or null (a root commit, a shallow boundary, or an unknown commit). */
+export function parentOf(cwd, rev) {
+  // Only a found parent is kept: "no parent" at a shallow boundary changes with a fetch.
+  return remembered(cwd, 'parent', [rev], '', () => git(cwd, ['rev-parse', '--verify', '--quiet', `${rev}^1`], { allowFail: true }) ?? undefined) ?? null;
+}
+
 export function repoRoot(cwd) {
   const root = git(cwd, ['rev-parse', '--show-toplevel'], { allowFail: true });
   if (!root) throw new GitError(`not inside a git repository: ${cwd}`);
@@ -487,7 +598,7 @@ export function indexEntries(cwd) {
 
 /** Tree entries of a commit: [{ mode, sha, path }]. */
 export function treeEntries(cwd, rev) {
-  const out = git(cwd, ['ls-tree', '-r', '-z', '--full-tree', rev], { trim: false });
+  const out = remembered(cwd, 'ls-tree', [rev], '', () => git(cwd, ['ls-tree', '-r', '-z', '--full-tree', rev], { trim: false }));
   return splitZ(out).map((rec) => {
     const tab = rec.indexOf('\t');
     const [mode, , sha] = rec.slice(0, tab).split(' ');
@@ -551,9 +662,10 @@ export function stagedChanges(cwd, againstRev = null) {
 
 /** Changes a commit introduced relative to its first parent (or the empty tree for a root commit). */
 export function commitChanges(cwd, rev) {
-  const parent = git(cwd, ['rev-parse', '--verify', '--quiet', `${rev}^1`], { allowFail: true });
-  const base = parent || emptyTree(cwd);
-  const out = git(cwd, ['diff', '--name-status', '-M', '-z', base, rev], { trim: false });
+  const out = remembered(cwd, 'changes', [rev], '', () => {
+    const base = parentOf(cwd, rev) || emptyTree(cwd);
+    return git(cwd, ['diff', '--name-status', '-M', '-z', base, rev], { trim: false });
+  });
   return parseNameStatus(out);
 }
 
@@ -600,11 +712,21 @@ export function untrackedFiles(cwd) {
 }
 
 export function showFile(cwd, rev, path) {
+  const k = fileKey(cwd, rev, path);
+  prefetchFilesAt(cwd, rev, [path]);
+  if (objectReads.has(k)) {
+    const kept = objectReads.get(k);
+    return kept === null ? null : kept.toString('utf8');
+  }
   return git(cwd, ['show', `${rev}:${path}`], { allowFail: true, trim: false });
 }
 
 /** File bytes at a revision, or null if the path does not exist there. */
 export function showFileBuffer(cwd, rev, path) {
+  const k = fileKey(cwd, rev, path);
+  prefetchFilesAt(cwd, rev, [path]);
+  // A copy: the caller may write into the buffer it gets.
+  if (objectReads.has(k)) return objectReads.get(k) && Buffer.from(objectReads.get(k));
   try {
     return exec(cwd, ['show', `${rev}:${path}`], { stdio: ['ignore', 'pipe', 'ignore'] });
   } catch (err) {
@@ -690,7 +812,9 @@ export function changedLines(cwd, from, to, paths) {
   const map = new Map();
   for (const p of new Set(paths)) {
     const args = to ? ['diff', '-U0', '--no-color', from, to, '--', p] : ['diff', '--cached', '-U0', '--no-color', from, '--', p];
-    const out = git(cwd, args, { allowFail: true, trim: false }) || '';
+    // Between two full commit ids the diff is fixed; against the index (no `to`) it isn't.
+    const read = () => git(cwd, args, { allowFail: true, trim: false }) ?? undefined;
+    const out = (to ? remembered(cwd, 'diff-U0', [from, to], p, read) : read()) || '';
     const lines = new Set();
     for (const line of out.split('\n')) {
       const m = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);

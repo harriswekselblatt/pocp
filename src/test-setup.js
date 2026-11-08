@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import * as g from './git.js';
 import { matchGlob } from './glob.js';
@@ -574,24 +573,17 @@ export function readBlobs(root, shas, maxBytes = HELPER_LIMITS.bytes) {
     out.set(n, body === null || body.length > maxBytes || body.includes('\0') ? null : body);
   }
   if (!list.length) return out;
-  // Through git.js's hardening (no fsmonitor or hooks, the isolation's environment).
-  g.checkIntact();
-  const r = spawnSync('git', g.hardenedArgs(['cat-file', '--batch']), { cwd: root, env: g.gitEnv(), input: `${list.join('\n')}\n`, maxBuffer: 1024 * 1024 * 1024 });
-  if (r.status !== 0 || !r.stdout) return out;
-  const buf = r.stdout;
-  let pos = 0;
-  for (const sha of list) {
-    const nl = buf.indexOf(10, pos);
-    if (nl === -1) break;
-    const header = buf.subarray(pos, nl).toString('utf8');
-    pos = nl + 1;
-    const m = /^\S+ \S+ (\d+)$/.exec(header);
-    if (!m) { out.set(sha, null); continue; }
-    const size = Number(m[1]);
-    const body = buf.subarray(pos, pos + size);
-    pos += size + 1;
-    out.set(sha, size > maxBytes || body.includes(0) ? null : body.toString('utf8'));
+  let answers;
+  try {
+    answers = g.catFileBatch(root, list);
+  } catch (err) {
+    if (err instanceof g.GitTamperError) throw err;
+    return out;
   }
+  list.forEach((sha, i) => {
+    const a = answers[i];
+    out.set(sha, !a || a.data.length > maxBytes || a.data.includes(0) ? null : a.data.toString('utf8'));
+  });
   return out;
 }
 

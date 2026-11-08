@@ -148,7 +148,7 @@ export function detectTestChanges(root, { from, to = null, config = {}, commands
   // test_globs / runner_globs replace the defaults; extra_* add to them.
   const { test: testGlobs, runner: runnerGlobs } = effectiveGuardGlobs(config);
   const changes = to ? g.commitChanges(root, to) : g.stagedChanges(root, from);
-  const base = to ? g.git(root, ['rev-parse', '--verify', '--quiet', `${to}^1`], { allowFail: true }) : from || (g.hasHead(root) ? 'HEAD' : null);
+  const base = to ? g.parentOf(root, to) : from || (g.hasHead(root) ? 'HEAD' : null);
 
   // What the setup pointed to before the change, and what it points to now: a file the old
   // setup named is guarded even if the change also drops the reference.

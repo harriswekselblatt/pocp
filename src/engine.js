@@ -1188,6 +1188,8 @@ export function createPocp(opts = {}) {
    * unreadable JSON or values that don't validate. verify fails closed on any problem.
    */
   function policyAt(rev) {
+    // All four policy files in one git call; policyInForce reads the other two right after.
+    g.prefetchFilesAt(root, rev, POLICY_FILES);
     const problems = [];
     const rawRules = readJsonAt(rev, '.proof/rules.json');
     const rawCfg = readJsonAt(rev, '.proof/config.json');
@@ -1338,7 +1340,7 @@ export function createPocp(opts = {}) {
 
     // Policy comes from the base (default: the commit's parent), so a change can't loosen
     // the rules it is judged by. Stricter rules from the commit still apply.
-    const baseRev = policyFrom === undefined ? g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true }) : policyFrom ? g.resolveRev(root, policyFrom) : null;
+    const baseRev = policyFrom === undefined ? g.parentOf(root, commit) : policyFrom ? g.resolveRev(root, policyFrom) : null;
     const { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks } = policyInForce(commit, baseRev, { acceptPolicyChange, allowedSignersFile });
     const commitFinding = findingSink(out, blocks);
     reportPolicy(commitFinding, out, { baseRev, policyProblems, weakened, accepted });
@@ -1478,7 +1480,7 @@ export function createPocp(opts = {}) {
         config: cfgAt,
         hostName,
       });
-      const parent = g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true });
+      const parent = g.parentOf(root, commit);
       const pc = policyChange(commitChangeList, rulesAt, parent ? readRulesAt(parent) : null);
       if (pc) {
         trig.required_files = [...new Set([...trig.required_files, ...pc.files])].sort();
@@ -1558,7 +1560,7 @@ export function createPocp(opts = {}) {
    */
   async function checkTestGuard({ commit, out, commitGuard, guardJobs, guardRerun, acceptTestChange, acceptInconclusive = false, cfgAt, commitFinding, blocks, signed, memo, ciResults, seed, rulesRequired = null }) {
     if (!commitGuard.files.length) return;
-    const base = g.git(root, ['rev-parse', '--verify', '--quiet', `${commit}^1`], { allowFail: true });
+    const base = g.parentOf(root, commit);
     const results = [];
     for (const job of guardJobs) {
       const entry = out.packets.find((e) => e.id === job.packet.id);
@@ -1856,7 +1858,7 @@ export function createPocp(opts = {}) {
     if (baseRev && !netBase) throw new PocpError(`${rangeBase} and ${tipSpec || 'HEAD'} share no history here, so the net change can't be computed (fetch the full history of both)`, { code: 'no_merge_base' });
     // One plain commit on the base: its own check is the net change's check, so it isn't run twice.
     const single = merges.length === 0 && commits.length === 1 && tip === lastCommit && netBase
-      && g.git(root, ['rev-parse', '--verify', '--quiet', `${lastCommit}^1`], { allowFail: true }) === netBase;
+      && g.parentOf(root, lastCommit) === netBase;
     const seed = netBase && pol ? rangeGuardSeed(guardBudget(pol.cfgAt).seed, netBase, tip) : undefined;
 
     // The net change's commit is written before any code under review runs: verify trusts the

@@ -73,7 +73,7 @@ export async function replayFixes(engine, { range, limit = 500, maxFixes = 30, t
     if (candidates.length >= maxFixes) break;
     const subject = subjectLine(root, sha);
     if (!FIX_PATTERN.test(subject)) continue;
-    const parent = g.git(root, ['rev-parse', '--verify', '--quiet', `${sha}^1`], { allowFail: true });
+    const parent = g.parentOf(root, sha);
     if (!parent) continue;
     const changes = g.commitChanges(root, sha);
     const tests = changes.filter((c) => c.status !== 'D' && isTestFile(c.path, testGlobs)).map((c) => c.path);
