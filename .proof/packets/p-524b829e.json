@@ -1,0 +1,294 @@
+{
+  "pocp": 1,
+  "id": "p-524b829e",
+  "intent": "verify prints the last lines of a failed check's output (cleaned, every line prefixed, size-capped) in its report, never in proof records",
+  "touches": [
+    "src/cli.js",
+    "src/engine.js",
+    "src/output-tail.js",
+    "test/verify-output-tail.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/verify-output-tail.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/verify-output-tail.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-08T17:51:06.859Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:3d19ff2f0bf114a7ab4f3f885742909e721f5b7151fd68806d71593a5ce7daa8",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T17:51:08.163Z",
+      "duration_ms": 6833,
+      "stdout_sha256": "d41b7300ee71bcf4320aaa249f064924e30e9752c3ce42804f194c24a726eea1",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-37b1ef8a",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:3d19ff2f0bf114a7ab4f3f885742909e721f5b7151fd68806d71593a5ce7daa8",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T17:51:15.209Z",
+      "duration_ms": 82592,
+      "stdout_sha256": "ef6462e7bd0555f42610e85d2c79471e3d8105dfb4cac9aab31edb1fc94618a0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-feb15ff2",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:3d19ff2f0bf114a7ab4f3f885742909e721f5b7151fd68806d71593a5ce7daa8",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-08T17:52:37.942Z",
+      "duration_ms": 551299,
+      "stdout_sha256": "5e170727525d35dcabe792d60b3cb3cdd52ee1abeeb16b7bc0590049153aa6a6",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-6e63b580",
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:c58a35ede7e6537bc266339843bab319608fb3e712838cbf56cd0dd2ff74e127",
+      "subject": "sha256:3d19ff2f0bf114a7ab4f3f885742909e721f5b7151fd68806d71593a5ce7daa8",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-08T18:01:49.583Z",
+      "duration_ms": 421248,
+      "runner": {
+        "pocp": "1.1.0-dev.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "needs-review",
+        "passed": false,
+        "summary": "the old tests pass on the new code; a person must review the test change (test/verify-output-tail.test.js: a test file was added (it runs with the others and can change their outcome)): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)",
+        "base": "70aa9a841691450f984c5f3f8730ddfd56d74187",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "-test/verify-output-tail.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2827
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 88981
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 324845
+            }
+          ],
+          "left_out": [
+            "test/verify-output-tail.test.js"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "test/verify-output-tail.test.js is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "off",
+          "budget": 0,
+          "seed": 1
+        },
+        "structural": {
+          "result": "needs-review",
+          "reasons": [
+            {
+              "file": "test/verify-output-tail.test.js",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            }
+          ]
+        },
+        "duration_ms": 421248,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-08T17:51:06.859Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-08T17:51:06.859Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-08T18:08:51.278Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:3d19ff2f0bf114a7ab4f3f885742909e721f5b7151fd68806d71593a5ce7daa8"
+    },
+    {
+      "at": "2026-11-08T18:08:51.640Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:3d19ff2f0bf114a7ab4f3f885742909e721f5b7151fd68806d71593a5ce7daa8"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:c58a35ede7e6537bc266339843bab319608fb3e712838cbf56cd0dd2ff74e127",
+      "subject": "sha256:3d19ff2f0bf114a7ab4f3f885742909e721f5b7151fd68806d71593a5ce7daa8",
+      "by": "harriswekselblatt",
+      "at": "2026-11-08T18:08:51.640Z",
+      "to": "ci-approval",
+      "reason": "the old tests pass on the new code; a person must review the test change (test/verify-output-tail.test.js: a test file was added (it runs with the others and can change their outcome)): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)"
+    }
+  ]
+}

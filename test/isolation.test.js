@@ -83,14 +83,26 @@ test('trustedDir: pocp runs programs only from folders no other user can change'
   for (const d of [ok, under, inSticky]) fs.mkdirSync(d, { recursive: true });
   fs.chmodSync(open, 0o777);
   fs.chmodSync(sticky, 0o1777);
-  assert.equal(trustedDir(ok, me), true);
+  // trustedDir judges every folder up to /, so the folders above the temp folder count too.
+  // Usually only root and this user own them. When this suite runs as an isolated worker (POCP
+  // verifying itself with --isolate), the temp folder is inside the worker's sandbox folder,
+  // which pocp's user owns: then nothing under it is trusted, and that is the right answer.
+  const ancestors = [];
+  for (let d = path.dirname(fs.realpathSync(base)); ; d = path.dirname(d)) {
+    ancestors.push(d);
+    if (d === path.dirname(d)) break;
+  }
+  const foreignAbove = ancestors.some((d) => ![0, me].includes(fs.statSync(d).uid));
+  assert.equal(trustedDir(base, me), !foreignAbove, `folders above ${base}`);
+  const trusted = !foreignAbove;
+  assert.equal(trustedDir(ok, me), trusted);
   assert.equal(trustedDir(open, me), false, 'writable by others');
   assert.equal(trustedDir(under, me), false, 'a parent others can write could be renamed away');
   assert.equal(trustedDir(sticky, me), false, 'others can add files to a sticky folder');
-  assert.equal(trustedDir(inSticky, me), true, 'but not rename ours in it');
+  assert.equal(trustedDir(inSticky, me), trusted, 'but not rename ours in it');
   assert.equal(trustedDir(path.join(base, 'missing'), me), false);
   assert.equal(trustedDir(ok, me + 1), false, 'owned by someone else');
-  assert.deepEqual(trustedPath(`${under}:${ok}::relative:${open}`, me), [ok]);
+  assert.deepEqual(trustedPath(`${under}:${ok}::relative:${open}`, me), trusted ? [ok] : []);
 });
 
 test('uidProcesses counts a user\'s live processes by real or effective uid, not zombies', () => {
