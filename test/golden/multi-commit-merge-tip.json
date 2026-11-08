@@ -1,0 +1,232 @@
+{
+  "case": "multi-commit-merge-tip",
+  "about": "a range whose tip is a merge: each commit, then the net change",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 0,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": true,
+        "commits": [
+          {
+            "commit": "<commit:swap the operands>",
+            "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+            "ok": true,
+            "packets": [
+              {
+                "id": "<packet:1>",
+                "ok": true,
+                "problems": [],
+                "warnings": [],
+                "findings": [],
+                "counts": {
+                  "runnable": 1,
+                  "manual": 0,
+                  "proven": 1,
+                  "attested": 0
+                },
+                "signatures": {
+                  "valid": 0,
+                  "invalid": 0,
+                  "unsigned": 1,
+                  "untrusted": 0
+                },
+                "evidence": {
+                  "o1": "local"
+                }
+              }
+            ],
+            "coverage": {
+              "required_files": [
+                "src/math.js"
+              ],
+              "uncovered": [],
+              "reasons": [
+                {
+                  "code": "requirement",
+                  "detail": "1 file(s) have required checks",
+                  "files": [
+                    "src/math.js"
+                  ]
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [],
+            "warnings": [],
+            "findings": [],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          },
+          {
+            "commit": "<commit:readme>",
+            "subject": "sha256:e147515bc8eb93b25598481a7a563a195c8f6ae3af9403a59c372141d100acaa",
+            "ok": true,
+            "packets": [],
+            "coverage": {
+              "required_files": [],
+              "uncovered": [],
+              "reasons": []
+            },
+            "reruns": [],
+            "notes": [
+              "commit has no Proof-Of-Change trailers"
+            ],
+            "warnings": [],
+            "findings": [],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          },
+          {
+            "commit": "<commit:main moves on>",
+            "subject": "sha256:a4cbd3e2fe3209e90b0807fd9f2c4ee4943f0bb8a548af94a257b1cc15d542f8",
+            "ok": true,
+            "packets": [],
+            "coverage": {
+              "required_files": [],
+              "uncovered": [],
+              "reasons": []
+            },
+            "reruns": [],
+            "notes": [
+              "commit has no Proof-Of-Change trailers"
+            ],
+            "warnings": [],
+            "findings": [],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [
+          {
+            "run": "node test/math.check.mjs",
+            "cwd": null,
+            "subject": "sha256:72eb481a219529c1dfaf89f7a8f93ecf343ea98bf435e30e7f7b5c7305f26cd5",
+            "digest": "sha256:24c1232c8d290accca09310efa0da2a8a0ea4899eb5edbe1c902d5388625165e",
+            "packets": [
+              "<packet:1>",
+              "net-change"
+            ],
+            "status": "passed",
+            "exit": 0,
+            "timed_out": false,
+            "duration_ms": 0
+          }
+        ],
+        "findings": [],
+        "net": {
+          "kind": "net",
+          "commit": "<commit:Merge branch 'main' into feature>",
+          "base": "<commit:baseline>",
+          "subject": "sha256:72eb481a219529c1dfaf89f7a8f93ecf343ea98bf435e30e7f7b5c7305f26cd5",
+          "ok": true,
+          "merges": 1,
+          "packets": [],
+          "coverage": {
+            "required_files": [
+              "src/math.js"
+            ],
+            "uncovered": [],
+            "reasons": [
+              {
+                "code": "requirement",
+                "detail": "1 file(s) have required checks",
+                "files": [
+                  "src/math.js"
+                ]
+              }
+            ]
+          },
+          "reruns": [],
+          "notes": [
+            "net change <commit:baseline>..<commit:Merge branch 'main' into feature> judged as one change (3 commit(s), 1 merge(s))"
+          ],
+          "warnings": [],
+          "findings": [],
+          "test_guard": null,
+          "seed": 0
+        },
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}

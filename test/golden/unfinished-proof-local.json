@@ -1,0 +1,160 @@
+{
+  "case": "unfinished-proof-local",
+  "about": "a check that times out is unfinished, not failed",
+  "runs": [
+    {
+      "args": [
+        "fix",
+        "--intent",
+        "slow check",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "ok": false,
+        "decision": "blocked",
+        "nothing_staged": false,
+        "nothing_to_prove": false,
+        "actions": [
+          {
+            "action": "open",
+            "packet": "<packet:1>",
+            "files": [
+              "src/math.js"
+            ],
+            "checks": [
+              "o1 (rule:slow)"
+            ]
+          },
+          {
+            "action": "prove",
+            "packets": [
+              "<packet:1>"
+            ],
+            "mode": "clean",
+            "ran": 1,
+            "checks": 1,
+            "ms": 0,
+            "failed": [
+              {
+                "packet": "<packet:1>",
+                "obligation": "o1",
+                "log": ".proof/runs/<run:1>.log",
+                "before": false,
+                "unfinished": true
+              }
+            ],
+            "handed": []
+          }
+        ],
+        "needs_agent": [
+          {
+            "code": "unfinished_proof",
+            "what": "o1 didn't finish on this code (timed out, killed or didn't start) · log .proof/runs/<run:1>.log",
+            "why": "the check didn't finish (it timed out, was killed or didn't start), so nothing is known about the code yet; this is not a test failure.",
+            "next": "run pocp fix again (it re-runs checks that didn't finish); if it still can't finish, fix the hang or raise the check's timeout_ms. Do not change the code because of it.",
+            "by": "agent"
+          },
+          {
+            "code": "unfinished_proof",
+            "why": "the check didn't finish (it timed out, was killed or didn't start), so nothing is known about the code yet; this is not a test failure.",
+            "next": "re-run it (pocp fix runs it again); if it still can't finish, fix the hang or raise the check's timeout_ms. Do not change the code because of it.",
+            "by": "agent",
+            "what": "<packet:1>: o1 didn't finish on this code (timed out, killed or didn't start)"
+          }
+        ],
+        "needs_person": [],
+        "advice": null,
+        "gate": {
+          "decision": "blocked",
+          "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad"
+        }
+      },
+      "stderr": ""
+    },
+    {
+      "args": [
+        "gate",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "decision": "blocked",
+        "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+        "files": [
+          "src/math.js"
+        ],
+        "required_files": [
+          "src/math.js"
+        ],
+        "reasons": [
+          {
+            "code": "requirement",
+            "detail": "1 file(s) have required checks",
+            "files": [
+              "src/math.js"
+            ]
+          }
+        ],
+        "uncovered": [
+          "src/math.js"
+        ],
+        "unpacketed": [],
+        "packets": [
+          {
+            "id": "<packet:1>",
+            "intent": "slow check",
+            "covers": [
+              "src/math.js"
+            ],
+            "evaluation": {
+              "id": "<packet:1>",
+              "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+              "missing_required": [],
+              "unproven": [],
+              "failed": [
+                "o1"
+              ],
+              "unfinished": [
+                "o1"
+              ],
+              "unattested": [],
+              "counts": {
+                "runnable": 1,
+                "manual": 0,
+                "proven": 0,
+                "attested": 0
+              },
+              "guard": [],
+              "no_obligations": false,
+              "ok": false
+            },
+            "packet_file_staged": true
+          }
+        ],
+        "problems": [
+          {
+            "code": "unfinished_proof",
+            "detail": "packet <packet:1> has checks that didn't finish (timed out, killed or didn't start): o1",
+            "packet": "<packet:1>"
+          }
+        ],
+        "warnings": [],
+        "guard_mode": "block",
+        "remedies": [
+          {
+            "code": "unfinished_proof",
+            "why": "the check didn't finish (it timed out, was killed or didn't start), so nothing is known about the code yet; this is not a test failure.",
+            "next": "re-run it (pocp fix runs it again); if it still can't finish, fix the hang or raise the check's timeout_ms. Do not change the code because of it.",
+            "by": "agent",
+            "what": "<packet:1>: o1 didn't finish on this code (timed out, killed or didn't start)"
+          }
+        ],
+        "pending_approvals": []
+      },
+      "stderr": ""
+    }
+  ]
+}

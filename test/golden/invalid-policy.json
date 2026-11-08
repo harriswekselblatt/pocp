@@ -1,0 +1,130 @@
+{
+  "case": "invalid-policy",
+  "about": "committed rules that are not valid JSON fail closed",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": false,
+        "commits": [
+          {
+            "commit": "<commit:corrupt the rules>",
+            "subject": "sha256:f2b9b9aeead99f01bb66c94e9d552334a3d6da948dd7d1e7c47cfa4284bc493a",
+            "ok": false,
+            "packets": [],
+            "coverage": {
+              "required_files": [
+                ".proof/rules.json"
+              ],
+              "uncovered": [
+                ".proof/rules.json"
+              ],
+              "reasons": [
+                {
+                  "code": "policy_change",
+                  "detail": "POCP policy changed (.proof/rules.json)",
+                  "files": [
+                    ".proof/rules.json"
+                  ],
+                  "removed_requirements": []
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [
+              "invalid policy: .proof/rules.json at <commit:corrupt the rules> is not valid JSON",
+              "policy loosened without approval: requirement \"math-tests\" removed or changed; broad_files raised from 6; cross_area loosened (re-run with --accept-policy-change once a maintainer approves)",
+              "commit has no Proof-Of-Change trailers",
+              "not covered by a packet: .proof/rules.json"
+            ],
+            "warnings": [],
+            "findings": [
+              {
+                "code": "invalid_policy",
+                "detail": "invalid policy: .proof/rules.json at <commit:corrupt the rules> is not valid JSON",
+                "blocking": true
+              },
+              {
+                "code": "policy_loosened",
+                "detail": "policy loosened without approval: requirement \"math-tests\" removed or changed; broad_files raised from 6; cross_area loosened (re-run with --accept-policy-change once a maintainer approves)",
+                "blocking": true
+              },
+              {
+                "code": "uncovered",
+                "detail": "not covered by a packet: .proof/rules.json",
+                "blocking": true
+              }
+            ],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [
+                "requirement \"math-tests\" removed or changed",
+                "broad_files raised from 6",
+                "cross_area loosened"
+              ],
+              "accepted": false,
+              "problems": [
+                ".proof/rules.json at <commit:corrupt the rules> is not valid JSON"
+              ],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        },
+        "approval": {
+          "only": false,
+          "needs": [
+            {
+              "label": "pocp-approve-policy",
+              "kind": "policy",
+              "reasons": [
+                "policy loosened without approval: requirement \"math-tests\" removed or changed; broad_files raised from 6; cross_area loosened (re-run with --accept-policy-change once a maintainer approves)"
+              ],
+              "files": [
+                ".proof/rules.json",
+                ".proof/config.json",
+                ".proof/allowed_signers",
+                ".proof/exceptions.json"
+              ]
+            }
+          ],
+          "outcome": "failed",
+          "unfinished_reruns": 0
+        }
+      },
+      "stderr": ""
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "case": "corrupt-packet",
+  "about": "a committed packet file that is not valid JSON",
+  "runs": [
+    {
+      "args": [
+        "verify",
+        "<commit:baseline>..HEAD",
+        "--rerun",
+        "--require-coverage",
+        "--exit-detail",
+        "--json"
+      ],
+      "exit": 1,
+      "json": {
+        "pocp": 1,
+        "range": "<commit:baseline>..HEAD",
+        "ok": false,
+        "commits": [
+          {
+            "commit": "<commit:swap the operands>",
+            "subject": "sha256:c975d5c3f5bdf8ca0fcd719d469f9b27ae746e13fcbd43a8886c3e46ce6fccad",
+            "ok": false,
+            "packets": [
+              {
+                "id": "<packet:1>",
+                "ok": false,
+                "problems": [
+                  "packet file .proof/packets/<packet:1>.json is not valid JSON"
+                ],
+                "warnings": [],
+                "findings": [
+                  {
+                    "code": "missing_packet",
+                    "detail": "packet file .proof/packets/<packet:1>.json is not valid JSON",
+                    "blocking": true
+                  }
+                ]
+              }
+            ],
+            "coverage": {
+              "required_files": [
+                "src/math.js"
+              ],
+              "uncovered": [
+                "src/math.js"
+              ],
+              "reasons": [
+                {
+                  "code": "requirement",
+                  "detail": "1 file(s) have required checks",
+                  "files": [
+                    "src/math.js"
+                  ]
+                }
+              ]
+            },
+            "reruns": [],
+            "notes": [
+              "not covered by a packet: src/math.js"
+            ],
+            "warnings": [],
+            "findings": [
+              {
+                "code": "missing_packet",
+                "detail": "packet file .proof/packets/<packet:1>.json is not valid JSON",
+                "blocking": true,
+                "packet": "<packet:1>"
+              },
+              {
+                "code": "uncovered",
+                "detail": "not covered by a packet: src/math.js",
+                "blocking": true
+              }
+            ],
+            "policy": {
+              "from": "<commit:baseline>",
+              "weakened": [],
+              "accepted": false,
+              "problems": [],
+              "fail_on": [
+                "policy_loosened",
+                "ci_config_changed",
+                "test_change",
+                "uncovered",
+                "missing_packet",
+                "trailer_mismatch",
+                "policy_mismatch",
+                "missing_required",
+                "unproven",
+                "failed_proof",
+                "unattested",
+                "invalid_signature",
+                "rerun_failed",
+                "ci_missing",
+                "ci_failed"
+              ]
+            },
+            "test_guard": null
+          }
+        ],
+        "reruns": [],
+        "findings": [],
+        "isolation": {
+          "mode": "cooperative",
+          "secure": false
+        },
+        "approval": {
+          "only": false,
+          "needs": [],
+          "outcome": "failed",
+          "unfinished_reruns": 0
+        }
+      },
+      "stderr": ""
+    },
+    {
+      "args": [
+        "show",
+        "<packet:1>",
+        "--json"
+      ],
+      "exit": 2,
+      "json": {
+        "pocp": 1,
+        "ok": false,
+        "error": "invalid JSON in <repo>/.proof/packets/<packet:1>.json: <JSON.parse message>"
+      },
+      "stderr": ""
+    }
+  ]
+}
