@@ -308,6 +308,9 @@ function commitRoles(dir) {
  *    its header line ("… in a..b · 1.2s") and at the end of each re-run line ("(62ms)").
  * 6. The test guard's seed, which verify derives from the compared commit ids (rule 2): the `seed`
  *    field and "seed <n>" in text. runCase refuses any capture whose outcome depended on it.
+ * 7. The JavaScript engine's JSON.parse message, which POCP passes through after "invalid JSON in
+ *    <file>: " (src/store.js). Its wording varies by Node version (Node 22 adds "(line 1 column 3)");
+ *    POCP's own text before it, and the exit code, are kept.
  */
 function normalize(capture, { dir }) {
   let text = JSON.stringify(capture);
@@ -340,6 +343,7 @@ function normalize(capture, { dir }) {
   // Numbers in fields keep their type: measured durations and seeds become 0.
   text = text.replace(/(\\?"(?:duration_ms|ms|seed)\\?":)\d+(\.\d+)?/g, (_, key) => `${key}0`);
   text = text.replace(/\bseed \d+/g, 'seed <seed>');
+  text = text.replace(/(invalid JSON in [^"]*?: )(?:(?!\\n)(?:[^"\\]|\\.))+/g, (_, head) => `${head}<JSON.parse message>`);
   text = text.replace(/( commit\(s\) in [^·]*? · )\d+(\.\d+)?(ms|s)\b/g, (_, head) => `${head}<duration>`);
   // Each re-run line of verify's human output ends with its elapsed time: "  rerun passed   cmd (62ms)".
   text = text.replace(/(  rerun \w+ (?:(?!\\n).)*?\()\d+(?:\.\d+)?(?:ms|s)\)/g, (_, head) => `${head}<duration>)`);

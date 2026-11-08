@@ -11,7 +11,7 @@
       "json": {
         "pocp": 1,
         "ok": false,
-        "error": "invalid JSON in <repo>/.proof/config.json: Expected property name or '}' in JSON at position 2 (line 1 column 3)"
+        "error": "invalid JSON in <repo>/.proof/config.json: <JSON.parse message>"
       },
       "stderr": ""
     }
