@@ -40,7 +40,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   sign: { key: null, principal: null },
   guard: { tests: DEFAULT_GUARD_MODE, test_globs: null, runner_globs: null, mutants: DEFAULT_GUARD_MUTANTS, seed: DEFAULT_GUARD_SEED },
   verify: { fail_on: [...FINDING_CODES], require_ci: [] },
-  ci: { files: [...DEFAULT_CI_FILES], branch: null, required_checks: [], require_pull_request: true, enforce_admins: true, workflow_approver: 'independent' },
+  ci: { files: [...DEFAULT_CI_FILES], branch: null, required_checks: [], require_pull_request: true, enforce_admins: true, require_up_to_date: true, workflow_approver: 'independent' },
 });
 
 // Calibrated on real history: counting only code and config, these thresholds asked for
@@ -418,7 +418,7 @@ export function configWeakening(base, head) {
   }
   if (base.ci?.require_pull_request === true && head.ci?.require_pull_request !== true) out.push('ci.require_pull_request turned off');
   if (base.ci?.enforce_admins === true && head.ci?.enforce_admins !== true) out.push('ci.enforce_admins turned off');
-  if (base.ci?.require_up_to_date === true && head.ci?.require_up_to_date !== true) out.push('ci.require_up_to_date turned off');
+  if (base.ci?.require_up_to_date !== false && head.ci?.require_up_to_date === false) out.push('ci.require_up_to_date turned off');
   if ((base.ci?.workflow_approver ?? 'independent') === 'independent' && (head.ci?.workflow_approver ?? 'independent') !== 'independent') out.push('ci.workflow_approver no longer requires an approver other than the author');
   if (base.ci?.branch && head.ci?.branch !== base.ci.branch) out.push(`ci.branch changed from "${base.ci.branch}"`);
   // What the test guard watches: replacing or trimming its globs can hide a gutted test.

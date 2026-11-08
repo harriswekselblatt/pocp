@@ -325,7 +325,8 @@ test('ci required --apply on an unprotected branch sets fresh protection', () =>
   const log = fs.readFileSync(fake.log, 'utf8');
   assert.match(log, /ARGS api repos\/owner\/name\/branches\/main\/protection\n/, 'reads the current protection first');
   const sent = JSON.parse(log.split('\n').find((l) => l.startsWith('{')));
-  assert.deepEqual(sent.required_status_checks, { strict: false, checks: [{ context: 'verify' }] });
+  // Up-to-date branches are part of the default plan (ci.require_up_to_date).
+  assert.deepEqual(sent.required_status_checks, { strict: true, checks: [{ context: 'verify' }] });
   assert.deepEqual(sent.required_pull_request_reviews, { required_approving_review_count: 0 });
   assert.equal(sent.enforce_admins, true);
   assert.equal(sent.restrictions, null);
@@ -412,6 +413,6 @@ test('ci required --apply falls back to contexts when GitHub rejects checks alon
   const r = pocp(dir, ['ci', 'required', '--apply', '--json'], { env: { POCP_GH: fake.bin } });
   assert.equal(r.code, 0, r.stdout + r.stderr);
   const bodies = fs.readFileSync(fake.log, 'utf8').split('\n').filter((l) => l.startsWith('{')).map((l) => JSON.parse(l).required_status_checks);
-  assert.deepEqual(bodies, [{ strict: false, checks: [{ context: 'verify' }] }, { strict: false, contexts: ['verify'] }]);
-  assert.deepEqual(r.json.result.payload.required_status_checks, { strict: false, contexts: ['verify'] });
+  assert.deepEqual(bodies, [{ strict: true, checks: [{ context: 'verify' }] }, { strict: true, contexts: ['verify'] }]);
+  assert.deepEqual(r.json.result.payload.required_status_checks, { strict: true, contexts: ['verify'] });
 });

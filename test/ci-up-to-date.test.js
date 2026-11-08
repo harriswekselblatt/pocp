@@ -34,3 +34,17 @@ test("POCP's own config lists the checks its workflows produce, and asks for up-
   assert.match(testYml, /ubuntu-latest/);
   assert.doesNotMatch(cfg.ci.required_checks.join(' '), /macos|\bverify\b/);
 });
+
+test('up-to-date branches are on by default; pocp init writes the choice out', async () => {
+  const { requiredChecksPlan } = await import('../src/ci-github.js');
+  const { initProofDir } = await import('../src/init.js');
+  const { tmpRepo } = await import('./helpers.js');
+  assert.equal(requiredChecksPlan('.', withDefaults({ ci: { branch: 'main' } })).require_up_to_date, true);
+  assert.equal(requiredChecksPlan('.', withDefaults({ ci: { branch: 'main', require_up_to_date: false } })).require_up_to_date, false);
+  const dir = tmpRepo();
+  initProofDir(dir);
+  const cfg = JSON.parse(fs.readFileSync(path.join(dir, '.proof/config.json'), 'utf8'));
+  assert.equal(cfg.ci.require_up_to_date, true);
+  // The written ci block adds to the defaults; it doesn't replace the protected CI files.
+  assert.ok(withDefaults(cfg).ci.files.includes('.github/workflows/**'));
+});
