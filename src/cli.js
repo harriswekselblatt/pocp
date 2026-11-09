@@ -4,7 +4,7 @@ import { createPocp, VERSION } from './engine.js';
 import { computeMetrics } from './metrics.js';
 import { runMutantEval } from './mutants.js';
 import { replayFixes, simulateGate } from './history.js';
-import { applyGithubProtection, checkGithubProtection, requiredChecksPlan } from './ci-github.js';
+import { applyGithubProtection, checkGithubProtection, goLive, LIVE_VARIABLE, requiredChecksPlan, STATUS_CHECK } from './ci-github.js';
 import { formatLayout, hooksHealth, initProofDir, installHooks, SELF_BIN, uninstallHooks, writeGithubWorkflows } from './init.js';
 import { loadHost } from './host.js';
 import { describeObligation } from './obligations.js';
@@ -331,11 +331,18 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     switch (cmd) {
       case 'init': {
-        const r = initProofDir(process.cwd(), { deep: Boolean(flags.deep) });
+        const r = initProofDir(process.cwd(), { deep: Boolean(flags.deep), github: Boolean(flags.github) });
         let hooks = null;
         if (flags.hooks) hooks = installHooks(process.cwd(), { force: flags.force });
         const github = flags.github ? writeGithubWorkflows(process.cwd(), { ref: flags['pocp-ref'] || undefined, force: flags.force }) : null;
-        out(json, { created: r.created, hooks, test_layout: r.layout, ...(github ? { github } : {}) }, [
+        // Turn the pocp status on now, so the first pull request that waits for an approval is
+        // yellow, not a red failure. Only for a repository on GitHub, through the user's gh login;
+        // anything that doesn't work is a next step, never an error.
+        let live = null;
+        if (github && !flags['no-live'] && /github\.com[:/]/.test(git(process.cwd(), ['remote', 'get-url', 'origin'], { allowFail: true }) || '')) {
+          live = goLive(process.cwd(), requiredChecksPlan(process.cwd(), JSON.parse(fs.readFileSync(path.join(process.cwd(), '.proof', 'config.json'), 'utf8'))), { protect: false });
+        }
+        out(json, { created: r.created, hooks, test_layout: r.layout, ...(github ? { github } : {}), ...(live ? { live } : {}) }, [
           r.created.length ? `created ${r.created.join(', ')}` : '.proof/ already set up',
           ...(r.config_created ? [flags.deep
             ? 'test guard: deep (guard.mutants 10): test edits are also checked with 10 planted bugs; slower'
@@ -348,7 +355,9 @@ export async function main(argv = process.argv.slice(2)) {
           ...(github ? [
             github.written.length ? `wrote ${github.written.join(', ')} (POCP actions pinned to ${github.ref})` : 'GitHub workflows already present',
             ...github.skipped.map((f) => `kept ${f} (exists; --force replaces it)`),
-            'next: commit them, create the labels (pocp doctor lists them), and see docs/STATUS.md to require the "pocp" status',
+            ...(live?.ok ? [`${LIVE_VARIABLE} set on ${live.repo}: a pull request waiting for approval shows a yellow "${STATUS_CHECK}" status, not a red failure`, ...live.notes.map((n) => `  ${n}`)]
+              : live ? [`${LIVE_VARIABLE} not set: ${live.error}`] : []),
+            `next: commit them in a pull request, create the labels (pocp doctor lists them), and once it merges run "pocp ci required --apply" to require the "${STATUS_CHECK}" status${live?.ok ? '' : ' and turn it on'}`,
           ] : []),
         ].join('\n'));
         return hooks?.refused ? EXIT.usage : EXIT.ok;
@@ -602,6 +611,18 @@ export async function main(argv = process.argv.slice(2)) {
             'apply on GitHub with: pocp ci required --apply; check it with: pocp ci required --check   (other hosts: configure the same checks in their branch settings)',
           ].join('\n'));
           return EXIT.ok;
+        }
+        if (plan.required_checks.includes(STATUS_CHECK)) {
+          // The pocp status: require it in place of the verify job and turn it on, together.
+          const g = goLive(engine.root, plan, { protect: true });
+          const p = g.protection;
+          const human = [
+            ...(p?.ok ? [`branch protection set on ${p.repo}@${p.branch}${p.was_protected ? ' (existing protection kept)' : ''}`, `  added required checks: ${p.added_checks.join(', ') || 'none (already required)'}`, ...(p.removed_checks.length ? [`  no longer required: ${p.removed_checks.join(', ')} (the "${STATUS_CHECK}" status replaces it)`] : []), ...(p.kept_checks.length ? [`  also still required (set elsewhere): ${p.kept_checks.join(', ')}`] : [])] : []),
+            g.ok ? `${LIVE_VARIABLE} is on: a pull request waiting for approval shows a yellow "${STATUS_CHECK}" status, not a red failure` : p && !p.ok ? applyFailureMessage(p, plan) : `not turned on: ${g.error}`,
+            ...(g.notes || []).map((n) => `  ${n}`),
+          ].join('\n');
+          out(json, { plan, result: g }, human);
+          return g.ok ? EXIT.ok : EXIT.blocked;
         }
         const r = applyGithubProtection(engine.root, plan);
         const human = r.ok

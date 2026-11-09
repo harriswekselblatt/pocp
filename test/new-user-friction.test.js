@@ -63,6 +63,13 @@ test('doctor suggests requiring "pocp" when a reporter sets the status', () => {
   git(dir, 'config', 'user.email', 't@example.invalid');
   git(dir, 'config', 'user.name', 't');
   assert.equal(pocp(dir, ['init', '--github', '--pocp-ref', 'v9.9.9']).code, 0);
+  // init --github requires the pocp status from the start.
+  const configFile = path.join(dir, '.proof', 'config.json');
+  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  assert.deepEqual(config.ci.required_checks, ['pocp']);
+  // With the list emptied by hand, doctor suggests it again.
+  config.ci.required_checks = [];
+  fs.writeFileSync(configFile, JSON.stringify(config));
   git(dir, 'add', '-A');
   git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'adopt');
   const r = pocp(dir, ['doctor', '--offline']);

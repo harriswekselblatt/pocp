@@ -240,7 +240,7 @@ export function formatLayout(layout, { written = false } = {}) {
  * instead (guard.mutants 10). Projects set up before this kept the built-in default of 10,
  * which still applies when guard.mutants is absent, so an upgrade never turns deep mode off.
  */
-export function initProofDir(cwd, { deep = false } = {}) {
+export function initProofDir(cwd, { deep = false, github = false } = {}) {
   const root = repoRoot(cwd);
   const layout = detectTestLayout(root);
   const dir = path.join(root, PROOF_DIR);
@@ -259,6 +259,9 @@ export function initProofDir(cwd, { deep = false } = {}) {
   // Written out so the choice is visible: GitHub then requires a pull request to include the
   // latest base before it merges (pocp ci required --apply), so what merges is what was verified.
   config.ci = { require_up_to_date: true };
+  // With the GitHub workflows, the pocp status (not the verify job) is the check that must pass:
+  // a wait for approval is then yellow, not a red failure (docs/STATUS.md).
+  if (github) config.ci.required_checks = ['pocp'];
   if (layout.extra.length) {
     Object.assign(config.guard, {
       extra_test_globs: layout.extra,
