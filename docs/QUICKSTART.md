@@ -123,3 +123,30 @@ pocp miss close <id> --replay <commit where it escaped>
 ```
 
 Next: [the threat model](THREAT-MODEL.md) explains what each record does and doesn't prove.
+
+## Step by step on GitHub
+
+POCP needs Node 20 or later, git and a POSIX shell. Your project can be in any language. In a git repository:
+
+```bash
+npm install --save-dev proof-of-change
+npx pocp init --hooks --github
+```
+
+`init` creates `.proof/` and reports where it found your tests. `--hooks` installs the git hooks; hooks you already have keep running. `--github` writes three workflows to `.github/workflows/`, pinned to this release:
+
+- `pocp.yml` runs verify;
+- `pocp-status.yml` sets the `pocp` status;
+- `pocp-labels.yml` removes approval labels on every push.
+
+Then:
+
+1. **Say what must be proven.** Add a rule to `.proof/rules.json` (section 2). Change a file it covers, and commit. If the commit is blocked, run `npx pocp fix --intent "<what the change does>"` and commit again. Anyone can skip the hook with `git commit --no-verify`; CI then flags the commit as made without its proof.
+2. **Check the setup:** `npx pocp doctor`. It lists anything missing, with the commands to fix it, such as the approval labels to create on GitHub. Pushing the workflow files needs a GitHub login with the `workflow` permission.
+3. **Try it in report-only mode.** Require the `verify` check on your main branch, and watch the `pocp` status on a few pull requests. `npx pocp ci required --apply` sets branch protection from `.proof/config.json`: the required checks, pull requests only, admins included, and branches up to date before merging, so the code that merges is the code that was verified. Each can be turned off, and `pocp doctor` reports any gap. On a free plan's private repository GitHub has no branch protection, so POCP can only report there. Merge queues (GitHub's, Graphite's) aren't supported yet ([docs/REFERENCE.md](REFERENCE.md)).
+4. **Go live, in one sitting:** set the repository variable `POCP_STATUS_LIVE` to `true`, *and* require `pocp` instead of `verify` (in Settings → Branches; `pocp ci required --apply` only ever adds checks, never removes one). A wait for approval then shows yellow, with no red ✗ and no failure email, and merging stays blocked until the approval. To roll back, unset the variable and require `verify` again.
+
+[docs/QUICKSTART.md](QUICKSTART.md) walks through this on a non-JavaScript project. [docs/STATUS.md](STATUS.md) covers the status, the approval labels, who may approve, and its limits.
+
+This repository uses POCP on itself: every pull request needs the `pocp` status, plus the test suite on Ubuntu with Node 20, 22 and 24 and the eval tests. The test suite also runs on macOS (one Node version on each pull request, all three nightly), which is not required while GitHub's macOS runners are unreliable.
+
