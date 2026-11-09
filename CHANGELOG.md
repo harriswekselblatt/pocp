@@ -4,6 +4,10 @@
 
 ### Changed
 
+- **One answer approves everything a pull request is waiting for.** `pocp approvals --approve`
+  now shows every listed approval together (each with its diff) and adds all of them after one
+  confirmation, in a single label edit. It also finds pull requests waiting for approval when the
+  `pocp` status is live, where the verify job passes on a wait.
 - **Updating a pull request's branch no longer removes its approvals.** With the `pocp` status
   live, a push that only merges the base branch into an approved head keeps the tests, policy
   and coverage approval labels. The reporter counts them for the new head only when that merge

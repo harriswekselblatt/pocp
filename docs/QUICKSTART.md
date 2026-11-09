@@ -100,7 +100,7 @@ When pull requests wait for a maintainer's approval, find and give them in one p
 
 ```bash
 pocp approvals                          # every open PR, across your repos, waiting only for a label
-pocp approvals --approve owner/repo#12  # shows what the label approves, asks you, then adds it
+pocp approvals --approve owner/repo#12  # shows every approval it waits for, asks you once, then adds them
 ```
 
 `--approve` is for a person at a terminal: it asks you to type the PR number before adding the

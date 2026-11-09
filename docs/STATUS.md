@@ -19,6 +19,8 @@ A pending status blocks merging just like a failure, once `pocp` is a required c
 
 Each label covers one thing, only on the head it was added to. Every push removes all of them (`pocp-labels.yml`).
 
+**Several approvals at once:** `pocp approvals --approve owner/repo#12` shows every approval the pull request waits for, with the diff each covers, and adds all of them after you type the pull request's number once. Your answer covers exactly what was listed: each label is still checked on its own, and anything verify reports later needs its own approval. It must be run by a person at a terminal. `pocp-approve-workflow` isn't included: add it yourself after reviewing the CI change.
+
 **Updating the branch keeps the approval** when the `pocp` status is live (`POCP_STATUS_LIVE`). If the push is only a merge of the base branch into the approved head (GitHub's "Update branch"), `pocp-labels.yml` keeps `pocp-approve-tests`, `pocp-approve-policy` and `pocp-approve-coverage`. The reporter then counts the label for the new head only if all of these hold:
 
 - the new head's parents are the approved head and the pull request's current base;

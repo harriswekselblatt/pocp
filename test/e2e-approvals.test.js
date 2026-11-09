@@ -90,6 +90,8 @@ function siteTable() {
     ] },
     'api repos/me/site/check-runs/20/annotations?per_page=100': { body: [{ annotation_level: 'failure', title: 'POCP rerun', message: 'p-1: node test/math.check.mjs failed' }] },
     'api repos/me/site/check-runs/30/annotations?per_page=100': { body: [marker([{ label: 'pocp-approve-policy', kind: 'policy', reasons: [CI_CHANGE], files: ['.github/workflows/ci.yml'] }])] },
+    // A passing run with no approval marker: verified, nothing to approve.
+    'api repos/me/site/check-runs/40/annotations?per_page=100': { body: [] },
     'pr diff 1 --repo me/site': { body: DIFF },
     'pr edit 1 --repo me/site --add-label pocp-approve-tests': { body: 'https://github.com/me/site/pull/1' },
   };
@@ -229,6 +231,41 @@ test('--approve adds nothing if the PR got new commits while it was being read',
   try {
     await assert.rejects(approvePr({ ref: 'me/site#1', interactive: true, ask: async () => '1', say: () => {} }), /got new commits while you were reviewing/);
     assert.ok(!gh.calls().some((c) => c.startsWith('pr edit')));
+  } finally {
+    if (saved === undefined) delete process.env.POCP_GH;
+    else process.env.POCP_GH = saved;
+  }
+});
+
+test('live mode: a passing verify run that waits for approvals is listed, and one answer adds every listed label', async () => {
+  const table = siteTable();
+  const pr = { number: 5, title: 'Tests and CI', url: 'https://github.com/me/site/pull/5', author: { login: 'bot' }, headRefOid: SHA('f'), labels: [], files: [{ path: 'test/math.test.js', additions: 1, deletions: 2 }, { path: '.github/workflows/ci.yml', additions: 3, deletions: 0 }], isDraft: false };
+  table[`pr view 5 --repo me/site --json ${PR_FIELDS},state`] = { body: { ...pr, state: 'OPEN' } };
+  // With POCP_STATUS_LIVE the verify job passes on a wait; its marker says what it waits for.
+  table[`api repos/me/site/commits/${SHA('f')}/check-runs?per_page=100`] = { body: { check_runs: [{ id: 50, name: 'verify', status: 'completed', conclusion: 'success' }] } };
+  table['api repos/me/site/check-runs/50/annotations?per_page=100'] = { body: [marker([
+    { label: 'pocp-approve-tests', kind: 'tests', reasons: [TEST_CHANGE], files: ['test/math.test.js'] },
+    { label: 'pocp-approve-policy', kind: 'policy', reasons: [CI_CHANGE], files: ['.github/workflows/ci.yml'] },
+  ])] };
+  table['pr diff 5 --repo me/site'] = { body: DIFF };
+  table['pr edit 5 --repo me/site --add-label pocp-approve-tests --add-label pocp-approve-policy'] = { body: 'ok' };
+  const gh = fakeGh(table);
+  const saved = process.env.POCP_GH;
+  process.env.POCP_GH = gh.bin;
+  try {
+    const said = [];
+    const prompts = [];
+    const r = await approvePr({ ref: 'me/site#5', interactive: true, ask: async (q) => { prompts.push(q); return '5'; }, say: (l) => said.push(l) });
+    assert.deepEqual(r.approved, ['pocp-approve-tests', 'pocp-approve-policy']);
+    assert.equal(prompts.length, 1, 'one answer for every listed approval');
+    assert.match(prompts[0], /Add all 2 approvals above \(pocp-approve-tests, pocp-approve-policy\) to me\/site#5\? Type 5/);
+    // Both were shown before the question.
+    assert.match(said.join('\n'), /pocp-approve-tests approves[\s\S]*pocp-approve-policy approves/);
+    assert.deepEqual(gh.calls().filter((c) => c.startsWith('pr edit')), ['pr edit 5 --repo me/site --add-label pocp-approve-tests --add-label pocp-approve-policy']);
+    // Any other answer adds nothing at all.
+    const none = await approvePr({ ref: 'me/site#5', interactive: true, ask: async () => 'y', say: () => {} });
+    assert.deepEqual(none, { approved: [], skipped: ['pocp-approve-tests', 'pocp-approve-policy'] });
+    assert.equal(gh.calls().filter((c) => c.startsWith('pr edit')).length, 1);
   } finally {
     if (saved === undefined) delete process.env.POCP_GH;
     else process.env.POCP_GH = saved;
