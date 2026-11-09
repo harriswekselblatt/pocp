@@ -9,6 +9,7 @@ import { formatLayout, hooksHealth, initProofDir, installHooks, SELF_BIN, uninst
 import { loadHost } from './host.js';
 import { describeObligation } from './obligations.js';
 import { ruleWarnings, validateRules } from './rules.js';
+import { policyKeyWarnings } from './schema.js';
 import { validateConfig, withDefaults } from './store.js';
 import { git, ignoreRepoEnv, resolveRev } from './git.js';
 import { shortDigest } from './hash.js';
@@ -431,11 +432,12 @@ export async function main(argv = process.argv.slice(2)) {
     switch (cmd) {
       case 'rules': {
         if (rest[0] !== 'check') throw new UsageError('usage: pocp rules check');
+        const rawRules = engine.store.readRawRules();
         const problems = [
-          ...validateRules(engine.store.readRawRules() || {}),
+          ...validateRules(rawRules || {}),
           ...validateConfig(engine.config()).map((p) => `config: ${p}`),
         ];
-        const warnings = ruleWarnings(engine.rules(), engine.root);
+        const warnings = [...policyKeyWarnings({ rules: rawRules, config: engine.store.readRawConfig?.() }), ...ruleWarnings(engine.rules(), engine.root)];
         out(json, { ok: problems.length === 0, problems, warnings }, [
           ...(problems.length ? problems.map((p) => `rules: ${p}`) : ['rules: ok']),
           ...warnings.map((w) => `warning: ${w}`),

@@ -23,6 +23,7 @@ import { PocpBaseError } from './errors.js';
 import { withFacts } from './finding.js';
 import { packetProblem } from './records.js';
 import { blockingRule, combinePolicy, EXCEPTIONS_FILE, POLICY_FILES, policyChange, policyFilesTouched, policyLoosenings } from './policy.js';
+import { policyKeyWarnings } from './schema.js';
 
 // One version source: package.json, read relative to this module so it is right wherever pocp is installed.
 export const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -965,7 +966,8 @@ export function createPocp(opts = {}) {
     const cfg = config();
     const result = { decision: 'pass', subject, files, required_files: [], reasons: [], uncovered: [], unpacketed: [], packets: [], problems: [], warnings: [] };
 
-    const rulesProblems = validateRules(store.readRawRules() || {});
+    const rawRules = store.readRawRules();
+    const rulesProblems = validateRules(rawRules || {});
     const configProblems = validateConfig(cfg);
     if (rulesProblems.length || configProblems.length) {
       result.decision = 'error';
@@ -973,6 +975,7 @@ export function createPocp(opts = {}) {
       result.problems.push(...configProblems.map((p) => ({ code: 'invalid_config', detail: p })));
       return finishGate(result, source);
     }
+    for (const w of policyKeyWarnings({ rules: rawRules, config: store.readRawConfig?.() })) result.warnings.push({ code: 'unknown_key', detail: w });
     if (files.length === 0 && !changes.some((c) => POLICY_FILES.includes(c.path) || POLICY_FILES.includes(c.oldPath))) {
       return finishGate(result, source);
     }
@@ -1254,7 +1257,9 @@ export function createPocp(opts = {}) {
     // not this (ls-tree returns null on error, '' when the files are absent).
     const unenrolled = rawRules === null && rawCfg === null
       && g.git(root, ['ls-tree', '--name-only', rev, '--', ...POLICY_FILES], { allowFail: true }) === '';
-    return { rules: rulesObj, config: cfgObj, hasRules: Boolean(rawRules && !rawRules.__invalid), problems, unenrolled };
+    // Keys POCP doesn't know are ignored: a warning, never a problem (src/schema.js).
+    const keyWarnings = policyKeyWarnings({ rules: rawRules?.__invalid ? null : rawRules, config: rawCfg?.__invalid ? null : rawCfg });
+    return { rules: rulesObj, config: cfgObj, hasRules: Boolean(rawRules && !rawRules.__invalid), problems, unenrolled, keyWarnings };
   }
 
   /** No revision, or one where git lists no policy file: POCP isn't enrolled there yet. */
@@ -1303,7 +1308,7 @@ export function createPocp(opts = {}) {
     let allowedSigners = basePolicy && !accepted ? baseSigners : headSigners;
     if (allowedSignersFile) allowedSigners = fs.readFileSync(allowedSignersFile, 'utf8');
     const { failOn, blocks } = blockingRule(cfgAt);
-    return { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks };
+    return { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks, keyWarnings: headPolicy.keyWarnings };
   }
 
   /** A finding recorder for a verify result: blocking findings fail it, the rest warn. */
@@ -1383,7 +1388,7 @@ export function createPocp(opts = {}) {
     // Policy comes from the base (default: the commit's parent), so a change can't loosen
     // the rules it is judged by. Stricter rules from the commit still apply.
     const baseRev = policyFrom === undefined ? g.parentOf(root, commit) : policyFrom ? g.resolveRev(root, policyFrom) : null;
-    const { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks } = policyInForce(commit, baseRev, { acceptPolicyChange, allowedSignersFile });
+    const { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks, keyWarnings } = policyInForce(commit, baseRev, { acceptPolicyChange, allowedSignersFile });
     const commitFinding = findingSink(out, blocks);
     reportPolicy(commitFinding, out, { baseRev, policyProblems, weakened, accepted });
     if (!baseRev && policyFrom === undefined) out.notes.push('root commit: rules and signers come from the commit itself');
@@ -1391,6 +1396,8 @@ export function createPocp(opts = {}) {
     const commitChangeList = g.commitChanges(root, commit);
     const commitFiles = g.changedPaths(commitChangeList);
     commitFiles.push(...policyFilesTouched(commitChangeList));
+    // Unknown policy keys are reported on the commit that changes a policy file, not on every one.
+    if (commitChangeList.some((c) => POLICY_FILES.includes(c.path))) out.warnings.push(...keyWarnings);
 
     // CI definitions changed: they can switch POCP off, so they need the same approval.
     const ciFilesChanged = changedCiFiles(commitChangeList, cfgAt);
