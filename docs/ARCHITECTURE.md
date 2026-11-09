@@ -30,7 +30,9 @@ uses:
 | `engine/gate.js` | `createGate`: decide whether the staged change may be committed, suggest a packet for uncovered files, and check an edit before it is made |
 | `engine/land.js` | `createLand`: trailer lines for proven packets that cover the staged files, and marking packets landed once their commit exists |
 | `engine/misses.js` | `createMisses`: record a bug that escaped, link it to the packets that let it through (`blame`), close it with a rule whose check, replayed, catches it where it escaped |
+| `engine/packets.js` | `createPackets`: packet operations: open a packet, add a check, widen what it covers, sync, mark ready, abandon, attest, defer to CI, evaluate one against a subject, and report status |
 | `engine/policy-at.js` | `createPolicyAt`: policy as committed at a revision (rules, config and whether the repository is enrolled there), the policy that judges a commit against its base, the exception list for files left without a packet, and which CI definition files a change touched |
+| `engine/prove.js` | `createProve`: run the outstanding checks for packets, reusing passing proofs for the same subject from any packet |
 | `engine/range.js` | `createRange`: verify a range of commits (a pull request): each commit judged by the policy at its base, then the net change as one change, with the test guard run on the whole pull request |
 | `engine/rerun.js` | `createRerun`: re-run checks on a commit's exact code in a clean checkout, the checks `verify.require_ci` lists, what a re-run says about each recorded proof, and recording a CI test step (`ci-run`) |
 | `engine/verify.js` | `createVerify`: verify one commit: the policy that judges it, its packets and their proofs, the test guard for changes to existing tests, and the findings that decide the result |
