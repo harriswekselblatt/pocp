@@ -1,0 +1,298 @@
+{
+  "pocp": 1,
+  "id": "p-2e87fa38",
+  "intent": "keep content approvals across a clean merge of the base branch",
+  "touches": [
+    ".github/workflows/pocp-labels.yml",
+    ".github/workflows/pocp.yml",
+    "src/status-report.js",
+    "test/status-report-integrity.test.js",
+    "test/status-report.test.js",
+    "test/workflow-approvals.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/status-report-integrity.test.js",
+        "test/status-report.test.js",
+        "test/workflow-approvals.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/status-report-integrity.test.js, test/status-report.test.js, test/workflow-approvals.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-09T21:58:02.429Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:393ce8e13a6e42f49b11ffacadb66e6e23166554946a9de4f56e2094c23267d2",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-09T21:58:02.882Z",
+      "duration_ms": 2585,
+      "stdout_sha256": "dd8295f93f2d8f01ad682e8b095e3d31be37ff19c6371b45a6187aaf4f1a2d4b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-9d992bf4",
+      "runner": {
+        "pocp": "1.1.2",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:393ce8e13a6e42f49b11ffacadb66e6e23166554946a9de4f56e2094c23267d2",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-09T21:58:05.534Z",
+      "duration_ms": 57442,
+      "stdout_sha256": "8f0e6dc4cd7f6985b4c50c729a661b2aae040e9cf30904031e4f7dc363bac5eb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b726666c",
+      "runner": {
+        "pocp": "1.1.2",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:393ce8e13a6e42f49b11ffacadb66e6e23166554946a9de4f56e2094c23267d2",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-09T21:59:03.101Z",
+      "duration_ms": 278755,
+      "stdout_sha256": "8fe99aff0aca2a94f368e90a349cf38bdb134c6967ee5abdefe57facc9ac15f7",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-43fad5ae",
+      "runner": {
+        "pocp": "1.1.2",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:38173470e63e4f23608df5f2536c2c751fe5bb26d49b846454814f8cb16cca8a",
+      "subject": "sha256:393ce8e13a6e42f49b11ffacadb66e6e23166554946a9de4f56e2094c23267d2",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-09T22:03:41.995Z",
+      "duration_ms": 504708,
+      "runner": {
+        "pocp": "1.1.2",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: an approval counts only when a writer applied it last, after the head's first run: behavior changed, so a person must approve it",
+        "base": "fe65789473794a1eb56e161127a5e82988056a6d",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/status-report-integrity.test.js",
+            "test/status-report.test.js",
+            "test/workflow-approvals.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 2462
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 37611
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 234297,
+              "failed_tests": [
+                "an approval counts only when a writer applied it last, after the head's first run"
+              ]
+            }
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "test/status-report-integrity.test.js is named in package.json, so it may be test setup"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 228682
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 504708,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-09T21:58:02.429Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-09T21:58:02.429Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-09T22:12:06.897Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:393ce8e13a6e42f49b11ffacadb66e6e23166554946a9de4f56e2094c23267d2"
+    },
+    {
+      "at": "2026-11-09T22:12:07.298Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:393ce8e13a6e42f49b11ffacadb66e6e23166554946a9de4f56e2094c23267d2"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:38173470e63e4f23608df5f2536c2c751fe5bb26d49b846454814f8cb16cca8a",
+      "subject": "sha256:393ce8e13a6e42f49b11ffacadb66e6e23166554946a9de4f56e2094c23267d2",
+      "by": "harriswekselblatt",
+      "at": "2026-11-09T22:12:07.298Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: an approval counts only when a writer applied it last, after the head's first run: behavior changed, so a person must approve it"
+    }
+  ]
+}
