@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **A bug fix plus a new test for it is no longer read as a test-setup change.** A module that no
+  rule's globs cover, but that a test imports, counted as test support. When the module's own
+  test (`light.test.js` for `light.js`) gained an assertion alongside a fix, the guard put the
+  module back to its old version for the "old tests on the new code" run. That run then tested
+  the new test against the old module and reported a behavior change that wasn't there. A module
+  that a test named after it imports is now always the code under test, never support. Only tests
+  that exist before the change count, so a change can't make a helper look like code by adding
+  one.
+
 ## 1.1.2 (2026-11-09)
 
 ### Packaging
