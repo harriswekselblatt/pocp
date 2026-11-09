@@ -275,8 +275,13 @@ function findHelpers(root, { base, to, testGlobs, commands, named, candidates })
   const helpers = found.size && base ? notImportedByCode(root, base, found, { isCode, testGlobs, files: baseFiles }) : found;
   for (const p of byUse) helpers.add(p);
   // A module a test is named after and imports (at the base) is the code that test checks,
-  // even when no rule's glob covers it: never test support.
-  for (const p of base && helpers.size ? subjectsOfTests(root, base, helpers, { files: baseFiles }) : []) {
+  // even when no rule's glob covers it: not test support. Unless it is explicitly test support
+  // (a support path, or test-framework or assertion imports at the base or in the change): an
+  // assertion helper with its own unit test is still an assertion helper.
+  const subjects = [...(base && helpers.size ? subjectsOfTests(root, base, helpers, { files: baseFiles }) : [])];
+  const subjectTexts = subjects.length ? readBlobs(root, subjects.flatMap((p) => [`${base}:${p}`, `${to || ''}:${p}`])) : new Map();
+  for (const p of subjects) {
+    if ([`${base}:${p}`, `${to || ''}:${p}`].some((n) => looksLikeTestSupport(p, subjectTexts.get(n)))) continue;
     helpers.delete(p);
     byUse.delete(p);
   }

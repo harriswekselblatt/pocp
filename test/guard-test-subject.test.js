@@ -64,3 +64,29 @@ test('control: a change cannot add the test that would make a helper count as co
   git(dir, 'add', '-A');
   assert.ok(changed(dir).files.includes('src/components/light.mjs'), 'only tests at the base count');
 });
+
+// A test named after a module doesn't make it code when the module is explicitly test support:
+// an assertion helper with its own unit test is still an assertion helper. Otherwise a change
+// could weaken a shared assertion, which the base's own helper test already imports, and pass
+// as an ordinary code change.
+const ASSERTING = "import assert from 'node:assert/strict';\nexport const lamp = (a, b) => assert.equal(a, b);\n";
+const HELPER_TEST = "import { lamp } from './light.mjs';\nlamp(1, 1);\n";
+
+test('an assertion helper with its own named test stays test support when weakened', () => {
+  const dir = repo({ 'src/components/light.mjs': ASSERTING, 'src/components/light.test.mjs': HELPER_TEST });
+  write(dir, 'src/components/light.mjs', 'export const lamp = () => {};\n');
+  git(dir, 'add', '-A');
+  assert.ok(changed(dir).files.includes('src/components/light.mjs'), 'test-framework imports at the base keep it test support');
+});
+
+test('a helper on a test-support path with its own named test stays test support', () => {
+  const dir = repo({});
+  write(dir, 'src/lib/feel.test.mjs', "import { feel } from './feel.mjs';\nimport { lamp } from '../test-utils/light.mjs';\nif (feel() !== 1 || lamp(false) !== 'on') throw new Error('x');\n");
+  write(dir, 'src/test-utils/light.mjs', LIGHT);
+  write(dir, 'src/test-utils/light.test.mjs', "import { lamp } from './light.mjs';\nif (lamp(false) !== 'on') throw new Error('x');\n");
+  git(dir, 'add', '-A');
+  git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'helper on a support path');
+  write(dir, 'src/test-utils/light.mjs', "export const lamp = () => 'on';\n");
+  git(dir, 'add', '-A');
+  assert.ok(changed(dir).files.includes('src/test-utils/light.mjs'), 'a support path keeps it test support');
+});
