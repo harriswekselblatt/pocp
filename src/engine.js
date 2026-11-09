@@ -20,6 +20,7 @@ import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { gateRemedies, pendingApprovals } from './remedies.js';
 import { outputTail } from './output-tail.js';
 import { PocpBaseError } from './errors.js';
+import { withFacts } from './finding.js';
 
 // One version source: package.json, read relative to this module so it is right wherever pocp is installed.
 export const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -40,6 +41,16 @@ export function protectedChangeText(files) {
   const ci = files.filter(isCi);
   const other = files.filter((f) => !isCi(f));
   return [ci.length ? `CI configuration changed (${ci.join(', ')})` : '', other.length ? `protected files changed (${other.join(', ')})` : ''].filter(Boolean).join('; ');
+}
+
+/**
+ * The files an approval for a protected change lists: the CI files, or the other protected files
+ * when no CI file changed (the first group protectedChangeText names).
+ */
+function protectedApprovalFiles(files) {
+  const isCi = (f) => DEFAULT_CI_FILES.some((gl) => matchGlob(f, gl));
+  const ci = files.filter(isCi);
+  return ci.length ? ci : files.filter((f) => !isCi(f));
 }
 
 /** POCP refused or blocked something (exit 1). `details` goes into --json output as is. */
@@ -1024,7 +1035,7 @@ export function createPocp(opts = {}) {
         try {
           await prove({ ids: targets.map((p) => p.id), mode });
         } catch (err) {
-          result.problems.push({ code: 'prove_failed', detail: err.message, ...(err.details || {}) });
+          result.problems.push(withFacts({ code: 'prove_failed', detail: err.message, ...(err.details || {}) }, { errorCode: err.code }));
         }
         active = activePackets();
         subject = g.subjectHashIndex(root);
@@ -1334,9 +1345,9 @@ export function createPocp(opts = {}) {
 
   /** A finding recorder for a verify result: blocking findings fail it, the rest warn. */
   function findingSink(out, blocks) {
-    return (code, detail) => {
+    return (code, detail, facts) => {
       const blocking = blocks(code);
-      out.findings.push({ code, detail, blocking });
+      out.findings.push(withFacts({ code, detail, blocking }, facts));
       if (blocking) {
         out.ok = false;
         out.notes.push(detail);
@@ -1386,7 +1397,7 @@ export function createPocp(opts = {}) {
   function reportPolicy(finding, out, { baseRev, policyProblems, weakened, accepted }) {
     for (const p of policyProblems) finding('invalid_policy', `invalid policy: ${p}`);
     if (accepted) out.notes.push(`policy loosened and accepted: ${weakened.join('; ')}`);
-    else if (baseRev && weakened.length) finding('policy_loosened', `policy loosened without approval: ${weakened.join('; ')} (re-run with --accept-policy-change once a maintainer approves)`);
+    else if (baseRev && weakened.length) finding('policy_loosened', `policy loosened without approval: ${weakened.join('; ')} (re-run with --accept-policy-change once a maintainer approves)`, { files: POLICY_FILES });
   }
 
   /**
@@ -1421,7 +1432,7 @@ export function createPocp(opts = {}) {
     // CI definitions changed: they can switch POCP off, so they need the same approval.
     const ciFilesChanged = changedCiFiles(commitChangeList, cfgAt);
     if (ciFilesChanged.length && !acceptPolicyChange) {
-      commitFinding('ci_config_changed', `${protectedChangeText(ciFilesChanged)}; re-run with --accept-policy-change once a maintainer approves`);
+      commitFinding('ci_config_changed', `${protectedChangeText(ciFilesChanged)}; re-run with --accept-policy-change once a maintainer approves`, { files: protectedApprovalFiles(ciFilesChanged) });
     }
 
     // Test guard: modified tests or test setup in this commit. Mode comes from the policy in force.
@@ -1707,7 +1718,7 @@ export function createPocp(opts = {}) {
     // Attest mode with no packet: nothing can carry a sign-off, so a rules check that didn't
     // pass needs the approval, as on a range's net change.
     if (commitGuard.mode === 'attest' && rulesRun && !(rulesRun.passed && rulesRun.checks_from !== 'packet') && !acceptTestChange) {
-      commitFinding('test_change', `existing tests or test setup changed (${notInJobs.join(', ')}); ${rulesRun.checks_from === 'packet' ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)' : `the mechanical check did not pass: ${rulesRun.summary}`}. Re-run with --accept-test-change once a person approves`);
+      commitFinding('test_change', `existing tests or test setup changed (${notInJobs.join(', ')}); ${rulesRun.checks_from === 'packet' ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)' : `the mechanical check did not pass: ${rulesRun.summary}`}. Re-run with --accept-test-change once a person approves`, { approval: 'tests', files: notInJobs });
     }
     if (commitGuard.mode !== 'block') return;
     // Independent: re-run here or signed by a trusted key, with checks the rules chose.
@@ -1723,21 +1734,24 @@ export function createPocp(opts = {}) {
     const notFinished = missing.filter(unfinishedFor);
     if (notFinished.length && !acceptInconclusive) {
       const ran = results.find((r) => r.unfinished && r.summary);
-      commitFinding('test_inconclusive', `existing tests or test setup changed (${notFinished.join(', ')}) and the check didn't finish: ${ran?.summary || 'a run timed out or was killed'}. Re-run verify, or re-run with --accept-inconclusive once a person approves`);
+      commitFinding('test_inconclusive', `existing tests or test setup changed (${notFinished.join(', ')}) and the check didn't finish: ${ran?.summary || 'a run timed out or was killed'}. Re-run verify, or re-run with --accept-inconclusive once a person approves`, { files: notFinished });
     }
     const toReview = missing.filter((f) => !unfinishedFor(f));
     if (!toReview.length || acceptTestChange) return;
     const failed = results.find((r) => r.verdict && r.verdict !== 'passed' && r.summary);
-    const why = rulesRun?.checks_from === 'packet' && !results.some((r) => r !== rulesRun && r.passed)
-      ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)'
+    // Two cases a maintainer's test approval doesn't resolve: the check passed on checks the
+    // packet chose (a rule must require them), or it passed only on the author's machine (CI
+    // must re-run it). Every other case is approvable.
+    const [why, variant] = rulesRun?.checks_from === 'packet' && !results.some((r) => r !== rulesRun && r.passed)
+      ? ['no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)']
       : failed
-      ? `the mechanical check did not pass: ${failed.summary}`
+      ? [`the mechanical check did not pass: ${failed.summary}`]
       : results.some((r) => r.passed && r.checks_from === 'packet')
-        ? 'the mechanical check ran checks the packet chose, not ones a rule requires (add a requirement covering these tests)'
+        ? ['the mechanical check ran checks the packet chose, not ones a rule requires (add a requirement covering these tests)', 'packet_checks']
         : results.some((r) => r.passed)
-        ? 'the mechanical check passed only locally (re-run verify with --rerun to check it here)'
-        : 'no mechanical check covers them';
-    commitFinding('test_change', `existing tests or test setup changed (${toReview.join(', ')}); ${why}. Re-run with --accept-test-change once a person approves`);
+        ? ['the mechanical check passed only locally (re-run verify with --rerun to check it here)', 'local_only']
+        : ['no mechanical check covers them'];
+    commitFinding('test_change', `existing tests or test setup changed (${toReview.join(', ')}); ${why}. Re-run with --accept-test-change once a person approves`, { files: toReview, ...(variant ? { variant } : { approval: 'tests' }) });
   }
 
   /**
@@ -2123,7 +2137,7 @@ export function createPocp(opts = {}) {
     const ciFiles = changedCiFiles(changes, cfgAt);
     const ciUnseen = ciFiles.filter((f) => !touchedByCommits.has(f));
     if (ciUnseen.length && !options.acceptPolicyChange) {
-      finding('ci_config_changed', `${protectedChangeText(ciUnseen)} in a merge commit; re-run with --accept-policy-change once a maintainer approves`);
+      finding('ci_config_changed', `${protectedChangeText(ciUnseen)} in a merge commit; re-run with --accept-policy-change once a maintainer approves`, { files: protectedApprovalFiles(ciUnseen) });
     }
 
     // Test guard on the net change: the old tests and test setup from the net base, the new code
@@ -2147,15 +2161,16 @@ export function createPocp(opts = {}) {
           ? 'no rule requires a check covering these files, so nothing independent can run the old tests (add a requirement covering them)'
           : `the mechanical check did not pass: ${r.summary}`;
       const detail = `existing tests or test setup changed (${guard.files.join(', ')}) in the pull request's net change ${span}; ${why}. Re-run with --accept-test-change once a person approves`;
+      const testApproval = { approval: 'tests', files: guard.files };
       const netUnfinished = Boolean(guardRerun && r && !r.passed && r.result?.unfinished);
       if (guard.mode === 'block' && !independent && netUnfinished) {
-        if (!options.acceptInconclusive) finding('test_inconclusive', `existing tests or test setup changed (${guard.files.join(', ')}) in the pull request's net change ${span} and the check didn't finish: ${r.summary}. Re-run verify, or re-run with --accept-inconclusive once a person approves`);
-      } else if (guard.mode === 'block' && !independent && !options.acceptTestChange) finding('test_change', detail);
+        if (!options.acceptInconclusive) finding('test_inconclusive', `existing tests or test setup changed (${guard.files.join(', ')}) in the pull request's net change ${span} and the check didn't finish: ${r.summary}. Re-run verify, or re-run with --accept-inconclusive once a person approves`, { files: guard.files });
+      } else if (guard.mode === 'block' && !independent && !options.acceptTestChange) finding('test_change', detail, testApproval);
       else if (guard.mode === 'attest' && !independent && !options.acceptTestChange) {
         // Attest mode accepts a recorded sign-off on a test change; a check that ran here and
         // failed needs one for every changed file, from some packet in the range.
         const attested = (f) => results.some((x) => (x.packetData || []).some((p) => p.obligations.some((o) => (isGuard(o) || isLegacyGuardObligation(o)) && (o.files || x.test_guard?.files || []).includes(f) && P.currentAttestation(p, o, x.subject))));
-        if (guardRerun && r && !guard.files.every(attested)) finding('test_change', detail);
+        if (guardRerun && r && !guard.files.every(attested)) finding('test_change', detail, testApproval);
         else if (!guardRerun) out.warnings.push(detail);
       }
     }

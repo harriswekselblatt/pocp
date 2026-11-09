@@ -13,3 +13,4 @@ export { subjectHashIndex, subjectHashRev } from './git.js';
 export { canonicalJson, digestJson } from './hash.js';
 export { readCiResults, currentRun } from './ci-results.js';
 export { latestCiResults } from './engine.js';
+export { decideVerify } from './decision.js';

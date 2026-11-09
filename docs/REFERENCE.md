@@ -207,3 +207,5 @@ await pocp.gate();
 ```
 
 Four interfaces, all optional: **Store** (default: `.proof/`), **Runner** (default: child processes in their own process group; processes that leave the group aren't tracked), **Policy** (extra rules), **Events** (lifecycle notifications).
+
+`decideVerify(result)` says what a `verify` or `verifyRange` result that isn't verified is waiting for, exactly as the CLI reports it (`approval` in `--json`): `null` when verified, otherwise `{ outcome, only, needs, unfinished_reruns }`. `outcome` is `failed`, `inconclusive` or `waiting` (for the approvals in `needs`). It reads only findings' codes and the facts verify attached to them, never their text, so call it on the result verify returned, not on one read back from JSON.

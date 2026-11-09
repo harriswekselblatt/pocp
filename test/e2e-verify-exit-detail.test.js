@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { approvalSummary, VERIFY_EXIT } from '../src/approvals.js';
+import { withFacts } from '../src/finding.js';
 import { spawnSync } from 'node:child_process';
 import { git, pocp, read, sampleRepo, write } from './helpers.js';
 
@@ -93,8 +94,8 @@ test('test_inconclusive blocks whenever test_change does, even with an explicit 
 });
 
 test('approvalSummary: what is red and what is a yellow wait', () => {
-  const tests = { code: 'test_change', detail: 'existing tests or test setup changed (t.js); x', blocking: true };
-  const unfinished = { code: 'test_inconclusive', detail: "existing tests or test setup changed (t.js) and the check didn't finish: x", blocking: true };
+  const tests = withFacts({ code: 'test_change', detail: 'existing tests or test setup changed (t.js); x', blocking: true }, { approval: 'tests', files: ['t.js'] });
+  const unfinished = withFacts({ code: 'test_inconclusive', detail: "existing tests or test setup changed (t.js) and the check didn't finish: x", blocking: true }, { files: ['t.js'] });
   const failed = { code: 'missing_packet', detail: 'no packet', blocking: true };
   const timedOut = { code: 'rerun_failed', detail: 'rerun of "x" failed (exit null, timed out)', unfinished: true };
   const ranFailed = { code: 'rerun_failed', detail: 'rerun of "x" failed (exit 1)', unfinished: false };

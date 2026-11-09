@@ -6,6 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { git, pocp, sampleRepo, write } from './helpers.js';
 import { approvalAnnotation, approvalSummary, approvePr, readAnnotations } from '../src/approvals.js';
+import { withFacts } from '../src/finding.js';
+
+// Findings as verify makes them: the decision reads their typed facts, never their text.
+const testChange = (detail, files) => withFacts({ code: 'test_change', detail, blocking: true }, { approval: 'tests', files });
 
 /**
  * A fake gh that answers from a table of "args joined by spaces" → { status, body } (or
@@ -92,13 +96,13 @@ function siteTable() {
 }
 
 test('approvalSummary: only a maintainer\'s label is an approval; anything else is not', () => {
-  const tests = approvalSummary([{ code: 'test_change', detail: TEST_CHANGE, blocking: true }]);
+  const tests = approvalSummary([testChange(TEST_CHANGE, ['test/math.test.js'])]);
   assert.equal(tests.only, true);
   assert.deepEqual(tests.needs.map((n) => [n.label, n.files]), [['pocp-approve-tests', ['test/math.test.js']]]);
 
   const policy = approvalSummary([
-    { code: 'policy_loosened', detail: 'policy loosened without approval: rule x removed', blocking: true },
-    { code: 'ci_config_changed', detail: CI_CHANGE, blocking: true },
+    withFacts({ code: 'policy_loosened', detail: 'policy loosened without approval: rule x removed', blocking: true }, { files: ['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers', '.proof/exceptions.json'] }),
+    withFacts({ code: 'ci_config_changed', detail: CI_CHANGE, blocking: true }, { files: ['.github/workflows/ci.yml'] }),
     { code: 'uncovered', detail: 'warning only', blocking: false },
   ]);
   assert.equal(policy.only, true);
@@ -106,14 +110,14 @@ test('approvalSummary: only a maintainer\'s label is an approval; anything else 
   assert.ok(policy.needs[0].files.includes('.proof/rules.json') && policy.needs[0].files.includes('.github/workflows/ci.yml'));
 
   // A local-only pass needs a re-run, not a label; a failed proof needs a fix.
-  assert.equal(approvalSummary([{ code: 'test_change', detail: 'existing tests or test setup changed (t.js); the mechanical check passed only locally (re-run verify with --rerun to check it here). Re-run with --accept-test-change once a person approves', blocking: true }]).only, false);
-  assert.equal(approvalSummary([{ code: 'test_change', detail: TEST_CHANGE, blocking: true }, { code: 'failed_proof', detail: 'p-1: o1 failed', blocking: true }]).only, false);
-  assert.equal(approvalSummary([{ code: 'test_change', detail: TEST_CHANGE, blocking: true }], [{ packet: 'p-1', problem: 'failed' }]).only, false);
+  assert.equal(approvalSummary([withFacts({ code: 'test_change', detail: 'existing tests or test setup changed (t.js); the mechanical check passed only locally (re-run verify with --rerun to check it here). Re-run with --accept-test-change once a person approves', blocking: true }, { files: ['t.js'], variant: 'local_only' })]).only, false);
+  assert.equal(approvalSummary([testChange(TEST_CHANGE, ['test/math.test.js']), { code: 'failed_proof', detail: 'p-1: o1 failed', blocking: true }]).only, false);
+  assert.equal(approvalSummary([testChange(TEST_CHANGE, ['test/math.test.js'])], [{ packet: 'p-1', problem: 'failed' }]).only, false);
   assert.equal(approvalSummary([]).only, false);
 });
 
 test('the approval annotation round-trips, and older verify messages are read too', () => {
-  const s = approvalSummary([{ code: 'ci_config_changed', detail: `${CI_CHANGE} 100%`, blocking: true }]);
+  const s = approvalSummary([withFacts({ code: 'ci_config_changed', detail: `${CI_CHANGE} 100%`, blocking: true }, { files: ['.github/workflows/ci.yml'] })]);
   const line = approvalAnnotation(s);
   assert.match(line, /^::notice title=POCP approval needed::/);
   // GitHub un-escapes the workflow command before storing the message.

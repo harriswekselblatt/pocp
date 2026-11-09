@@ -4,6 +4,8 @@
 //   "agent"     the author changes code or files, then runs `pocp fix` again
 //   "person"    only a person can approve it (never the agent that made the change)
 
+import { factsOf } from './finding.js';
+
 export const APPROVE_TESTS_LABEL = 'pocp-approve-tests';
 export const APPROVE_POLICY_LABEL = 'pocp-approve-policy';
 export const APPROVE_INCONCLUSIVE_LABEL = 'pocp-approve-inconclusive';
@@ -54,7 +56,7 @@ export function gateRemedies(r) {
     return out;
   }
   for (const p of r.problems.filter((x) => x.code === 'prove_failed')) {
-    const clean = /clean mode refused/.test(p.detail);
+    const clean = factsOf(p).errorCode === 'clean_mode_refused';
     out.push({
       code: p.code,
       what: p.detail,
@@ -144,14 +146,16 @@ export function pendingApprovals(r) {
 }
 
 /**
- * The remedy for one blocking verify finding (CI). `finding.unfinished`, when the caller has
- * it, says whether a rerun_failed didn't finish; without it the detail text decides.
+ * The remedy for one blocking verify finding (CI): words for a person, never a decision
+ * (decision.js decides). `finding.unfinished`, when the caller has it, says whether a
+ * rerun_failed didn't finish; without it the detail text picks the wording.
  */
 export function verifyRemedy(code, detail = '', finding = {}) {
+  const { variant } = factsOf(finding);
   switch (code) {
     case 'test_change':
-      if (/passed only locally/.test(detail)) return { why: 'a local pass can be faked; CI must see the check pass itself.', next: 'run verify with --rerun or --rerun-unsigned (the Action does by default)', by: 'agent' };
-      if (/checks the packet chose/.test(detail)) return { why: 'the check must run tests a rule requires, not ones the change picked.', next: 'add a requirement in .proof/rules.json covering these tests (a policy change a maintainer approves)', by: 'person' };
+      if (variant === 'local_only') return { why: 'a local pass can be faked; CI must see the check pass itself.', next: 'run verify with --rerun or --rerun-unsigned (the Action does by default)', by: 'agent' };
+      if (variant === 'packet_checks') return { why: 'the check must run tests a rule requires, not ones the change picked.', next: 'add a requirement in .proof/rules.json covering these tests (a policy change a maintainer approves)', by: 'person' };
       return { why: 'existing tests changed and POCP could not show they still catch what they caught before.', next: `a maintainer reviews the test change and adds the \`${APPROVE_TESTS_LABEL}\` label`, by: 'person' };
     case 'test_inconclusive':
       return { why: 'existing tests changed and the check that judges them didn\'t finish (a timeout, a kill or a failed start), so nothing is known about them yet. A test approval doesn\'t cover this.', next: `re-run the job; if it still can't finish, fix the hang or the time limit, or a maintainer who has read why adds the \`${APPROVE_INCONCLUSIVE_LABEL}\` label`, by: 'person' };
