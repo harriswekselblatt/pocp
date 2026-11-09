@@ -58,6 +58,13 @@ that verified before are now held for review, on purpose.
 
 ### Fixed
 
+- **A malformed packet is reported, not a crash.** A packet file that is valid JSON but not the
+  shape POCP needs (missing obligations or touches, an obligation without an id or kind, an
+  `id` that differs from its file name) made `verify` stop with a JavaScript error (exit 3).
+  Verify now reports it as a blocking `missing_packet` finding ("… is malformed: …"), and
+  `status`, `show` and other local commands give a clear error naming the file and the field
+  (exit 2), as they already did for invalid JSON. A packet whose `id` doesn't match its file
+  name no longer verifies.
 - **The pull request that adopts POCP verifies in CI.** Committing what `pocp init --hooks`
   creates passed the gate, but `verify --require-coverage` (the shipped CI invocation) then
   failed it: the new `.proof/config.json` and `.proof/rules.json` counted as an uncovered policy
