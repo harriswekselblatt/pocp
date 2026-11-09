@@ -57,11 +57,12 @@ const enabled = (o) => Boolean(o && o.enabled);
  * The PUT payload: GitHub's existing protection (as returned by GET, or null) merged with
  * the plan. Returns { payload, added_checks, kept_checks }.
  */
-export function protectionPayload(existing, plan) {
+export function protectionPayload(existing, plan, { remove = [] } = {}) {
   const ex = existing || {};
-  const exChecks = ex.required_status_checks?.checks?.length
+  // `remove` is only ever the verify job, replaced by the pocp status when going live (goLive).
+  const exChecks = (ex.required_status_checks?.checks?.length
     ? ex.required_status_checks.checks.map((c) => ({ context: c.context, ...(c.app_id != null ? { app_id: c.app_id } : {}) }))
-    : (ex.required_status_checks?.contexts || []).map((context) => ({ context }));
+    : (ex.required_status_checks?.contexts || []).map((context) => ({ context }))).filter((c) => !remove.includes(c.context));
   const have = new Set(exChecks.map((c) => c.context));
   const added = plan.required_checks.filter((c) => !have.has(c));
   const checks = [...exChecks, ...added.map((context) => ({ context }))];
@@ -98,7 +99,7 @@ export function protectionPayload(existing, plan) {
     lock_branch: enabled(ex.lock_branch),
     allow_fork_syncing: enabled(ex.allow_fork_syncing),
   };
-  return { payload, added_checks: added, kept_checks: [...have].filter((c) => !plan.required_checks.includes(c)) };
+  return { payload, added_checks: added, kept_checks: [...have].filter((c) => !plan.required_checks.includes(c)), removed_checks: remove.filter((c) => (ex.required_status_checks?.contexts || []).includes(c) || (ex.required_status_checks?.checks || []).some((x) => x.context === c)) };
 }
 
 /**
@@ -151,14 +152,14 @@ export function checkGithubProtection(root, plan) {
 }
 
 /** Apply the plan to GitHub through the gh CLI, preserving existing protection. */
-export function applyGithubProtection(root, plan) {
+export function applyGithubProtection(root, plan, { remove = [] } = {}) {
   if (!plan.required_checks.length) {
     return { ok: false, refused: true, error: 'no required checks configured (ci.required_checks is empty); refusing to set protection that requires nothing' };
   }
   const read = readGithubProtection(plan);
   if (read.error) return { ok: false, ...(read.repo ? { repo: read.repo } : {}), error: read.error };
   const { repo: nameWithOwner, endpoint, existing } = read;
-  const { payload, added_checks, kept_checks } = protectionPayload(existing, plan);
+  const { payload, added_checks, kept_checks, removed_checks } = protectionPayload(existing, plan, { remove });
   // GitHub has changed which forms of required_status_checks it accepts: once `contexts` was
   // required (with `checks` alongside); now the two are mutually exclusive. Send `checks` (it
   // keeps app ids), and if GitHub rejects it, `contexts` alone, then both, as older APIs wanted.
@@ -172,5 +173,63 @@ export function applyGithubProtection(root, plan) {
     if (r.ok || !/subschema|contexts|checks|Invalid request/i.test(ghMessage(r))) break;
   }
   if (!r.ok) return { ok: false, repo: nameWithOwner, error: ghMessage(r) };
-  return { ok: true, repo: nameWithOwner, branch: plan.branch, was_protected: Boolean(existing), added_checks, kept_checks, payload: sent };
+  return { ok: true, repo: nameWithOwner, branch: plan.branch, was_protected: Boolean(existing), added_checks, kept_checks, removed_checks, payload: sent };
+}
+
+export const LIVE_VARIABLE = 'POCP_STATUS_LIVE';
+export const STATUS_CHECK = 'pocp';
+export const VERIFY_CHECK = 'verify';
+const REPORTER_WORKFLOW = '.github/workflows/pocp-status.yml';
+const planLimited = (e) => /upgrade to github pro|make this repository public/i.test(e || '');
+
+/**
+ * Turn the pocp status on: waits for an approval show yellow instead of a red verify job.
+ * Two settings must change together, because each alone is unsafe or useless:
+ * - the repository variable POCP_STATUS_LIVE, which makes a wait pass the verify job;
+ * - branch protection requiring the pocp status instead of the verify job.
+ * With the variable on and verify still required, a waiting pull request would pass its
+ * required check, so the variable is set only when verify isn't required, or after protection
+ * has swapped verify for pocp. Protection changes first: in between, waits are red, never open.
+ *
+ * `protect`: also set branch protection (ci required --apply). The pocp status is required only
+ * once its workflow is on the protected branch: before that nothing would ever post it, and every
+ * pull request, including the one that adds it, would be blocked.
+ *
+ * Returns { ok, repo, live, reporter, protection, required_status, removed_verify, merges_blocked, notes, error }.
+ */
+export function goLive(root, plan, { protect = false } = {}) {
+  const repoR = gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']);
+  if (!repoR.ok) return { ok: false, error: repoR.error || `gh repo view failed: ${repoR.stderr}` };
+  const repo = repoR.stdout.trim();
+  const notes = [];
+  const reporter = gh(['api', `repos/${repo}/contents/${REPORTER_WORKFLOW}?ref=${encodeURIComponent(plan.branch)}`, '--jq', '.path']).ok;
+  const read = readGithubProtection(plan);
+  const noProtection = Boolean(read.error && planLimited(read.error));
+  if (read.error && !noProtection) return { ok: false, repo, error: `could not read branch protection: ${read.error}` };
+  const required = (ex) => new Set([...(ex?.required_status_checks?.contexts || []), ...((ex?.required_status_checks?.checks || []).map((c) => c.context))]);
+  let have = required(read.existing);
+  let protection = null;
+  let removedVerify = false;
+  if (protect && !noProtection) {
+    const wantsStatus = plan.required_checks.includes(STATUS_CHECK);
+    const sub = { ...plan, required_checks: plan.required_checks.filter((c) => c !== STATUS_CHECK || reporter) };
+    if (wantsStatus && !reporter) notes.push(`the "${STATUS_CHECK}" status is not required yet: ${REPORTER_WORKFLOW} is not on ${plan.branch}. Merge it, then run this again.`);
+    const swap = wantsStatus && reporter && have.has(VERIFY_CHECK) ? [VERIFY_CHECK] : [];
+    if (sub.required_checks.length) {
+      protection = applyGithubProtection(root, sub, { remove: swap });
+      if (!protection.ok) return { ok: false, repo, protection, error: protection.error };
+      removedVerify = protection.removed_checks.includes(VERIFY_CHECK);
+      have = new Set(protection.payload.required_status_checks.checks?.map((c) => c.context) || protection.payload.required_status_checks.contexts || []);
+    }
+  }
+  if (have.has(VERIFY_CHECK)) {
+    return { ok: false, repo, reporter, protection, live: false, notes, error: `"${VERIFY_CHECK}" is a required check, so turning on ${LIVE_VARIABLE} would let a pull request that is waiting for approval merge. Require "${STATUS_CHECK}" instead of "${VERIFY_CHECK}" first (pocp ci required --apply, with "${STATUS_CHECK}" in ci.required_checks).` };
+  }
+  let set = gh(['api', '-X', 'PATCH', `repos/${repo}/actions/variables/${LIVE_VARIABLE}`, '-f', `name=${LIVE_VARIABLE}`, '-f', 'value=true']);
+  if (!set.ok) set = gh(['api', '-X', 'POST', `repos/${repo}/actions/variables`, '-f', `name=${LIVE_VARIABLE}`, '-f', 'value=true']);
+  if (!set.ok) return { ok: false, repo, reporter, protection, live: false, notes, error: `could not set the repository variable ${LIVE_VARIABLE}: ${ghMessage(set)}` };
+  const statusRequired = have.has(STATUS_CHECK);
+  if (noProtection) notes.push('GitHub has no branch protection for this private repository on its current plan, so nothing blocks a merge: the pocp status is a signal only. A public repository or a paid plan can require it.');
+  else if (!statusRequired) notes.push(`merges are not blocked yet: require the "${STATUS_CHECK}" status${reporter ? '' : ` once ${REPORTER_WORKFLOW} is on ${plan.branch}`} with: pocp ci required --apply`);
+  return { ok: true, repo, live: true, reporter, protection, required_status: statusRequired, removed_verify: removedVerify, merges_blocked: statusRequired, notes };
 }

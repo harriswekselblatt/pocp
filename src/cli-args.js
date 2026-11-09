@@ -53,10 +53,11 @@ export const COMMANDS = {
   version: { summary: 'print the version', usage: ['version'], flags: {} },
   init: {
     summary: 'create .proof/, and optionally the git hooks and GitHub workflows',
-    usage: ['init [--hooks] [--github] [--force] [--deep] [--pocp-ref <tag|sha>]'],
+    usage: ['init [--hooks] [--github] [--no-live] [--force] [--deep] [--pocp-ref <tag|sha>]'],
     flags: {
       hooks: bool('install the git hooks'),
-      github: bool('write the GitHub workflows (verify, the pocp status, approval labels)'),
+      github: bool('write the GitHub workflows (verify, the pocp status, approval labels) and turn the pocp status on through gh'),
+      'no-live': bool('with --github: leave the pocp status off (report-only)'),
       force: bool('replace existing hooks and workflow files'),
       deep: bool('test guard plants 10 bugs per test edit (guard.mutants 10); slower'),
       'pocp-ref': str('tag|sha', 'pin the workflows to this POCP release instead of this one'),

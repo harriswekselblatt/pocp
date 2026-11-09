@@ -78,11 +78,15 @@ That's no worse than requiring `verify`, which such a branch can fake just as ea
 
 ## Turning it on
 
-The reporter starts in **report-only** mode: it sets `pocp`, but `verify` stays the required check and still fails on a wait, as before.
+Two settings decide whether a wait is yellow or red, and they must change together:
 
-When every live case in the validation checklist has passed (including a fork pull request, a pull request that edits the workflow, races, and branch protection blocking every non-green case), an admin, in the same sitting:
+1. the repository variable `POCP_STATUS_LIVE` set to `true`. Waits then pass the `verify` job (no red, no failure email), and label events other than `pocp-approve-*` are ignored;
+2. branch protection requiring `pocp`, not `verify`.
 
-1. sets the repository variable `POCP_STATUS_LIVE` to `true`. Waits then pass the `verify` job (no red, no failure email), and label events other than `pocp-approve-*` are ignored;
-2. changes branch protection to require `pocp` instead of `verify`.
+With the variable on and `verify` still required, a waiting pull request would show a passing `verify`, and an ignored label event makes a skipped `verify` check, which GitHub counts as passing. POCP never sets the variable while `verify` is required.
 
-**Do them together.** With the variable on and `verify` still required, a waiting pull request would show a passing `verify`. And with label filtering on, an ignored label event makes a skipped `verify` check, which GitHub counts as passing.
+- `pocp init --github`, on a GitHub repository, sets the variable through your `gh` login (`--no-live` skips it). A new project requires nothing yet, so this is safe, and its first waiting pull request is yellow.
+- `pocp ci required --apply`, with `pocp` in `ci.required_checks` (what `init --github` writes), changes branch protection first, requiring `pocp` and dropping `verify`, then sets the variable. It requires `pocp` only once `pocp-status.yml` is on the protected branch; before that nothing would post the status and every pull request would be blocked.
+- On a free plan's private repository GitHub has no branch protection: the variable is set and the status shows, but nothing blocks a merge.
+
+To roll back, unset the variable and require `verify` again.
