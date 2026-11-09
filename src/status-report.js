@@ -50,6 +50,13 @@ export const TEXT = Object.freeze({
   approvalUnverified: 'An approval label was not applied by a maintainer with write access for this commit: a maintainer applies it again.',
 });
 
+// Approvals of content (not of one run's outcome, and not of a workflow, which can run any file)
+// that may carry over to a clean merge of the base branch into the approved head.
+export const CARRYABLE = Object.freeze(['pocp-approve-tests', 'pocp-approve-policy', 'pocp-approve-coverage']);
+// GitHub's compare API lists at most this many files: a list that reaches it may be missing some.
+export const COMPARE_FILES_CAP = 300;
+const POLICY_PREFIX = '.proof/';
+
 /** The CI files a pull request may not change without a maintainer (the base's ci.files, defaults always included). */
 export function workflowFiles(baseConfig) {
   return [...new Set([...DEFAULT_CI_FILES, ...(baseConfig?.ci?.files || [])])];
@@ -263,9 +270,11 @@ export function decideStatus(facts) {
     // A label is only as good as who put it there: GitHub lets roles without write access
     // (triage) manage labels. Each approval the run used must have been applied last by a
     // writer, after this head's first run (so it was given for this code).
-    const unauthorized = approvals.filter((l) => !approvedByWriter(facts, l, sha));
+    const unauthorized = approvals.filter((l) => !approvedByWriter(facts, l, sha) && !carriedOver(facts, l).ok);
     if (unauthorized.length) return status('pending', TEXT.approvalUnverified, `run ${newest.id} relied on ${unauthorized.join(', ')}, last applied by someone without write access, before this head's first run, or not readable${via}`, newest);
-    return status('success', TEXT.verified, `run ${newest.id} verified${approvals.length ? ` with ${approvals.join(', ')}` : ''}${via}`, newest);
+    const carried = approvals.filter((l) => !approvedByWriter(facts, l, sha));
+    const how = carried.length ? `; ${carried.join(', ')} carried over from ${short(facts.carry.from_sha)} (a clean merge of the base into it)` : '';
+    return status('success', TEXT.verified, `run ${newest.id} verified${approvals.length ? ` with ${approvals.join(', ')}` : ''}${how}${via}`, newest);
   }
   if (outcome === 'failed') return status('failure', TEXT.failed, `run ${newest.id} failed (${stepSummary(newest.job)})${via}`, newest);
   return status('pending', TEXT[outcome], `run ${newest.id} is ${outcome}${via}`, newest);
@@ -284,6 +293,44 @@ function approvedByWriter(facts, label, sha) {
   const firstRunAt = (facts.runs || []).filter((r) => r.head_sha === sha).map((r) => String(r.created_at)).sort()[0] || null;
   const last = (facts.label_events || []).filter((e) => e.label === label).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at))).at(-1);
   return Boolean(last && WRITE_PERMISSIONS.has(last.permission) && firstRunAt && String(last.created_at) > firstRunAt);
+}
+
+/**
+ * Whether an approval given for the previous head still applies to this one. Only in one narrow
+ * case: the new head is a merge of the approved head with the current base, and that merge
+ * changed nothing the pull request changes, and no policy file. Then what the person approved
+ * (the pull request's own changes) is byte-for-byte what is there now. The approval is kept, not
+ * any result: the new head is verified again on the new base, and goes green only from that run.
+ * Never for an inconclusive or workflow approval. facts.carry comes from gather(), from GitHub's
+ * API only.
+ */
+export function carriedOver(facts, label) {
+  const c = facts.carry;
+  const no = (why) => ({ ok: false, why });
+  if (!CARRYABLE.includes(label)) return no(`${label} never carries over`);
+  if (!c) return no('the head is not a merge of the base into an approved head');
+  if (!c.complete) return no(`GitHub's data for the merge was incomplete${c.reason ? ` (${c.reason})` : ''}`);
+  if (!c.from_sha || !c.merged_sha || c.merged_sha !== facts.base_sha) return no('the head is not a merge of the current base into the previous head');
+  if (!facts.label_events_complete) return no('the label events were incomplete');
+  // The approval was given by a writer while the previous head was the pull request's head:
+  // after that head's first run for this pull request.
+  const mine = (r) => r.head_sha === c.from_sha && (r.job?.steps || []).some((st) => String(st.name || '').startsWith(`${MARKER_PREFIX}pr-${facts.pr.number} base-`) && st.conclusion === 'success');
+  const firstRunAt = (c.runs || []).filter(mine).map((r) => String(r.created_at)).sort()[0] || null;
+  const last = (facts.label_events || []).filter((e) => e.label === label).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at))).at(-1);
+  if (!last || !WRITE_PERMISSIONS.has(last.permission)) return no(`${label} was last applied by someone without write access`);
+  if (!firstRunAt || String(last.created_at) <= firstRunAt) return no(`${label} was not given for ${short(c.from_sha)}`);
+  const merged = new Set(c.merge_files || []);
+  const touched = (c.pr_files || []).filter((f) => merged.has(f));
+  if (touched.length) return no(`the merge changed files the pull request changes: ${touched.slice(0, 3).join(', ')}`);
+  // Every file the pull request now changes must be one the approved head already changed. A
+  // merge that keeps an old version of a file the base changed (undoing a fix, a new test, a
+  // tighter rule) leaves it out of the merge's own list, but adds it to the pull request's.
+  const approved = new Set(c.approved_files || []);
+  const added = (c.pr_files || []).filter((f) => !approved.has(f));
+  if (added.length) return no(`the merge adds changes the approval didn't cover: ${added.slice(0, 3).join(', ')}`);
+  const policy = [...merged].filter((f) => f.startsWith(POLICY_PREFIX));
+  if (policy.length) return no(`the merge changed policy files: ${policy.slice(0, 3).join(', ')}`);
+  return { ok: true };
 }
 
 /** A minimal GitHub REST client over fetch. */
@@ -405,7 +452,39 @@ export async function gather(gh, { repository, sha, prNumber, baseConfig, workfl
       facts.label_events.push({ label: e.label.name, actor: login, permission: permissions.get(login) ?? null, created_at: e.created_at });
     }
   }
+  if (facts.pr.labels.some((l) => CARRYABLE.includes(l))) facts.carry = await gatherCarry(gh, repo, head, facts.workflow);
   return facts;
+}
+
+/**
+ * What carriedOver() needs, when the head is a merge commit: its parents, the files the merge
+ * changed (first parent to head), the files the pull request changes against the merged-in
+ * parent, the files the approved head changed, and the previous head's runs. Every list must be whole, or nothing carries.
+ */
+async function gatherCarry(gh, repo, head, workflow) {
+  const commit = await gh.get(`${repo}/commits/${head}`);
+  const parents = (commit.parents || []).map((p) => p.sha);
+  if (parents.length !== 2) return null;
+  const [from, merged] = parents;
+  const carry = { from_sha: from, merged_sha: merged, complete: true, reason: null, merge_files: [], pr_files: [], approved_files: [], runs: [] };
+  const filesOf = async (a, b) => {
+    const cmp = await gh.get(`${repo}/compare/${a}...${b}`);
+    const files = (cmp.files || []).flatMap((f) => [f.filename, f.previous_filename].filter(Boolean));
+    if ((cmp.files || []).length >= COMPARE_FILES_CAP) { carry.complete = false; carry.reason = 'a file list was cut short'; }
+    return files;
+  };
+  carry.merge_files = await filesOf(from, head);
+  carry.pr_files = await filesOf(merged, head);
+  // What the approved head changed against its merge base with the base branch (three dots).
+  carry.approved_files = await filesOf(merged, from);
+  const runs = await listAll(gh, `${repo}/actions/workflows/${workflow.id}/runs?head_sha=${from}&per_page=100`, 'workflow_runs', 5);
+  if (!runs.complete) { carry.complete = false; carry.reason = runs.reason || 'a list was cut short'; }
+  for (const r of runs.items.filter((x) => x.event === 'pull_request' && x.path === workflow.path)) {
+    const jobs = await listAll(gh, `${repo}/actions/runs/${r.id}/jobs?per_page=100`, 'jobs', 3);
+    const job = jobs.complete ? jobs.items.find((j) => j.name === VERIFY_JOB) : null;
+    carry.runs.push({ head_sha: r.head_sha, created_at: r.created_at, job: job ? { steps: (job.steps || []).map((st) => ({ name: st.name, conclusion: st.conclusion })) } : null });
+  }
+  return carry;
 }
 
 /**

@@ -19,6 +19,16 @@ A pending status blocks merging just like a failure, once `pocp` is a required c
 
 Each label covers one thing, only on the head it was added to. Every push removes all of them (`pocp-labels.yml`).
 
+**Updating the branch keeps the approval** when the `pocp` status is live (`POCP_STATUS_LIVE`). If the push is only a merge of the base branch into the approved head (GitHub's "Update branch"), `pocp-labels.yml` keeps `pocp-approve-tests`, `pocp-approve-policy` and `pocp-approve-coverage`. The reporter then counts the label for the new head only if all of these hold:
+
+- the new head's parents are the approved head and the pull request's current base;
+- the label was last added by someone with write access, after the approved head's first run for this pull request;
+- the merge changed no file the pull request changes, and no file under `.proof/`;
+- after the merge, the pull request changes only files the approved head already changed (so a merge that keeps an old version of a file the base changed doesn't carry);
+- GitHub's file lists for the merge are complete.
+
+Otherwise the status says to approve again: remove the label and add it back. The approval is kept, never the result: the merged head is verified again on the new base and turns green only from its own run. It carries over one merge only: a second update before the label is added again needs a new approval. Inconclusive and workflow approvals never carry over, and any other push still removes every label.
+
 | Label | Covers |
 |---|---|
 | `pocp-approve-tests` | a change to existing tests or test setup whose check ran to the end |

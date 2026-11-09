@@ -1,6 +1,7 @@
 # Approval labels apply to the code a maintainer reviewed, not to whatever is pushed later.
 # On every push to a pull request (and on reopen), remove every approval label (tests, policy,
-# coverage, inconclusive, workflow), so a new approval is needed for the new code.
+# coverage, inconclusive, workflow), so a new approval is needed for the new code. The one
+# exception is described in the step below.
 #
 # pull_request_target runs this repository's copy of this file with a token that can edit
 # labels, also for pull requests from forks. It must never check out or run the pull
@@ -10,6 +11,7 @@ on:
   pull_request_target:
     types: [synchronize, reopened]
 permissions:
+  contents: read
   pull-requests: write
 jobs:
   drop-approvals:
@@ -23,8 +25,24 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           # A JSON array, read with jq: a label's name is data, never shell or printf escapes.
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          LIVE: ${{ vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'synchronize' && 'true' || 'false' }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
         run: |
-          for label in pocp-approve-tests pocp-approve-policy pocp-approve-coverage pocp-approve-inconclusive pocp-approve-workflow; do
+          # With the pocp status live, a push that is a merge of the base branch into the previous
+          # head keeps the content approvals (tests, policy, coverage). The trusted reporter then
+          # checks that the merge changed nothing the pull request changes; if it did, the status
+          # says to approve again. Inconclusive and workflow approvals are always removed.
+          labels="pocp-approve-tests pocp-approve-policy pocp-approve-coverage pocp-approve-inconclusive pocp-approve-workflow"
+          if [ "$LIVE" = "true" ]; then
+            parents=$(gh api "repos/$REPO/commits/$AFTER" --jq '[.parents[].sha] | join(" ")' || true)
+            base=$(gh api "repos/$REPO/pulls/$PR" --jq '.base.sha' || true)
+            if [ -n "$base" ] && [ "$parents" = "$BEFORE $base" ]; then
+              labels="pocp-approve-inconclusive pocp-approve-workflow"
+              echo "a merge of the base branch: tests, policy and coverage approvals stay for the reporter to check"
+            fi
+          fi
+          for label in $labels; do
             if jq -e --arg l "$label" 'any(.[]; . == $l)' <<<"$LABELS" >/dev/null; then
               gh api -X DELETE "repos/$REPO/issues/$PR/labels/$label" --silent
               echo "removed $label: approve again after reviewing the new commits"

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- **Updating a pull request's branch no longer removes its approvals.** With the `pocp` status
+  live, a push that only merges the base branch into an approved head keeps the tests, policy
+  and coverage approval labels. The reporter counts them for the new head only when that merge
+  changed nothing the pull request changes and no `.proof/` file; the new head is still verified
+  again from scratch. Adopters pick this up by updating `pocp-labels.yml` and `pocp.yml`
+  (`pocp init --github --force`). See docs/STATUS.md.
+
 ### Fixed
 
 - **A bug fix plus a new test for it is no longer read as a test-setup change.** A module that no

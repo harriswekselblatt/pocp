@@ -1,8 +1,9 @@
 # POCP verifying its own pull requests with the POCP from the base branch: a change to the
 # verifier is judged by the verifier it would replace, never by its own code. The pull request
 # is checked out in pr/ and the base commit in verifier/; only verifier/bin/pocp.js runs verify.
-# Approval labels count only on label events, for the head at that moment; pocp-labels.yml
-# removes them on every push.
+# Approval labels count on label events, for the head at that moment. pocp-labels.yml removes
+# them on every push, except (with POCP_STATUS_LIVE) the tests, policy and coverage approvals on
+# a push that only merges the base branch in; the reporter decides whether those still apply.
 #
 # The pull request's code still runs: verify re-runs its checks. With --isolate (used whenever
 # the base branch's verifier supports it), each check runs as a fresh unprivileged Linux user
@@ -45,9 +46,9 @@ jobs:
     # A verify re-runs each commit's checks (about 4 minutes for this repo's test suite today).
     timeout-minutes: 40
     env:
-      APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
-      APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
-      APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled' || (vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'synchronize')) && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled' || (vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'synchronize')) && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled' || (vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'synchronize')) && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
       APPROVE_INCONCLUSIVE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-inconclusive') && github.event.pull_request.head.sha || 'false' }}
       WAIT_EXIT: ${{ vars.POCP_STATUS_LIVE == 'true' && '0' || '1' }}
     steps:

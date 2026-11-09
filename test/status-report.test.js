@@ -3,7 +3,7 @@
 // takes the newest run, re-checks approvals, and shows only generic text.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decideStatus, readRun, reportStatus, runMarker, TEXT, workflowFiles } from '../src/status-report.js';
+import { decideStatus, gather, readRun, reportStatus, runMarker, TEXT, workflowFiles } from '../src/status-report.js';
 
 const SHA = 'a'.repeat(40);
 const BASE = 'e'.repeat(40);
@@ -345,4 +345,98 @@ test('reportStatus settles on pending when the steps stay unreadable', async () 
   await reportStatus(gh, { repository: 'o/r', sha: SHA, prNumber: 7, baseConfig: null, sleep: async () => {}, waitMs: 1 });
   assert.equal(posted.length, 1);
   assert.equal(posted[0].body.state, 'pending');
+});
+
+// Approval carry-over: a merge of the current base into the approved head keeps the content
+// approvals, only while the merge changed nothing the pull request changes and no policy file.
+const OLD = 'b'.repeat(40);
+const carryFacts = ({ label = 'pocp-approve-tests', carry = {}, events, newRun } = {}) => facts({
+  pr: { number: 7, state: 'open', head_sha: SHA, labels: [label], author: 'author' },
+  runs: [newRun || run({ approvals: ['approval-tests', 'approval-policy', 'approval-coverage'].filter((s) => label.endsWith(s.slice(9))) }, { created_at: '2026-11-05T10:00:00Z' })],
+  label_events: events || [{ label, actor: 'maintainer', permission: 'write', created_at: '2026-11-04T11:00:00Z' }],
+  carry: {
+    from_sha: OLD, merged_sha: BASE, complete: true, merge_files: ['src/other.js'], pr_files: ['test/a.test.js', 'src/a.js'], approved_files: ['test/a.test.js', 'src/a.js'],
+    runs: [{ head_sha: OLD, created_at: '2026-11-04T10:00:00Z', job: { steps: [{ name: runMarker(7, 'c'.repeat(40)), conclusion: 'success' }] } }],
+    ...carry,
+  },
+});
+
+test('carry-over: a clean merge of the base into the approved head stays green without a new label', () => {
+  for (const label of ['pocp-approve-tests', 'pocp-approve-policy', 'pocp-approve-coverage']) {
+    const d = decideStatus(carryFacts({ label }));
+    assert.equal(d.state, 'success', `${label}: ${d.reason}`);
+    assert.match(d.reason, /carried over/);
+  }
+});
+
+test('carry-over: the merge touching a pull request file, a policy file, or the wrong base voids it', () => {
+  const cases = {
+    'pr file': { merge_files: ['test/a.test.js'] },
+    'renamed pr file': { merge_files: ['x.js'], pr_files: ['x.js'] },
+    policy: { merge_files: ['.proof/rules.json'] },
+    'older base': { merged_sha: 'd'.repeat(40) },
+    // An "evil merge" that keeps the old version of a file the base changed: absent from the
+    // merge's own list, but now part of the pull request's change.
+    'reverts a base change': { pr_files: ['test/a.test.js', 'src/a.js', 'src/foo.js'] },
+    'reverts a base policy change': { pr_files: ['test/a.test.js', 'src/a.js', '.proof/rules.json'] },
+    incomplete: { complete: false },
+    'no run for this pr on the old head': { runs: [{ head_sha: OLD, created_at: '2026-11-04T10:00:00Z', job: { steps: [{ name: runMarker(8, BASE), conclusion: 'success' }] } }] },
+  };
+  for (const [name, carry] of Object.entries(cases)) {
+    const d = decideStatus(carryFacts({ carry }));
+    assert.equal(d.state, 'pending', name);
+    assert.equal(d.description, TEXT.approvalUnverified, name);
+  }
+  assert.equal(decideStatus(facts({ ...carryFacts(), carry: null })).state, 'pending', 'not a merge');
+});
+
+test('carry-over: never for inconclusive or workflow approvals, a non-writer, or a label older than the old head', () => {
+  const inconclusive = carryFacts({ label: 'pocp-approve-inconclusive', newRun: run({ approvals: ['approval-inconclusive'] }, { created_at: '2026-11-05T10:00:00Z' }) });
+  assert.equal(decideStatus(inconclusive).state, 'pending');
+  const triage = carryFacts({ events: [{ label: 'pocp-approve-tests', actor: 't', permission: 'triage', created_at: '2026-11-04T11:00:00Z' }] });
+  assert.equal(decideStatus(triage).state, 'pending');
+  const early = carryFacts({ events: [{ label: 'pocp-approve-tests', actor: 'm', permission: 'write', created_at: '2026-11-04T09:00:00Z' }] });
+  assert.equal(decideStatus(early).state, 'pending');
+  const workflow = facts({ ...carryFacts({ label: 'pocp-approve-workflow' }), files: [{ filename: '.github/workflows/pocp.yml' }] });
+  assert.equal(decideStatus(workflow).description, TEXT.workflow);
+});
+
+test('carry-over keeps the approval, never a result: a failing run on the merged head is red', () => {
+  const d = decideStatus(carryFacts({ newRun: run({ failed: 'failure', approvals: ['approval-tests'] }, { created_at: '2026-11-05T10:00:00Z' }) }));
+  assert.equal(d.state, 'failure');
+  const none = decideStatus(facts({ ...carryFacts(), runs: [] }));
+  assert.equal(none.state, 'pending');
+});
+
+test('carry-over facts come from GitHub: the merge parents, both file lists and the old head\'s runs', async () => {
+  const router = (compareFiles) => {
+    const runsFor = (h) => [{ id: h === SHA ? 1 : 2, workflow_id: WF.id, path: WF.path, event: 'pull_request', head_sha: h, status: 'completed', conclusion: 'success', created_at: h === SHA ? '2026-11-05T10:00:00Z' : '2026-11-04T10:00:00Z', repository: { full_name: 'o/r' } }];
+    const get = async (url) => {
+      if (url.endsWith('/pulls/7')) return { number: 7, state: 'open', head: { sha: SHA }, base: { sha: BASE }, labels: [{ name: 'pocp-approve-tests' }], user: { login: 'author' }, changed_files: 2 };
+      if (url.includes('/actions/workflows/')) return { id: WF.id, path: WF.path };
+      if (url.endsWith(`/commits/${SHA}`)) return { parents: [{ sha: OLD }, { sha: BASE }] };
+      if (url.includes(`/compare/${OLD}...${SHA}`)) return { files: compareFiles.merge };
+      if (url.includes(`/compare/${BASE}...${SHA}`)) return { files: compareFiles.pr };
+      if (url.includes(`/compare/${BASE}...${OLD}`)) return { files: compareFiles.pr };
+      if (url.includes('/permission')) return { permission: 'write' };
+      throw new Error(`unexpected ${url}`);
+    };
+    const all = async (url) => {
+      if (url.includes('/pulls?state=open')) return [{ number: 7, state: 'open', head: { sha: SHA } }];
+      if (url.includes('/pulls/7/files')) return [{ filename: 'src/a.js' }, { filename: 'test/a.test.js' }];
+      if (url.includes('/runs?head_sha=')) return runsFor(url.match(/head_sha=(\w+)/)[1]);
+      if (url.includes('/jobs')) return [{ name: 'verify', status: 'completed', conclusion: 'success', steps: steps({ approvals: ['approval-tests'] }).map((st) => (st.name.startsWith('pocp-run') ? { ...st, name: runMarker(7, BASE) } : st)) }];
+      if (url.includes('/events')) return [{ event: 'labeled', label: { name: 'pocp-approve-tests' }, actor: { login: 'm' }, created_at: '2026-11-04T11:00:00Z' }];
+      throw new Error(`unexpected ${url}`);
+    };
+    return { get, all };
+  };
+  const clean = { merge: [{ filename: 'src/other.js' }], pr: [{ filename: 'src/a.js' }, { filename: 'test/a.test.js' }] };
+  const f = await gather(router(clean), { repository: 'o/r', sha: SHA, prNumber: 7 });
+  assert.deepEqual({ from: f.carry.from_sha, merged: f.carry.merged_sha, complete: f.carry.complete }, { from: OLD, merged: BASE, complete: true });
+  assert.equal(decideStatus(f).state, 'success', decideStatus(f).reason);
+  // A compare list at GitHub's cap may be missing files: nothing carries.
+  const capped = await gather(router({ ...clean, merge: Array.from({ length: 300 }, (_, i) => ({ filename: `src/m${i}.js` })) }), { repository: 'o/r', sha: SHA, prNumber: 7 });
+  assert.equal(capped.carry.complete, false);
+  assert.equal(decideStatus(capped).state, 'pending');
 });

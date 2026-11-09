@@ -71,6 +71,8 @@ function fakeGitHub({ fileCount = 1, files, changedFiles = 'same', pr = {}, open
       posted.push({ sha: p.split('/').pop(), ...JSON.parse(body) });
       return reply(201, {});
     }
+    // The head's parents (approval carry-over): an ordinary commit, so nothing carries.
+    if (/^\/repos\/o\/r\/commits\/\w+$/.test(p)) return reply(200, { parents: [{ sha: 'f'.repeat(40) }] });
     if (p === '/repos/o/r/pulls' && u.searchParams.get('state') === 'open') {
       const { slice, link } = page(open, url);
       return reply(200, slice, link);

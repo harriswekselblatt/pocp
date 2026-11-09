@@ -107,3 +107,36 @@ test('every push and reopen removes every approval label, and nothing else', () 
   assert.deepEqual(calls.sort(), LABELS.map((l) => `api -X DELETE repos/o/r/issues/7/labels/${l} --silent`).sort());
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('live mode: a push that merges the base into the previous head keeps only the content approvals', () => {
+  for (const file of ['.github/workflows/pocp-labels.yml', 'examples/github/pocp-labels.yml']) {
+    const wf = read(file);
+    const all = [...LABELS, 'pocp-approve-inconclusive', 'pocp-approve-workflow'];
+    const run = ({ live, parents }) => {
+      const dir = tmp();
+      fs.mkdirSync(path.join(dir, 'bin'));
+      // A fake gh: answers the commit's parents and the pull request's base, records deletions.
+      fs.writeFileSync(path.join(dir, 'bin', 'gh'), `#!/bin/sh
+case "$*" in
+  *commits/after*) echo "${parents}" ;;
+  *pulls/7*) echo "base" ;;
+  *) echo "$@" >> "${path.join(dir, 'calls')}" ;;
+esac
+`, { mode: 0o755 });
+      const r = spawnSync('bash', ['-e', '-c', runBlock(wf, 'gh api')], {
+        encoding: 'utf8',
+        env: { PATH: `${path.join(dir, 'bin')}:${process.env.PATH}`, REPO: 'o/r', PR: '7', GH_TOKEN: 'x', LABELS: JSON.stringify(all), LIVE: live, BEFORE: 'before', AFTER: 'after' },
+      });
+      assert.equal(r.status, 0, r.stderr);
+      const calls = fs.existsSync(path.join(dir, 'calls')) ? fs.readFileSync(path.join(dir, 'calls'), 'utf8').trim().split('\n') : [];
+      fs.rmSync(dir, { recursive: true, force: true });
+      return calls.map((c) => c.split('/labels/')[1].split(' ')[0]).sort();
+    };
+    assert.deepEqual(run({ live: 'true', parents: 'before base' }), ['pocp-approve-inconclusive', 'pocp-approve-workflow'], file);
+    for (const [live, parents] of [['false', 'before base'], ['true', 'before other'], ['true', 'before'], ['true', 'base before']]) {
+      assert.deepEqual(run({ live, parents }), [...all].sort(), `${file}: ${live} ${parents}`);
+    }
+    // Only on a push, only with the status live.
+    assert.match(wf, /LIVE: \$\{\{ vars\.POCP_STATUS_LIVE == 'true' && github\.event\.action == 'synchronize' && 'true' \|\| 'false' \}\}/, file);
+  }
+});

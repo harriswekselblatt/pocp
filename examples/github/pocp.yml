@@ -48,10 +48,10 @@ jobs:
       # Each approval is a label only maintainers apply. A label isn't tied to a commit, so it
       # counts only on the event that changed labels, and only for the head at that moment (the
       # sha is passed, so verify checks it). pocp-labels.yml removes every approval on each push.
-      APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
-      APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_POLICY: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled' || (vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'synchronize')) && contains(github.event.pull_request.labels.*.name, 'pocp-approve-policy') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_TESTS: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled' || (vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'synchronize')) && contains(github.event.pull_request.labels.*.name, 'pocp-approve-tests') && github.event.pull_request.head.sha || 'false' }}
       APPROVE_INCONCLUSIVE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-inconclusive') && github.event.pull_request.head.sha || 'false' }}
-      APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
+      APPROVE_COVERAGE: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled' || (vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'synchronize')) && contains(github.event.pull_request.labels.*.name, 'pocp-approve-coverage') && github.event.pull_request.head.sha || 'false' }}
       WAIT_EXIT: ${{ vars.POCP_STATUS_LIVE == 'true' && '0' || '1' }}
     steps:
       # Which pull request and base this run evaluated. A head commit can belong to several pull
