@@ -195,7 +195,8 @@ export async function runDoctor(engine, { base, offline = false } = {}) {
       ? 'list "pocp" (the status the reporter sets) and your test jobs in ci.required_checks in .proof/config.json; while you try it in report-only mode, list the verify job instead (docs/STATUS.md)'
       : `list the verify job (${wf?.jobs?.[0] || 'verify'}) and your test jobs in ci.required_checks in .proof/config.json` });
   }
-  else if (wf && wf.jobs.length && !wf.jobs.some((j) => plan.required_checks.includes(j))) add({ id: 'required-checks', status: 'problem', what: `ci.required_checks does not include the verify job (${wf.jobs.join(', ')})`, why: 'a pull request that deletes the POCP step would still merge', fix: `add "${wf.jobs[0]}" to ci.required_checks in .proof/config.json, then pocp ci required --apply` });
+  // The pocp status stands in for the verify job when the reporter workflow sets it (docs/STATUS.md).
+  else if (wf && wf.jobs.length && !wf.jobs.some((j) => plan.required_checks.includes(j)) && !(plan.required_checks.includes('pocp') && workflows.some((w) => w.reporter))) add({ id: 'required-checks', status: 'problem', what: `ci.required_checks does not include the verify job (${wf.jobs.join(', ')})`, why: 'a pull request that deletes the POCP step would still merge', fix: `add "${wf.jobs[0]}" to ci.required_checks in .proof/config.json, then pocp ci required --apply` });
   else add({ id: 'required-checks', status: 'ok', what: `ci.required_checks: ${plan.required_checks.join(', ')}` });
 
   // 8. GitHub: Action access, labels, branch protection.

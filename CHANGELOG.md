@@ -4,6 +4,12 @@
 
 ### Changed
 
+- **A new install no longer shows a red failure while it waits for an approval.** On a GitHub
+  repository, `pocp init --github` turns the `pocp` status on (`POCP_STATUS_LIVE`) through the
+  user's `gh` login, and writes `pocp` as the required check. `pocp ci required --apply` then
+  requires `pocp` in place of `verify` and turns the status on, in the safe order: the variable
+  is never set while `verify` is required. On a free plan's private repository it says that
+  nothing blocks a merge. `--no-live` keeps report-only mode.
 - **Updating a pull request's branch no longer removes its approvals.** With the `pocp` status
   live, a push that only merges the base branch into an approved head keeps the tests, policy
   and coverage approval labels. The reporter counts them for the new head only when that merge

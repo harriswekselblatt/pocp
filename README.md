@@ -27,7 +27,7 @@ npx pocp init --hooks --github
 
 2. **Commit.** If the hook blocks it, run `npx pocp fix --intent "<what the change does>"` and commit again. The commit gets a `Proof-Of-Change` trailer.
 3. **Check the setup** with `npx pocp doctor`, which prints the commands for anything missing.
-4. **Turn on the `pocp` status** on GitHub: green when verified, yellow while waiting for a maintainer's approval label, red on a real failure ([docs/STATUS.md](docs/STATUS.md)).
+4. **Require the `pocp` status** once the workflows are merged: `npx pocp ci required --apply`. `init --github` already turned it on: green when verified, yellow while waiting for a maintainer's approval label, red on a real failure ([docs/STATUS.md](docs/STATUS.md)).
 
 **On another CI** (GitLab, Jenkins, plain shell). In CI: keep your existing test step, and add:
 
