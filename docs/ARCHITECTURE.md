@@ -28,7 +28,8 @@ uses:
 | Module | What it does |
 |---|---|
 | `engine/misses.js` | `createMisses`: record a bug that escaped, link it to the packets that let it through (`blame`), close it with a rule whose check, replayed, catches it where it escaped |
-| `engine/shared.js` | Definitions several parts use (`PocpError`, `STAGES`, `SEVERITIES`), so none of them imports the facade |
+| `engine/range.js` | `createRange`: verify a range of commits (a pull request): each commit judged by the policy at its base, then the net change as one change, with the test guard run on the whole pull request |
+| `engine/shared.js` | Definitions several parts use (`PocpError`, `STAGES`, `SEVERITIES`, the run memo, CI-result and protected-file helpers), so none of them imports the facade |
 
 The rest of the engine is still inside `createPocp`.
 
