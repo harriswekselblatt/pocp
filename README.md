@@ -90,7 +90,7 @@ Within the limits in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md):
 POCP needs Node 20 or later, git and a POSIX shell. Your project can be in any language. In a git repository:
 
 ```bash
-npm install --save-dev "github:harriswekselblatt/pocp#v1.1.1"
+npm install --save-dev proof-of-change
 npx pocp init --hooks --github
 ```
 
