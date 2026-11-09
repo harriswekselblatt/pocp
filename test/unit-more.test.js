@@ -191,10 +191,16 @@ test('store: files, invalid JSON, logs', () => {
   assert.equal(st.readPacket('p-x'), null);
   assert.deepEqual(st.readPackets(), []);
   assert.equal(st.readRawRules(), null);
-  st.writePacket({ id: 'p-b', n: 2 });
-  st.writePacket({ id: 'p-a', n: 1 });
+  const packet = (id) => ({ id, state: 'open', touches: ['a.js'], obligations: [], proofs: [], attestations: [], history: [] });
+  st.writePacket(packet('p-b'));
+  st.writePacket(packet('p-a'));
   assert.deepEqual(st.readPackets().map((p) => p.id), ['p-a', 'p-b'], 'sorted by file name');
   assert.equal(st.packetRelPath('p-a'), '.proof/packets/p-a.json');
+  // A packet file that isn't a usable packet is an error where it is read.
+  fs.writeFileSync(path.join(root, '.proof/packets/p-c.json'), JSON.stringify({ id: 'p-c' }));
+  assert.throws(() => st.readPacket('p-c'), /p-c\.json: malformed packet: /);
+  assert.throws(() => st.readPackets(), /malformed packet/);
+  fs.rmSync(path.join(root, '.proof/packets/p-c.json'));
   fs.writeFileSync(path.join(root, '.proof/rules.json'), '{bad');
   assert.throws(() => st.readRules(), /invalid JSON/);
   st.appendLog('gate', { a: 1 });
