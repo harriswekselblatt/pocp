@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL } from './remedies.js';
 import { summarizeFindings } from './decision.js';
 import { withFacts } from './finding.js';
+import { POLICY_FILES } from './policy.js';
 import { PocpBaseError } from './errors.js';
 
 // `pocp approvals`: every open pull request whose POCP verify fails only because it waits for
@@ -10,8 +11,6 @@ import { PocpBaseError } from './errors.js';
 // The approval stays a person's: listing only reads; `--approve` refuses to run without a
 // person at a terminal, shows what is being approved, and adds the label only after the person
 // types the pull request's number. There is no flag that skips the question.
-
-const POLICY_FILES = ['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers', '.proof/exceptions.json'];
 
 /** The annotation verify leaves on GitHub when approvals are all it is waiting for. */
 export const APPROVAL_TITLE = 'POCP approval needed';
