@@ -15,8 +15,20 @@ This folder implements [docs/EVAL-PLAN.md](../docs/EVAL-PLAN.md). The plan says 
 | (`e4/`) | E4: planned, not run. Not on this branch: its sampling frame and scripts are parked on the `e4/sampling-frame` branch for review, and no outside repository has been fetched or run | — |
 | `e5/` | E5: friction from real `gate.jsonl` timestamps, and test-guard profiling | Node |
 | `lib/` | Shared Node helpers for the harnesses: the run record writer, hashing, Wilson intervals | Node |
-| `results/` | Raw, immutable run records (`*.jsonl`) and their manifests. Reports are generated from these. | data |
+| `results/` | Raw, immutable run records (`*.jsonl`) and their manifests. Reports are generated from these. Kept in their own repository, [pocp-eval](https://github.com/harriswekselblatt/pocp-eval), and fetched here (below). | data |
+| `results.sha256` | The SHA-256 of every record file the reports came from, and so of the pinned pocp-eval commit | text |
 | `PREREG.md` | Pre-registration: units, denominators, counting rules, bars. Committed before any counted run. | text |
+
+## Getting the run records
+
+The raw records live in [harriswekselblatt/pocp-eval](https://github.com/harriswekselblatt/pocp-eval), pinned to one commit in `lib/results-source.js`, so this repository stays small. To regenerate a report or add a batch, fetch them first:
+
+```sh
+node eval/tools/fetch-results.js           # clones pocp-eval at the pinned commit into eval/results/ and checks every file
+node eval/tools/fetch-results.js --check   # checks an existing eval/results/ against results.sha256
+```
+
+`eval/results/` is git-ignored here. A new batch is committed to pocp-eval, and this repository then pins the new commit and updates `results.sha256` in the same change. Both are under `eval/`, so that change needs a maintainer's approval like any other.
 
 ## Rules every piece follows
 

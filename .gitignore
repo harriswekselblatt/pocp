@@ -2,6 +2,9 @@
 .proof/runs/
 
 node_modules/
+
+# The eval's raw run records, fetched from their own repository (eval/tools/fetch-results.js)
+eval/results/
 .DS_Store
 
 # Local tool state and Finder duplicates ("file 2.json")

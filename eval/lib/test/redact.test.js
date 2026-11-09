@@ -1,7 +1,6 @@
 // README rule 9: no personal paths in eval results.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { POCP_ROOT } from '../pins.js';
@@ -33,16 +32,12 @@ test('text without paths is left alone', () => {
   assert.equal(redactText(t, opts), t);
 });
 
-test('no committed eval result holds a personal path', () => {
-  // Committed files when this is a git checkout; every file when it's an export with no .git
-  // (verify re-runs checks that way), which is a superset.
-  let files;
-  try {
-    files = execFileSync('git', ['-C', POCP_ROOT, 'ls-files', '-z', 'eval/results'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\0').filter(Boolean);
-  } catch {
-    const walk = (d) => fs.readdirSync(path.join(POCP_ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
-    files = walk('eval/results');
-  }
+test('no eval result holds a personal path', (t) => {
+  // The records live in their own repository, pinned by checksum (eval/results.sha256); this
+  // checks the local copy in eval/results/ when one has been fetched.
+  if (!fs.existsSync(path.join(POCP_ROOT, 'eval', 'results'))) return t.skip('eval/results/ not fetched (node eval/tools/fetch-results.js)');
+  const walk = (d) => fs.readdirSync(path.join(POCP_ROOT, d), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const files = walk('eval/results');
   const bad = [];
   for (const f of files) {
     const full = path.join(POCP_ROOT, f);
