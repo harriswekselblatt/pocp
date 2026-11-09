@@ -27,6 +27,8 @@ uses:
 
 | Module | What it does |
 |---|---|
+| `engine/gate.js` | `createGate`: decide whether the staged change may be committed, suggest a packet for uncovered files, and check an edit before it is made |
+| `engine/land.js` | `createLand`: trailer lines for proven packets that cover the staged files, and marking packets landed once their commit exists |
 | `engine/misses.js` | `createMisses`: record a bug that escaped, link it to the packets that let it through (`blame`), close it with a rule whose check, replayed, catches it where it escaped |
 | `engine/policy-at.js` | `createPolicyAt`: policy as committed at a revision (rules, config and whether the repository is enrolled there), the policy that judges a commit against its base, the exception list for files left without a packet, and which CI definition files a change touched |
 | `engine/range.js` | `createRange`: verify a range of commits (a pull request): each commit judged by the policy at its base, then the net change as one change, with the test guard run on the whole pull request |
