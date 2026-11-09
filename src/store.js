@@ -5,6 +5,7 @@ import { PROOF_DIR } from './git.js';
 import { DEFAULT_GUARD_MODE, DEFAULT_GUARD_MUTANTS, DEFAULT_GUARD_SEED, effectiveGuardGlobs } from './guard.js';
 import { globProblem } from './glob.js';
 import { PocpBaseError } from './errors.js';
+import { packetProblem } from './records.js';
 
 // Every finding verify can report. A repository chooses which ones fail verification
 // (`verify.fail_on`); the rest are reported as warnings. `invalid_policy` always fails.
@@ -285,14 +286,22 @@ export function createFsStore(root) {
   const dir = path.join(root, PROOF_DIR);
   const p = (...parts) => path.join(dir, ...parts);
 
-  function readDirJson(sub) {
+  function readDirJson(sub, read = (file) => readJson(file, { checkFormat: true })) {
     const d = p(sub);
     if (!fs.existsSync(d)) return [];
     return fs
       .readdirSync(d)
       .filter((f) => f.endsWith('.json'))
       .sort()
-      .map((f) => readJson(path.join(d, f), { checkFormat: true }));
+      .map((f) => read(path.join(d, f)));
+  }
+
+  /** A packet file, checked for its shape: a malformed one is an error here, not a crash later. */
+  function readPacketFile(file) {
+    const packet = readJson(file, { checkFormat: true });
+    const problem = packetProblem(packet, { id: path.basename(file, '.json') });
+    if (problem) throw new StoreError(`${file}: malformed packet: ${problem}`);
+    return packet;
   }
 
   return {
@@ -305,8 +314,8 @@ export function createFsStore(root) {
     readRules: () => rulesWithDefaults(fs.existsSync(p('rules.json')) ? readJson(p('rules.json')) : {}),
     writeRules: (rules) => writeJsonAtomic(p('rules.json'), rules),
     writeConfig: (config) => writeJsonAtomic(p('config.json'), config),
-    readPackets: () => readDirJson('packets'),
-    readPacket: (id) => (fs.existsSync(p('packets', `${id}.json`)) ? readJson(p('packets', `${id}.json`), { checkFormat: true }) : null),
+    readPackets: () => readDirJson('packets', readPacketFile),
+    readPacket: (id) => (fs.existsSync(p('packets', `${id}.json`)) ? readPacketFile(p('packets', `${id}.json`)) : null),
     writePacket: (packet) => writeJsonAtomic(p('packets', `${packet.id}.json`), packet),
     packetRelPath: (id) => `${PROOF_DIR}/packets/${id}.json`,
     readMisses: () => readDirJson('misses'),

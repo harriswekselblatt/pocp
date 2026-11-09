@@ -261,6 +261,22 @@ const CASES = [
     },
   },
   {
+    name: 'incomplete-packet',
+    about: 'a committed packet that is valid JSON but has no obligations: a blocking finding in verify, an error in status',
+    build() {
+      const dir = sampleRepo({ hooks: true, deep: false });
+      const base = git(dir, 'rev-parse', 'HEAD');
+      write(dir, 'src/math.js', TWEAK_ADD);
+      fixAndCommit(dir, 'swap the operands');
+      const packet = git(dir, 'ls-files', '.proof/packets').split('\n').find((p) => p.endsWith('.json'));
+      const { obligations, ...rest } = JSON.parse(fs.readFileSync(path.join(dir, packet), 'utf8'));
+      write(dir, packet, JSON.stringify(rest));
+      git(dir, 'add', '-A');
+      git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '--amend', '--no-edit');
+      return { dir, runs: [['verify', `${base}..HEAD`, ...CI_VERIFY, '--json'], ['status', '--json']] };
+    },
+  },
+  {
     name: 'gate-working-policy-differs',
     about: 'today gate reads the working copy\'s policy, not the staged one (a planned change will judge the staged policy)',
     build() {

@@ -21,6 +21,7 @@ import { gateRemedies, pendingApprovals } from './remedies.js';
 import { outputTail } from './output-tail.js';
 import { PocpBaseError } from './errors.js';
 import { withFacts } from './finding.js';
+import { packetProblem } from './records.js';
 
 // One version source: package.json, read relative to this module so it is right wherever pocp is installed.
 export const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -1474,6 +1475,12 @@ export function createPocp(opts = {}) {
       }
       if (formatProblem(packet)) {
         flag('missing_packet', `packet file ${rel} was ${formatProblem(packet)}`);
+        finish();
+        continue;
+      }
+      const shape = packetProblem(packet, { id: t.id });
+      if (shape) {
+        flag('missing_packet', `packet file ${rel} is malformed: ${shape}`);
         finish();
         continue;
       }
