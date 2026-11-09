@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.1.2 (2026-11-09)
+
+### Packaging
+
+- **Install from npm:** `npm install --save-dev proof-of-change` (the command is `pocp`). The
+  README and QUICKSTART use it; `pocp init --github` pins v1.1.2. Published by the release
+  workflow with npm provenance.
 
 ### Added
 
