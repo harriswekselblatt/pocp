@@ -6,7 +6,7 @@ A guide for an engineer reviewing POCP: what to try, which code matters most, an
 
 ## 1. What it is, in one minute
 
-POCP gates git commits on proof that the required checks ran on the exact code being committed, and re-verifies in CI. Its claim, stated in the README: a coding agent's test edits can't pass CI on their own unless POCP's own check passes them; risky ones are held for human review. In fast mode (the default for new projects) that means the edit only adds non-risky lines to existing tests; in deep mode, planted bugs show the new tests still catch what the old ones caught. Everything else, such as loosened assertions, skipped tests, rewired test setup, a deleted rule or a forged proof, is blocked or goes to a maintainer. It doesn't judge whether the code is honest (special-casing test inputs), and it relies on the Git host to make its CI check required. Read [README.md](README.md) first; it's short.
+POCP gates git commits on proof that the required checks ran on the exact code being committed, and re-verifies in CI. Its claim: a coding agent's test edits can't pass CI on their own unless POCP's own check passes them; risky ones are held for human review. In fast mode (the default for new projects) that means the edit only adds non-risky lines to existing tests; in deep mode, planted bugs show the new tests still catch what the old ones caught. Everything else, such as loosened assertions, skipped tests, rewired test setup, a deleted rule or a forged proof, is blocked or goes to a maintainer. It doesn't judge whether the code is honest (special-casing test inputs), and it relies on the Git host to make its CI check required. Read [README.md](../README.md) and [HOW-IT-WORKS.md](HOW-IT-WORKS.md) first.
 
 ## 2. Try it (about 10 minutes)
 
@@ -40,9 +40,9 @@ Now try three things:
 
 1. **An honest change.** Edit `src/math.js` without changing behaviour (add a comment), then `git add -A && git commit -m x`. It's blocked. Run `pocp fix --intent "comment"`, then commit again: it passes, and the commit carries a `Proof-Of-Change` trailer.
 2. **A cheat.** Break the code (`a - b`) and "fix" the test by deleting its assertions. Then run `git add -A && pocp fix --intent "cheat"`. The test guard's check fails, because the old tests fail on the new code. In the default mode the local commit may go ahead, but the decision is handed to CI, where only a maintainer can approve it. Commit it (`git commit -m cheat`).
-3. **CI's view.** `pocp verify HEAD~1..HEAD --require-coverage --rerun` re-runs the checks from the commit, the way CI would. It should exit 1 with `test_change`, naming the old tests that fail on the new code. That's the block the README's table promises.
+3. **CI's view.** `pocp verify HEAD~1..HEAD --require-coverage --rerun` re-runs the checks from the commit, the way CI would. It should exit 1 with `test_change`, naming the old tests that fail on the new code. That is the block the table in HOW-IT-WORKS.md promises.
 
-Tell us where it confused you, where the messages were unclear, and anything that behaved differently from what the README led you to expect.
+Tell us where it confused you, where the messages were unclear, and anything that behaved differently from what the docs led you to expect.
 
 ## 3. The code that matters most
 
@@ -57,12 +57,12 @@ These are the parts that run commands, touch users' repositories, or decide whet
 | `src/guard-check.js` | The test guard: old tests on new code, plus planted bugs on both sides | Fail-closed behaviour: a timeout never counts as a catch; an unmeasured mutant never yields `passed`. Does any path turn a should-block into a pass? |
 | `src/sign.js` | Signs proofs with `ssh-keygen` | Use of `ssh-keygen -Y sign/verify`; the allowed-signers file. |
 
-[docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) says what each record does and doesn't prove, and [SPEC.md](SPEC.md) is the full protocol. Both are long; skim the parts that relate to what you're reading.
+[THREAT-MODEL.md](THREAT-MODEL.md) says what each record does and doesn't prove, and [SPEC.md](../SPEC.md) is the full protocol. Both are long; skim the parts that relate to what you're reading.
 
 ## 4. The questions we most want answered
 
 1. **Would you trust it in a real repo?** If not, what would have to change?
-2. **Does the README overclaim anywhere?** Especially the "what it catches" table and the "Results so far" section.
+2. **Do the README and docs overclaim anywhere?** Especially the table in HOW-IT-WORKS.md and RESULTS.md.
 3. **Is anything unsafe:** for the user's machine (hooks, runner), for CI (the action, forks), or for the user's repo?
 4. **Did the quick start work for you,** and on what OS?
 5. **Is the test guard sound?** Can you weaken a test so that it passes?
