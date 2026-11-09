@@ -196,9 +196,11 @@ test('init pins a tag that exists: the version for a release, the last release f
   const num = (v) => v.replace(/^v/, '').split(/[.-]/).slice(0, 3).map(Number);
   const [a, b] = [num(RELEASED_ACTION_REF), num(version)];
   assert.ok(a[0] < b[0] || (a[0] === b[0] && (a[1] < b[1] || (a[1] === b[1] && a[2] <= b[2]))), `${RELEASED_ACTION_REF} is not older than ${version}`);
-  // Where the repository's tags are present (not in a shallow CI checkout), it is a real tag.
+  // Where the repository's tags are present (not in a shallow CI checkout), it is a real tag,
+  // except on the release commit itself: its tag is made from it once it is merged.
+  const preparing = RELEASED_ACTION_REF === `v${version}`;
   const tags = spawnSync('git', ['tag', '-l', 'v*'], { cwd: ROOT, encoding: 'utf8' });
-  if (tags.status === 0 && tags.stdout.trim()) assert.ok(tags.stdout.split('\n').includes(RELEASED_ACTION_REF), `no tag ${RELEASED_ACTION_REF}`);
+  if (!preparing && tags.status === 0 && tags.stdout.trim()) assert.ok(tags.stdout.split('\n').includes(RELEASED_ACTION_REF), `no tag ${RELEASED_ACTION_REF}`);
 });
 
 test('package.json: publishable metadata and a runtime-only file list', () => {

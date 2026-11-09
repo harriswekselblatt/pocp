@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (1.1.0)
+## 1.1.0 (2026-11-08)
 
 Security and reliability fixes from an audit on 2026-11-07. Upgrade from 1.0.0: some changes
 that verified before are now held for review, on purpose.
@@ -48,6 +48,13 @@ that verified before are now held for review, on purpose.
   queues aren't supported yet, and on a free plan's private repository POCP is advisory; both
   are documented.
 
+### Changed
+
+- **`verify` is faster.** Its re-runs and the test guard run side by side, and repeated git calls
+  are gone: POCP's own verify went from about 15 to about 8.5 minutes.
+- **A failed check shows why.** `verify` prints the end of a failed check's output in the CI
+  log (size-capped; never stored in proof records).
+
 ### Added
 
 - **`decideVerify(result)` in the library.** It says what a `verify` or `verifyRange` result
@@ -90,6 +97,6 @@ that verified before are now held for review, on purpose.
 
 ### Packaging
 
-- Version `1.1.0-dev.0` on `main`; `init --github` pins the last released Action until 1.1.0 ships.
+- `init --github` and the docs pin v1.1.0.
 - `package.json` has repository, bugs and homepage; a tag-triggered release workflow publishes
   with npm provenance.

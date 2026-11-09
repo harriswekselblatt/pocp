@@ -401,7 +401,7 @@ const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 // The newest POCP release that has a tag on GitHub. A development or pre-release build (a
 // version like 1.1.0-dev.0, as on main between releases) has no tag of its own, so the
 // workflows it writes pin this instead of a ref that doesn't exist. Update it with each release.
-export const RELEASED_ACTION_REF = 'v1.0.0';
+export const RELEASED_ACTION_REF = 'v1.1.0';
 
 /** The release tag the workflows pin by default: "v<version>" for a release, else RELEASED_ACTION_REF. */
 export function releaseRef() {
