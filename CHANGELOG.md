@@ -10,6 +10,13 @@
   one, with the key it probably meant. Nothing passes or blocks differently. Keys that start with
   `$` are comments and are never reported.
 
+## 1.1.1 (2026-11-09)
+
+### Packaging
+
+- **The npm package is named `proof-of-change`.** npm refuses `pocp` as too close to existing
+  package names. The command it installs is still `pocp`. 1.1.0 was released on GitHub only.
+
 ## 1.1.0 (2026-11-08)
 
 Security and reliability fixes from an audit on 2026-11-07. Upgrade from 1.0.0: some changes

@@ -38,7 +38,7 @@ test("the install hint survives the hooks' echo unchanged", () => {
 });
 
 // The docs pin the release a reader should install (the hint above stays a commit placeholder).
-const RELEASE = 'github:harriswekselblatt/pocp#v1.1.0';
+const RELEASE = 'github:harriswekselblatt/pocp#v1.1.1';
 
 test('the install commands in the README and QUICKSTART run in a shell as copied', () => {
   assert.deepEqual(npmArgs(installLine('README.md')), ['install', '--save-dev', RELEASE]);

@@ -179,7 +179,7 @@ test('release.yml: runs only for v* tags, checks the tag against package.json, p
   assert.doesNotMatch(yaml, /contents: write|NPM_TOKEN|NODE_AUTH_TOKEN|secrets\./);
   assert.match(yaml, /"v\$version" != "\$GITHUB_REF_NAME"/);
   assert.match(yaml, /npm test/);
-  assert.match(yaml, /npm publish "pocp-\$\{GITHUB_REF_NAME#v\}\.tgz" --provenance --access public/);
+  assert.match(yaml, /npm publish "proof-of-change-\$\{GITHUB_REF_NAME#v\}\.tgz" --provenance --access public/);
 });
 
 test('dependabot keeps the action pins current', () => {
