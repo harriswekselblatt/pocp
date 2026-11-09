@@ -820,6 +820,34 @@ export function supportByUse(root, rev, candidates, { isCode, testGlobs = [], fi
   return notImportedByCode(root, rev, leaves, { isCode, testGlobs, files: tracked });
 }
 
+/** A file named as a test: "test_x.py", "x_test.go", "x.test.ts", "x.spec.js", "XTest.java". */
+const TEST_NAME = /(^tests?[-_])|([-_.](test|tests|spec))$|[a-z0-9](Test|Tests|Spec)$/;
+const isNamedTest = (rel) => CODE_EXT.test(rel) && TEST_NAME.test(path.posix.basename(rel).replace(/\.[^.]*$/, ''));
+
+/**
+ * Of `candidates`, the modules some test is named after and imports at `rev`: "light.js" when
+ * "light.test.js" (anywhere, whether or not the guard's test globs list it) imports it. Such a
+ * module is the code under test, never test support. Only `rev` is asked, never the change
+ * being judged, so a change can't make a helper count as code by adding a test named after it.
+ */
+export function subjectsOfTests(root, rev, candidates, { files = null } = {}) {
+  const list = [...candidates].filter((p) => CODE_EXT.test(p));
+  if (!list.length || !rev) return new Set();
+  const tracked = files || trackedBlobs(root, rev);
+  const byStem = new Map();
+  for (const p of list) if (tracked.has(p)) byStem.set(moduleStem(p), [...(byStem.get(moduleStem(p)) || []), p]);
+  const tests = [...tracked.keys()].filter((t) => isNamedTest(t) && byStem.has(testStem(t))).slice(0, HELPER_LIMITS.files);
+  if (!tests.length) return new Set();
+  const importsOf = makeResolver(root, tracked);
+  const texts = readBlobs(root, tests.map((t) => tracked.get(t)));
+  const subjects = new Set();
+  for (const t of tests) {
+    const deps = new Set(importsOf(t, texts.get(tracked.get(t)) ?? null));
+    for (const p of byStem.get(testStem(t))) if (deps.has(p)) subjects.add(p);
+  }
+  return subjects;
+}
+
 /**
  * Of `candidates` (helpers by testHelperFiles), those no code under check imports at `rev`.
  * A module the code itself depends on is code, even when the tests import it too. Only `rev`
