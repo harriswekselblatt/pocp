@@ -6,6 +6,7 @@ import { matchGlob } from './glob.js';
 import { hooksHealth, INSTALL_HINT, recordedBin } from './init.js';
 import { protectionGaps, requiredChecksPlan } from './ci-github.js';
 import { validateRules } from './rules.js';
+import { policyKeyWarnings } from './schema.js';
 import { validateConfig } from './store.js';
 import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL } from './remedies.js';
 import { APPROVE_WORKFLOW_LABEL } from './status-report.js';
@@ -111,6 +112,8 @@ export async function runDoctor(engine, { base, offline = false } = {}) {
     add(problems.length
       ? { id: 'policy', status: 'problem', what: `invalid policy: ${problems.slice(0, 3).join('; ')}`, why: 'the gate refuses every commit and verify fails every PR while the policy is invalid', fix: 'edit .proof/rules.json / .proof/config.json until "pocp rules check" passes' }
       : { id: 'policy', status: 'ok', what: 'rules and config are valid' });
+    const keys = policyKeyWarnings({ rules: engine.store.readRawRules(), config: engine.store.readRawConfig?.() });
+    if (keys.length) add({ id: 'policy_keys', status: 'warning', what: keys.slice(0, 3).join('; ') + (keys.length > 3 ? ` (and ${keys.length - 3} more)` : ''), why: 'POCP ignores keys it doesn\'t know, so a misspelled setting is silently off', fix: 'correct each key, or start it with "$" to keep it as a comment; "pocp rules check" lists them all' });
   }
 
   // 2. Hooks installed and able to find pocp.

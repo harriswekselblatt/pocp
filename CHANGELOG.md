@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Warnings for unknown policy keys.** POCP ignores keys it doesn't know in
+  `.proof/rules.json` and `.proof/config.json`, so a misspelled setting (`"fail_one"` for
+  `"fail_on"`) was silently off. `rules check`, `doctor`, the gate and verify now warn about each
+  one, with the key it probably meant. Nothing passes or blocks differently. Keys that start with
+  `$` are comments and are never reported.
+
 ## 1.1.0 (2026-11-08)
 
 Security and reliability fixes from an audit on 2026-11-07. Upgrade from 1.0.0: some changes

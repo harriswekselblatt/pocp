@@ -163,8 +163,20 @@ test('invariant: wording never changes a decision or an exit code', async () => 
   assert.equal(pocp(dir, ['verify', `${base}..HEAD`, ...CI]).code, VERIFY_EXIT.waiting);
 });
 
+test('invariant: an unknown policy key is never silent', () => {
+  const dir = sampleRepo({ hooks: true, deep: false });
+  const base = git(dir, 'rev-parse', 'HEAD');
+  const cfg = JSON.parse(fs.readFileSync(path.join(dir, '.proof/config.json'), 'utf8'));
+  write(dir, '.proof/config.json', JSON.stringify({ ...cfg, verify: { ...(cfg.verify || {}), fail_one: ['uncovered'] } }));
+  git(dir, 'add', '-A');
+  git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'misspell fail_on');
+  const v = pocp(dir, ['verify', `${base}..HEAD`, ...CI]);
+  assert.ok(v.json.commits[0].warnings.some((w) => w.includes('"verify.fail_one"')), 'verify reports it');
+  assert.ok(pocp(dir, ['rules', 'check', '--json']).json.warnings.some((w) => w.includes('"verify.fail_one"')), 'rules check reports it');
+});
+
 // Testable once the change named in each lands.
-test.todo('invariant: an unknown policy key never silently changes what is enforced (warned about once policy schemas are closed; invalid in policy format 2)');
+test.todo('invariant: an unknown policy key makes a format-2 policy invalid (once policy format 2 exists)');
 test.todo('invariant: each evaluation watches its own repository; a change in one is never missed because another is watched (once each evaluation has its own repository session)');
 test.todo('invariant: a failed git read is never treated as an absent file (once each evaluation has its own repository session)');
 test.todo('invariant: evidence is never reused across subjects or execution profiles (once evidence reuse is keyed by subject and profile)');

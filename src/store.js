@@ -311,6 +311,7 @@ export function createFsStore(root) {
     exists: () => fs.existsSync(dir),
     readConfig: () => withDefaults(fs.existsSync(p('config.json')) ? readJson(p('config.json')) : {}),
     readRawRules: () => (fs.existsSync(p('rules.json')) ? readJson(p('rules.json')) : null),
+    readRawConfig: () => (fs.existsSync(p('config.json')) ? readJson(p('config.json')) : null),
     readRules: () => rulesWithDefaults(fs.existsSync(p('rules.json')) ? readJson(p('rules.json')) : {}),
     writeRules: (rules) => writeJsonAtomic(p('rules.json'), rules),
     writeConfig: (config) => writeJsonAtomic(p('config.json'), config),
