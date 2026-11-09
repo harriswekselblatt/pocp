@@ -2,9 +2,11 @@
 #
 # npm trusted publishing: npm accepts this workflow's short-lived OIDC identity instead of a
 # stored token, and --provenance links the package to this repository, workflow and commit.
-# Before the first run, on npmjs.com, add a trusted publisher for the package: repository
-# harriswekselblatt/pocp, workflow release.yml, environment release. In GitHub, create the
-# "release" environment with required reviewers and only v* tags allowed to deploy to it.
+# The npm package is "proof-of-change" (npm refuses "pocp" as too close to existing names); the
+# command it installs is still `pocp`. Before the first run, on npmjs.com, add a trusted
+# publisher for the package: repository harriswekselblatt/pocp, workflow release.yml,
+# environment release. In GitHub, create the "release" environment with required reviewers and
+# only v* tags allowed to deploy to it.
 #
 # The job checks the tag matches package.json's version, runs the tests, packs the tarball
 # once and publishes exactly that file.
@@ -55,7 +57,7 @@ jobs:
       - name: pack
         run: |
           npm pack
-          ls -l "pocp-${GITHUB_REF_NAME#v}.tgz"
-          sha256sum "pocp-${GITHUB_REF_NAME#v}.tgz"
+          ls -l "proof-of-change-${GITHUB_REF_NAME#v}.tgz"
+          sha256sum "proof-of-change-${GITHUB_REF_NAME#v}.tgz"
       - name: publish
-        run: npm publish "pocp-${GITHUB_REF_NAME#v}.tgz" --provenance --access public
+        run: npm publish "proof-of-change-${GITHUB_REF_NAME#v}.tgz" --provenance --access public

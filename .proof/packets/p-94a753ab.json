@@ -1,0 +1,296 @@
+{
+  "pocp": 1,
+  "id": "p-94a753ab",
+  "intent": "Release 1.1.1: publish to npm as proof-of-change",
+  "touches": [
+    ".github/workflows/release.yml",
+    "package.json",
+    "src/init.js",
+    "test/install-hint.test.js",
+    "test/workflows-hardening.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/install-hint.test.js",
+        "test/workflows-hardening.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/install-hint.test.js, test/workflows-hardening.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-09T03:13:41.181Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:522028912ddf35a6be8143815e3d0452bc7f483e4c8397f22c9c6227082ae28a",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-09T03:13:42.124Z",
+      "duration_ms": 5332,
+      "stdout_sha256": "5dbcad330ad18f9bfd39a65fae792e4dd9c9c9c6397cef82840eb7b27d271120",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-c08d8bb1",
+      "runner": {
+        "pocp": "1.1.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:522028912ddf35a6be8143815e3d0452bc7f483e4c8397f22c9c6227082ae28a",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-09T03:13:47.686Z",
+      "duration_ms": 94109,
+      "stdout_sha256": "68e9bcb90ef6ae7299c3c1e88dac1ca4f7f2f7871cb9f67eafc567af509a8b64",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-6f00d879",
+      "runner": {
+        "pocp": "1.1.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:522028912ddf35a6be8143815e3d0452bc7f483e4c8397f22c9c6227082ae28a",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-09T03:15:21.910Z",
+      "duration_ms": 523835,
+      "stdout_sha256": "85a1baddf4c080b02d50ebb1bea8189acfd609ac059cfb19479524ee19a35fd5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-cb50a487",
+      "runner": {
+        "pocp": "1.1.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:f4f050a03a1a1f99ad107116624f1875fe0dd9a16ff6d62a71d585448cafe00d",
+      "subject": "sha256:522028912ddf35a6be8143815e3d0452bc7f483e4c8397f22c9c6227082ae28a",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-09T03:24:05.938Z",
+      "duration_ms": 864658,
+      "runner": {
+        "pocp": "1.1.1",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: the install commands in the README and QUICKSTART run in a shell as copied; release.yml: runs only for v* tags, checks the tag against package.json, publishes with provenance: behavior changed, so a person must approve it",
+        "base": "99772c9b250a19d058f59cb16a05c420aaf99255",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/install-hint.test.js",
+            "test/workflows-hardening.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 3353
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 58849
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 366090,
+              "failed_tests": [
+                "the install commands in the README and QUICKSTART run in a shell as copied",
+                "release.yml: runs only for v* tags, checks the tag against package.json, publishes with provenance"
+              ]
+            }
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "test/install-hint.test.js is named in package.json, so it may be test setup"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 431539
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 864658,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-09T03:13:41.181Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-09T03:13:41.181Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-09T03:38:31.425Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:522028912ddf35a6be8143815e3d0452bc7f483e4c8397f22c9c6227082ae28a"
+    },
+    {
+      "at": "2026-11-09T03:38:32.348Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:522028912ddf35a6be8143815e3d0452bc7f483e4c8397f22c9c6227082ae28a"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:f4f050a03a1a1f99ad107116624f1875fe0dd9a16ff6d62a71d585448cafe00d",
+      "subject": "sha256:522028912ddf35a6be8143815e3d0452bc7f483e4c8397f22c9c6227082ae28a",
+      "by": "harriswekselblatt",
+      "at": "2026-11-09T03:38:32.348Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: the install commands in the README and QUICKSTART run in a shell as copied; release.yml: runs only for v* tags, checks the tag against package.json, publishes with provenance: behavior changed, so a person must approve it"
+    }
+  ]
+}
