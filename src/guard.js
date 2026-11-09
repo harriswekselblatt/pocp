@@ -3,7 +3,7 @@ import { matchGlob } from './glob.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
 import { normalizeRequirement } from './rules.js';
 import {
-  hasTestSettings, isRust, looksLikeTestSupport, notImportedByCode, readBlobs, referencedFiles, requirementCommands, rustTestModuleFile, settingsKind, supportByUse, testHelperFiles, testSettings, trackedBlobs,
+  hasTestSettings, isRust, looksLikeTestSupport, notImportedByCode, readBlobs, referencedFiles, requirementCommands, rustTestModuleFile, settingsKind, subjectsOfTests, supportByUse, testHelperFiles, testSettings, trackedBlobs,
 } from './test-setup.js';
 
 // Files that decide what a test run means. Changing them can hollow out a check
@@ -274,6 +274,12 @@ function findHelpers(root, { base, to, testGlobs, commands, named, candidates })
   }
   const helpers = found.size && base ? notImportedByCode(root, base, found, { isCode, testGlobs, files: baseFiles }) : found;
   for (const p of byUse) helpers.add(p);
+  // A module a test is named after and imports (at the base) is the code that test checks,
+  // even when no rule's glob covers it: never test support.
+  for (const p of base && helpers.size ? subjectsOfTests(root, base, helpers, { files: baseFiles }) : []) {
+    helpers.delete(p);
+    byUse.delete(p);
+  }
   return Object.assign(helpers, { byUse });
 }
 
