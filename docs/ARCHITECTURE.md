@@ -31,6 +31,7 @@ uses:
 | `engine/policy-at.js` | `createPolicyAt`: policy as committed at a revision (rules, config and whether the repository is enrolled there), the policy that judges a commit against its base, the exception list for files left without a packet, and which CI definition files a change touched |
 | `engine/range.js` | `createRange`: verify a range of commits (a pull request): each commit judged by the policy at its base, then the net change as one change, with the test guard run on the whole pull request |
 | `engine/rerun.js` | `createRerun`: re-run checks on a commit's exact code in a clean checkout, the checks `verify.require_ci` lists, what a re-run says about each recorded proof, and recording a CI test step (`ci-run`) |
+| `engine/verify.js` | `createVerify`: verify one commit: the policy that judges it, its packets and their proofs, the test guard for changes to existing tests, and the findings that decide the result |
 | `engine/shared.js` | Definitions several parts use (`PocpError`, `STAGES`, `SEVERITIES`, the run memo, CI-result and protected-file helpers), so none of them imports the facade |
 
 The rest of the engine is still inside `createPocp`.
