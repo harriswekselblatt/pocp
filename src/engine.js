@@ -2,13 +2,13 @@ import fs from 'node:fs';
 
 import path from 'node:path';
 import * as g from './git.js';
-import { configWeakening, createFsStore, DEFAULT_CI_FILES, formatProblem, rulesWithDefaults, strictConfig, validateConfig, withDefaults } from './store.js';
+import { createFsStore, DEFAULT_CI_FILES, formatProblem, rulesWithDefaults, validateConfig, withDefaults } from './store.js';
 import { createProcessRunner, buildEnv } from './runner.js';
 import { createIndexSnapshot, createRevCheckout } from './workspace.js';
 import { digestMatches, randomId, sha256Hex } from './hash.js';
 import { matchAny, matchGlob } from './glob.js';
 import { describeObligation, isGuard, isRunnable, obligationDigest, ValidationError } from './obligations.js';
-import { evaluateTriggers, globsOf, normalizeRequirement, policyDigest, policyWeakening, requirementsFor, ruleWarnings, strictUnion, validateRules } from './rules.js';
+import { evaluateTriggers, globsOf, normalizeRequirement, policyDigest, requirementsFor, ruleWarnings, validateRules } from './rules.js';
 import * as P from './packets.js';
 import { formatTrailer, parseTrailers, TRAILER_KEY } from './trailer.js';
 import { signProof, verifyProofSignature } from './sign.js';
@@ -22,14 +22,13 @@ import { outputTail } from './output-tail.js';
 import { PocpBaseError } from './errors.js';
 import { withFacts } from './finding.js';
 import { packetProblem } from './records.js';
+import { blockingRule, combinePolicy, EXCEPTIONS_FILE, POLICY_FILES, policyChange, policyFilesTouched, policyLoosenings } from './policy.js';
 
 // One version source: package.json, read relative to this module so it is right wherever pocp is installed.
 export const VERSION = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 export const STAGES = Object.freeze(['gate', 'commit', 'ci', 'review', 'production']);
 export const SEVERITIES = Object.freeze(['low', 'medium', 'high', 'critical']);
-export const POLICY_FILES = Object.freeze(['.proof/rules.json', '.proof/config.json', '.proof/allowed_signers', '.proof/exceptions.json']);
-/** Maintainer exceptions for commits that carry no proof record (verify --accept-uncovered). */
-export const EXCEPTIONS_FILE = '.proof/exceptions.json';
+export { EXCEPTIONS_FILE, POLICY_FILES };
 const LOCKFILES = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lockb', 'Cargo.lock', 'poetry.lock', 'go.sum', 'Gemfile.lock'];
 
 /**
@@ -202,7 +201,7 @@ export function createPocp(opts = {}) {
     if (amend) base = g.git(root, ['rev-parse', '--verify', '--quiet', 'HEAD^1'], { allowFail: true }) || g.emptyTree(root);
     const changes = amend ? g.stagedChanges(root, base) : mergeAware(g.stagedChanges(root, base));
     const files = g.changedPaths(changes);
-    for (const f of POLICY_FILES) if (changes.some((c) => c.path === f || c.oldPath === f)) files.push(f);
+    files.push(...policyFilesTouched(changes));
     return files;
   }
 
@@ -1002,7 +1001,7 @@ export function createPocp(opts = {}) {
       trig.required_files = [...new Set([...trig.required_files, ...pc.files])].sort();
       trig.reasons.push(pc.reason);
       // What verify will call a loosening (base policy vs this one): CI needs a maintainer for it.
-      const weakened = [...policyWeakening(basePolicy.hasRules ? basePolicy.rules : null, rulesObj), ...configWeakening(basePolicy.config, cfg)];
+      const weakened = policyLoosenings({ rules: { base: basePolicy.hasRules ? basePolicy.rules : null, head: rulesObj }, config: { base: basePolicy.config, head: cfg } });
       if (weakened.length) result.warnings.push({ code: 'awaiting_policy_approval', detail: `this loosens POCP policy (${weakened.slice(0, 3).join('; ')}${weakened.length > 3 ? '; …' : ''}); CI will ask a maintainer to approve it` });
     }
     const ciChanged = changedCiFiles(changes, cfg);
@@ -1119,29 +1118,6 @@ export function createPocp(opts = {}) {
     } catch {
       return null;
     }
-  }
-
-  /**
-   * Changes to .proof/rules.json or .proof/config.json are policy changes: they need a
-   * packet that covers the file, so weakening the rules is never silent.
-   */
-  function policyChange(changes, newRules, oldRules) {
-    const touched = POLICY_FILES.filter((f) => changes.some((c) => c.path === f || c.oldPath === f));
-    if (!touched.length) return null;
-    const removed = [];
-    if (oldRules) {
-      const now = new Set((newRules.requirements || []).map((r) => r.id));
-      for (const r of oldRules.requirements || []) if (!now.has(r.id)) removed.push(r.id);
-    }
-    return {
-      files: touched,
-      reason: {
-        code: 'policy_change',
-        detail: `POCP policy changed (${touched.join(', ')})${removed.length ? `; requirements removed: ${removed.join(', ')}` : ''}`,
-        files: touched,
-        removed_requirements: removed,
-      },
-    };
   }
 
   /** A suggested packet whose obligations come only from requirements. Never filler. */
@@ -1312,35 +1288,21 @@ export function createPocp(opts = {}) {
     const basePolicy = atBase && !atBase.unenrolled ? atBase : null;
     const baseRules = basePolicy?.hasRules ? basePolicy.rules : null;
     const policyProblems = [...headPolicy.problems, ...(basePolicy?.problems || [])];
-    const weakened = [...policyWeakening(baseRules, headRules), ...(basePolicy ? configWeakening(basePolicy.config, headPolicy.config) : [])];
     const baseSigners = baseRev ? g.showFile(root, baseRev, '.proof/allowed_signers') : null;
     const headSigners = g.showFile(root, commit, '.proof/allowed_signers');
-    if (baseRev && (headSigners || '').trim() !== (baseSigners || '').trim()) {
-      const baseKeys = new Set((baseSigners || '').split('\n').map((l) => l.trim()).filter(Boolean));
-      if ((headSigners || '').split('\n').map((l) => l.trim()).filter(Boolean).some((l) => !baseKeys.has(l))) weakened.push('allowed_signers gained a key');
-    }
-    // The exception list waives missing proof, so any change to it needs a maintainer.
-    if (baseRev && (g.showFile(root, commit, EXCEPTIONS_FILE) || '').trim() !== (g.showFile(root, baseRev, EXCEPTIONS_FILE) || '').trim()) {
-      weakened.push(`${EXCEPTIONS_FILE} changed (exceptions for commits with no proof record)`);
-    }
+    // Rules always (an unenrolled base has none); config only against an enrolled base; signers
+    // and the exception list (which waives missing proof) whenever there is a base.
+    const weakened = policyLoosenings({
+      rules: { base: baseRules, head: headRules },
+      config: basePolicy ? { base: basePolicy.config, head: headPolicy.config } : undefined,
+      signers: baseRev ? { base: baseSigners, head: headSigners } : undefined,
+      exceptions: baseRev ? { base: g.showFile(root, baseRev, EXCEPTIONS_FILE), head: g.showFile(root, commit, EXCEPTIONS_FILE) } : undefined,
+    });
     const accepted = Boolean(baseRev && weakened.length && acceptPolicyChange);
-    let rulesAt = headRules;
-    let cfgAt = headPolicy.config;
-    let allowedSigners = headSigners;
-    if (basePolicy && !accepted) {
-      rulesAt = strictUnion(baseRules, headRules);
-      cfgAt = strictConfig(basePolicy.config, headPolicy.config);
-      allowedSigners = baseSigners;
-    }
+    const { rules: rulesAt, config: cfgAt } = combinePolicy({ base: basePolicy, head: headPolicy, accepted });
+    let allowedSigners = basePolicy && !accepted ? baseSigners : headSigners;
     if (allowedSignersFile) allowedSigners = fs.readFileSync(allowedSignersFile, 'utf8');
-    const failOn = new Set(cfgAt.verify?.fail_on || []);
-    // test_inconclusive is a kind of test_change (a test change whose check didn't finish), and
-    // ci_unfinished a kind of ci_failed (a required CI check whose re-run didn't finish): each
-    // blocks exactly when its parent does, so a config listing fail_on codes from before they
-    // existed can't turn them into warnings.
-    // Likewise unfinished_proof (a recorded proof that didn't finish) blocks with failed_proof,
-    // and signature_unavailable (a signature ssh-keygen couldn't check) with invalid_signature.
-    const blocks = (code) => code === 'invalid_policy' || failOn.has({ test_inconclusive: 'test_change', ci_unfinished: 'ci_failed', unfinished_proof: 'failed_proof', signature_unavailable: 'invalid_signature' }[code] || code);
+    const { failOn, blocks } = blockingRule(cfgAt);
     return { policyProblems, weakened, accepted, rulesAt, cfgAt, allowedSigners, failOn, blocks };
   }
 
@@ -1428,7 +1390,7 @@ export function createPocp(opts = {}) {
 
     const commitChangeList = g.commitChanges(root, commit);
     const commitFiles = g.changedPaths(commitChangeList);
-    for (const f of POLICY_FILES) if (commitChangeList.some((c) => c.path === f || c.oldPath === f)) commitFiles.push(f);
+    commitFiles.push(...policyFilesTouched(commitChangeList));
 
     // CI definitions changed: they can switch POCP off, so they need the same approval.
     const ciFilesChanged = changedCiFiles(commitChangeList, cfgAt);
@@ -2101,7 +2063,7 @@ export function createPocp(opts = {}) {
     const changes = g.commitChanges(root, synth);
     const paths = g.changedPaths(changes);
     const files = [...paths];
-    for (const f of POLICY_FILES) if (changes.some((c) => c.path === f || c.oldPath === f)) files.push(f);
+    files.push(...policyFilesTouched(changes));
     const guard = detectTestChanges(root, { to: synth, config: pol.cfgAt, commands: requirementCommands(pol.rulesAt) });
     const hostReqs = useHost ? await hostRequirements(files, { rev: tip }) : [];
     const req = requirementsFor(files, { rules: pol.rulesAt, hostRequirements: hostReqs, hostName });
