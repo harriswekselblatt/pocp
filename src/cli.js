@@ -17,7 +17,7 @@ import { DONT_REWRITE, remedyLines, verifyRemedy } from './remedies.js';
 import { formatFix, runFix } from './fix.js';
 import { formatDoctor, runDoctor } from './doctor.js';
 import { githubClient, reportStatus, STATUS_CONTEXT } from './status-report.js';
-import { approvalAnnotation, approvalSummary, approvePr, formatApprovals, listApprovals, VERIFY_EXIT } from './approvals.js';
+import { approvalAnnotation, approvePr, formatApprovals, listApprovals, VERIFY_EXIT } from './approvals.js';
 import { COMMANDS, commandHelp, parseArgs, UsageError } from './cli-args.js';
 import { COOPERATIVE } from './runner.js';
 import { createIsolatedRunner } from './isolate.js';
@@ -25,6 +25,7 @@ import { createRevCheckout } from './workspace.js';
 import { failedOutputLines } from './output-tail.js';
 
 import { EXIT, exitCodeFor, isKnownError } from './errors.js';
+import { decideVerify } from './decision.js';
 
 export { EXIT };
 
@@ -746,7 +747,8 @@ export async function main(argv = process.argv.slice(2)) {
           ].join('\n');
         }
         result.isolation = { mode: isolation.mode, secure: isolation.secure };
-        if (!result.ok) result.approval = approvalSummary([...rows.flatMap((c) => c.findings || []), ...rangeFindings(result)], (result.rerun_failures || []).filter((x) => x.blocking !== false));
+        // One decision for the library and the CLI, from typed findings (src/decision.js).
+        if (!result.ok) result.approval = decideVerify(result);
         writeGithubSummary(result, rows, commitProblems, Date.now() - started, { annotations: !json });
         out(json, result, human);
         if (result.ok) return EXIT.ok;

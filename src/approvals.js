@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process';
-import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL, verifyRemedy } from './remedies.js';
+import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL } from './remedies.js';
+import { summarizeFindings } from './decision.js';
+import { withFacts } from './finding.js';
 import { PocpBaseError } from './errors.js';
 
 // `pocp approvals`: every open pull request whose POCP verify fails only because it waits for
@@ -15,51 +17,15 @@ const POLICY_FILES = ['.proof/rules.json', '.proof/config.json', '.proof/allowed
 export const APPROVAL_TITLE = 'POCP approval needed';
 
 const LABEL_FOR = { tests: APPROVE_TESTS_LABEL, policy: APPROVE_POLICY_LABEL, inconclusive: APPROVE_INCONCLUSIVE_LABEL };
-const KIND_FOR = Object.fromEntries(Object.entries(LABEL_FOR).map(([k, v]) => [v, k]));
 
-/** Files named in a finding's "(a, b, c)". */
+/** Files named in an older verify's error text: the first "(a, b, c)". */
 const filesIn = (detail) => (/\(([^)]*)\)/.exec(detail || '')?.[1] || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 /**
- * What a failed verify waits for. Each blocking finding is either an approval (its remedy is a
- * maintainer's label) or something else; `only` is true when every one is an approval.
- * Returns { only, needs: [{ label, kind, reasons, files }] }.
+ * What a failed verify waits for (decision.js). Kept under this name for existing callers.
+ * Returns { only, needs: [{ label, kind, reasons, files }], outcome, unfinished_reruns }.
  */
-export function approvalSummary(findings = [], rerunFailures = []) {
-  const needs = new Map();
-  // A re-run that didn't finish (timed out, killed, didn't start) says nothing about the code:
-  // it waits for a re-run, not a label. One that ran and failed is a real failure.
-  let unfinishedReruns = rerunFailures.filter((f) => f.unfinished === true).length;
-  let other = rerunFailures.length > unfinishedReruns;
-  for (const f of findings.filter((x) => x.blocking)) {
-    // A required CI check whose re-run didn't finish: like an unfinished re-run, it waits for a
-    // re-run, never a label.
-    if (f.code === 'ci_unfinished') {
-      unfinishedReruns++;
-      continue;
-    }
-    const r = verifyRemedy(f.code, f.detail);
-    const label = r.by === 'person' && Object.values(LABEL_FOR).find((l) => r.next.includes(`\`${l}\``));
-    if (!label) {
-      other = true;
-      continue;
-    }
-    const kind = KIND_FOR[label];
-    const n = needs.get(label) || { label, kind, reasons: [], files: [] };
-    if (!n.reasons.includes(f.detail)) n.reasons.push(f.detail);
-    const files = f.code === 'policy_loosened' ? POLICY_FILES : filesIn(f.detail);
-    for (const file of files) if (!n.files.includes(file)) n.files.push(file);
-    needs.set(label, n);
-  }
-  const list = [...needs.values()];
-  const only = !other && needs.size > 0 && unfinishedReruns === 0;
-  // What CI shows: "failed" (red), or a yellow wait: "inconclusive" when anything didn't
-  // finish, else "waiting" for a maintainer's label.
-  const outcome = other || (!needs.size && !unfinishedReruns)
-    ? 'failed'
-    : unfinishedReruns || needs.has(APPROVE_INCONCLUSIVE_LABEL) ? 'inconclusive' : 'waiting';
-  return { only, needs: list, outcome, unfinished_reruns: unfinishedReruns };
-}
+export const approvalSummary = summarizeFindings;
 
 /** verify's exit code for a result that isn't verified (0 is verified; see docs/REFERENCE.md). */
 export const VERIFY_EXIT = Object.freeze({ waiting: 4, inconclusive: 5 });
@@ -72,11 +38,12 @@ export function approvalAnnotation(summary) {
 }
 
 // Verify's error annotations, for runs by a pinned Action older than the approval annotation.
+// This is the one place that reads finding text: it is the only record an older verify leaves.
 const INFER = [
-  { re: /^existing tests or test setup changed \(/, code: 'test_change' },
-  { re: /^policy loosened without approval: /, code: 'policy_loosened' },
-  { re: /^CI configuration changed \(/, code: 'ci_config_changed' },
-  { re: /^protected files changed \(/, code: 'ci_config_changed' },
+  { re: /^existing tests or test setup changed \(/, code: 'test_change', facts: (d) => ({ approval: 'tests', files: filesIn(d) }) },
+  { re: /^policy loosened without approval: /, code: 'policy_loosened', facts: () => ({ files: POLICY_FILES }) },
+  { re: /^CI configuration changed \(/, code: 'ci_config_changed', facts: (d) => ({ files: filesIn(d) }) },
+  { re: /^protected files changed \(/, code: 'ci_config_changed', facts: (d) => ({ files: filesIn(d) }) },
 ];
 
 /**
@@ -103,7 +70,7 @@ export function readAnnotations(annotations = []) {
     // "<sha12> problem | problem | …"
     for (const part of String(a.message || '').replace(/^[0-9a-f]{7,40}\s+/, '').split(' | ')) {
       const hit = INFER.find((x) => x.re.test(part));
-      if (hit) findings.push({ code: hit.code, detail: part, blocking: true });
+      if (hit) findings.push(withFacts({ code: hit.code, detail: part, blocking: true }, hit.facts(part)));
       else other = true;
     }
   }

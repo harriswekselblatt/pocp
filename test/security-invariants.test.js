@@ -10,6 +10,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { TEST_TMP, git, pocp, sampleRepo, sh, write, writeRules } from './helpers.js';
+import { createPocp, decideVerify } from '../src/index.js';
+import { VERIFY_EXIT } from '../src/approvals.js';
 import { BREAK_ADD, TWEAK_ADD } from './fixtures.js';
 
 const CI = ['--rerun', '--require-coverage', '--exit-detail', '--json'];
@@ -142,8 +144,26 @@ test('invariant: incomplete history is refused, never verified', () => {
   assert.notEqual(pocp(src, ['verify', 'main..other', ...CI]).code, 0, 'no merge base');
 });
 
+test('invariant: wording never changes a decision or an exit code', async () => {
+  const dir = sampleRepo({ hooks: true, deep: false });
+  const base = git(dir, 'rev-parse', 'HEAD');
+  write(dir, 'test/math.check.mjs', `${fs.readFileSync(path.join(dir, 'test/math.check.mjs'), 'utf8')}// note\n`);
+  proven(dir, 'annotate the test');
+  const result = await createPocp({ cwd: dir }).verifyRange(`${base}..HEAD`, { rerun: 'all', requireCoverage: true });
+  const decided = decideVerify(result);
+  assert.equal(decided.outcome, 'waiting');
+  // Rewrite every finding's text, including into words other cases use: the decision is the same.
+  for (const text of ['', 'the mechanical check passed only locally', "didn't finish (timed out)", 'pocp-approve-policy']) {
+    for (const f of [...result.commits.flatMap((c) => c.findings), ...(result.net?.findings || [])]) f.detail = text;
+    const again = decideVerify(result);
+    assert.equal(again.outcome, decided.outcome, text);
+    assert.deepEqual(again.needs.map((n) => [n.label, n.files]), decided.needs.map((n) => [n.label, n.files]), text);
+  }
+  // The CLI's exit code follows the same decision.
+  assert.equal(pocp(dir, ['verify', `${base}..HEAD`, ...CI]).code, VERIFY_EXIT.waiting);
+});
+
 // Testable once the change named in each lands.
-test.todo('invariant: remedy wording never changes a decision or an exit code (once decisions are computed from typed findings, not from remedy text)');
 test.todo('invariant: an unknown policy key never silently changes what is enforced (warned about once policy schemas are closed; invalid in policy format 2)');
 test.todo('invariant: each evaluation watches its own repository; a change in one is never missed because another is watched (once each evaluation has its own repository session)');
 test.todo('invariant: a failed git read is never treated as an absent file (once each evaluation has its own repository session)');

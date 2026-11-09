@@ -48,6 +48,14 @@ that verified before are now held for review, on purpose.
   queues aren't supported yet, and on a free plan's private repository POCP is advisory; both
   are documented.
 
+### Added
+
+- **`decideVerify(result)` in the library.** It says what a `verify` or `verifyRange` result
+  that isn't verified is waiting for (failed, inconclusive, or the approvals it needs), the
+  same decision the CLI reports as `approval` in `--json` and through `--exit-detail`. The CLI
+  now uses it too, and the decision reads only typed facts about each finding, never its text
+  or the remedy's wording. CLI output is unchanged.
+
 ### Fixed
 
 - **The pull request that adopts POCP verifies in CI.** Committing what `pocp init --hooks`
