@@ -18,7 +18,7 @@ set -eu
 base="$1"; head="$2"
 pocp() {
   if [ -n "${POCP_CMD:-}" ]; then $POCP_CMD "$@"   # e.g. a verifier you installed yourself
-  else npx --yes "github:harriswekselblatt/pocp#${POCP_REF:?set POCP_REF to the POCP release or commit to run, e.g. v1.0.0}" "$@"; fi
+  else npx --yes "github:harriswekselblatt/pocp#${POCP_REF:?set POCP_REF to the POCP release or commit to run, e.g. v1.1.0}" "$@"; fi
 }
 pocp verify "$base..$head" --require-coverage --rerun \
   --accept-policy-change="${POCP_ACCEPT_POLICY:-false}" --accept-test-change="${POCP_ACCEPT_TESTS:-false}"

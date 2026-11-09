@@ -6,7 +6,7 @@ POCP itself needs Node ≥ 20, git and a POSIX shell; your project can be anythi
 ## 1. Install and initialise
 
 ```bash
-npm install -g "github:harriswekselblatt/pocp#v1.0.0"
+npm install -g "github:harriswekselblatt/pocp#v1.1.0"
 cd your-repo
 pocp init --hooks
 ```

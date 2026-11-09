@@ -11,7 +11,7 @@ pocp:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   variables:
     GIT_DEPTH: 0                      # verify reads the whole range of commits
-    POCP_REF: "v1.0.0"                # the POCP release (or commit) you run, pinned
+    POCP_REF: "v1.1.0"                # the POCP release (or commit) you run, pinned
   script:
     # ▶ Install your toolchain and dependencies (without running install scripts where you can).
     - >
