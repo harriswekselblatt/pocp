@@ -27,6 +27,7 @@ uses:
 
 | Module | What it does |
 |---|---|
+| `engine/context.js` | `createContext`: shared setup for one engine: repository root, store, runner, actor, events and locks; rules and config in force; host hooks; merge filtering; the staged, guard, landed and subject caches; and loading, saving and listing packets |
 | `engine/gate.js` | `createGate`: decide whether the staged change may be committed, suggest a packet for uncovered files, and check an edit before it is made |
 | `engine/land.js` | `createLand`: trailer lines for proven packets that cover the staged files, and marking packets landed once their commit exists |
 | `engine/misses.js` | `createMisses`: record a bug that escaped, link it to the packets that let it through (`blame`), close it with a rule whose check, replayed, catches it where it escaped |
@@ -36,9 +37,10 @@ uses:
 | `engine/range.js` | `createRange`: verify a range of commits (a pull request): each commit judged by the policy at its base, then the net change as one change, with the test guard run on the whole pull request |
 | `engine/rerun.js` | `createRerun`: re-run checks on a commit's exact code in a clean checkout, the checks `verify.require_ci` lists, what a re-run says about each recorded proof, and recording a CI test step (`ci-run`) |
 | `engine/verify.js` | `createVerify`: verify one commit: the policy that judges it, its packets and their proofs, the test guard for changes to existing tests, and the findings that decide the result |
+| `engine/run.js` | `createRun`: run one check in a directory, the runner's identity and lockfile hash, signing, index flags that would hide edits, and the test guard's mechanical check with its result cache |
 | `engine/shared.js` | Definitions several parts use (`PocpError`, `STAGES`, `SEVERITIES`, the run memo, CI-result and protected-file helpers), so none of them imports the facade |
 
-The rest of the engine is still inside `createPocp`.
+`createPocp` builds the context, calls each factory in order, and returns the engine's API.
 
 Rules for a part:
 - **It gets its dependencies as arguments.** A factory's parameter list is exactly what it uses from the rest of the engine. Live readers (`config()`, `rules()`) are passed as functions, never as snapshots, and the options object is passed whole, so calls on it keep their receiver.
