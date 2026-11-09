@@ -165,3 +165,20 @@ test('deleting an enrolled policy is still a loosening, not an adoption', () => 
   const v = pocp(dir, ['verify', `${base}..HEAD`, '--json']);
   assert.notEqual(v.code, 0, v.stdout);
 });
+
+test('fast mode: weakening a shared assertion helper that has its own unit test is held for a person', () => {
+  const dir = project();
+  // The tests assert through a shared helper, and the helper has an ordinary unit test of its own.
+  write(dir, 'support/assertions.mjs', "import assert from 'node:assert/strict';\nexport const equal = (a, b) => assert.equal(a, b);\n");
+  write(dir, 'test/assertions.test.mjs', "import { equal } from '../support/assertions.mjs';\nequal(1, 1);\n");
+  write(dir, 'test/math.check.mjs', "import { add } from '../src/math.js';\nimport { equal } from '../support/assertions.mjs';\nequal(add(2, 3), 5);\nconsole.log('math ok');\n");
+  git(dir, 'add', '-A');
+  git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-qm', 'assert through a shared helper');
+  // Break the code and make the helper a no-op; neither test file changes.
+  const v = pullRequest(dir, (d) => {
+    write(d, 'src/math.js', 'export const add = (a, b) => a - b;\n');
+    write(d, 'support/assertions.mjs', 'export const equal = () => {};\n');
+  });
+  assert.notEqual(v.code, 0, v.stdout + v.stderr);
+  assert.ok(findings(v).includes('test_change'), JSON.stringify(findings(v)));
+});
