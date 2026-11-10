@@ -22,6 +22,10 @@ permissions:
   statuses: write
 jobs:
   report:
+    # Skipped (no Actions minutes) for events that can't change the status: a label other than
+    # pocp-approve-*, or an edit that doesn't change the base. Pushes, retargets, approval labels
+    # and finished verify runs always report.
+    if: github.event_name != 'pull_request_target' || ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && (github.event.action != 'edited' || github.event.changes.base)
     # One at a time per head, none cancelled: each recomputes from scratch, so the last one wins.
     concurrency:
       group: pocp-status-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}

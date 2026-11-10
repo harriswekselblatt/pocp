@@ -440,3 +440,16 @@ test('carry-over facts come from GitHub: the merge parents, both file lists and 
   assert.equal(capped.carry.complete, false);
   assert.equal(decideStatus(capped).state, 'pending');
 });
+
+test('a label other than an approval, added while deciding, does not hold the status at pending', async () => {
+  const posted = [];
+  let prReads = 0;
+  const gh = {
+    // The second read of the pull request (right before writing) shows a new "bug" label.
+    get: async (url) => (url.includes('/actions/workflows/') ? WF : (prReads++ ? { ...apiPr(), labels: [{ name: 'bug' }] } : apiPr())),
+    all: async (url) => (url.includes('/pulls?state=open') ? openPrs : url.includes('/files') ? [{ filename: 'src/a.js' }] : url.includes('/runs?') ? [{ ...run(), repository: { full_name: 'o/r' } }] : url.includes('/jobs') ? [{ name: 'verify', ...job() }] : []),
+    post: async (url, body) => posted.push({ url, body }),
+  };
+  await reportStatus(gh, { repository: 'o/r', sha: SHA, prNumber: 7, baseConfig: null });
+  assert.equal(posted[0].body.state, 'success');
+});

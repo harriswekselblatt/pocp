@@ -521,10 +521,13 @@ export async function reportStatus(gh, { repository, sha, prNumber, baseConfig, 
   if (facts.pr) {
     const now = await gh.get(`/repos/${repository}/pulls/${facts.pr.number}`);
     if (now.head?.sha !== decision.sha || now.state !== 'open') return { decision: { write: false, reason: `pull request #${facts.pr.number} changed while deciding` }, written: false };
-    const labelsNow = (now.labels || []).map((l) => l.name).sort().join('\n');
+    // Only approval labels decide anything; another label changing doesn't make this stale (and
+    // the workflow skips the reporter for such label events, so nothing would correct it).
+    const approvalLabels = new Set([APPROVE_WORKFLOW_LABEL, ...Object.values(APPROVAL_MARKERS)]);
+    const labelsNow = (now.labels || []).map((l) => l.name).filter((l) => approvalLabels.has(l)).sort().join('\n');
     const changed = [];
     if ((now.base?.sha || null) !== facts.base_sha) changed.push('its base moved');
-    if (labelsNow !== [...facts.pr.labels].sort().join('\n')) changed.push('its labels changed');
+    if (labelsNow !== facts.pr.labels.filter((l) => approvalLabels.has(l)).sort().join('\n')) changed.push('its approval labels changed');
     if (decision.state === 'success' && !changed.length) {
       const open = await listAll(gh, `/repos/${repository}/pulls?state=open&per_page=100`);
       const sharing = open.items.filter((p) => p.head?.sha === decision.sha).map((p) => p.number);

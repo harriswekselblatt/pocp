@@ -27,7 +27,8 @@
 #   required check. Every label event runs verify (a job skipped by a label filter would show
 #   as a skipped check, and GitHub counts a skipped required check as passing).
 # - 'true': the "pocp" status is the required check. Waiting and inconclusive pass the job
-#   (no red, no failure email), and label events other than pocp-approve-* are ignored.
+#   (no red, no failure email), and label events other than pocp-approve-* are ignored, as are
+#   edits that don't change the base (a title or description edit): they can't change the result.
 name: pocp
 on:
   pull_request:
@@ -36,11 +37,11 @@ permissions:
   contents: read
 jobs:
   verify:
-    if: vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')
+    if: vars.POCP_STATUS_LIVE != 'true' || ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && (github.event.action != 'edited' || github.event.changes.base)
     # One run per pull request state: a newer push or approval cancels the older run. An
     # ignored label event gets a group of its own, so it can't cancel or replace a real run.
     concurrency:
-      group: ${{ (vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && format('pocp-verify-{0}', github.event.pull_request.number) || format('pocp-ignored-{0}', github.run_id) }}
+      group: ${{ (vars.POCP_STATUS_LIVE != 'true' || ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && (github.event.action != 'edited' || github.event.changes.base)) && format('pocp-verify-{0}', github.event.pull_request.number) || format('pocp-ignored-{0}', github.run_id) }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     # A verify re-runs each commit's checks (about 4 minutes for this repo's test suite today).

@@ -22,6 +22,8 @@ function fakeGh(dir, { required = null, reporter = true, variableExists = false 
 echo "ARGS $*" >> ${log}
 if [ "$1" = repo ]; then echo owner/name; exit 0; fi
 case "$*" in
+  "label list"*) printf 'bug\npocp-approve-tests\n'; exit 0 ;;
+  "label create"*) exit 0 ;;
   *contents/.github/workflows/pocp-status.yml*) ${reporter ? 'echo .github/workflows/pocp-status.yml; exit 0' : 'echo "gh: Not Found (HTTP 404)" >&2; exit 1'} ;;
   *"-X PATCH"*variables/POCP_STATUS_LIVE*) ${variableExists ? 'exit 0' : 'echo "gh: Not Found (HTTP 404)" >&2; exit 1'} ;;
   *"-X POST"*variables*) exit 0 ;;
@@ -122,7 +124,9 @@ test('init --github leaves GitHub alone with --no-live, without a GitHub remote,
   git(opted, 'remote', 'add', 'origin', 'git@github.com:owner/name.git');
   const gh2 = fakeGh(opted);
   assert.equal(pocp(opted, ['init', '--github', '--no-live'], { env: { POCP_GH: gh2.bin } }).code, 0);
-  assert.equal(gh2.log(), '');
+  // --no-live leaves the status off; the approval labels are still created.
+  assert.equal(setsVariable(gh2.log()), false);
+  assert.match(gh2.log(), /ARGS label create pocp-approve-policy/);
 
   const verify = sampleRepo();
   fs.rmSync(path.join(verify, '.proof'), { recursive: true, force: true });
@@ -141,4 +145,17 @@ test('doctor accepts the pocp status in place of the verify job when the reporte
   const checks = pocp(dir, ['doctor', '--offline', '--json']).json.checks;
   const req = checks.find((c) => c.id === 'required-checks');
   assert.equal(req.status, 'ok', JSON.stringify(req));
+});
+
+test('init --github creates the missing approval labels and leaves existing ones alone', () => {
+  const dir = sampleRepo();
+  fs.rmSync(path.join(dir, '.proof'), { recursive: true, force: true });
+  git(dir, 'remote', 'add', 'origin', 'https://github.com/owner/name.git');
+  const gh = fakeGh(dir, { reporter: false });
+  const r = pocp(dir, ['init', '--github', '--json'], { env: { POCP_GH: gh.bin } });
+  assert.equal(r.code, 0, r.stdout + r.stderr);
+  assert.deepEqual(r.json.labels.existing, ['pocp-approve-tests']);
+  assert.deepEqual(r.json.labels.created.sort(), ['pocp-approve-coverage', 'pocp-approve-inconclusive', 'pocp-approve-policy', 'pocp-approve-workflow']);
+  assert.doesNotMatch(gh.log(), /label create pocp-approve-tests/);
+  assert.match(pocp(dir, ['init', '--github'], { env: { POCP_GH: gh.bin } }).stdout, /approval labels/);
 });

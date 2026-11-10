@@ -140,3 +140,15 @@ esac
     assert.match(wf, /LIVE: \$\{\{ vars\.POCP_STATUS_LIVE == 'true' && github\.event\.action == 'synchronize' && 'true' \|\| 'false' \}\}/, file);
   }
 });
+
+test('events that cannot change the result are skipped, so they use no Actions minutes', () => {
+  for (const dir of ['.github/workflows', 'examples/github']) {
+    const verify = read(`${dir}/pocp.yml`);
+    // Live: an edit that doesn't change the base is ignored like a non-approval label.
+    assert.match(verify, /\n {4}if: vars\.POCP_STATUS_LIVE != 'true' \|\| .*\(github\.event\.action != 'edited' \|\| github\.event\.changes\.base\)\n/, dir);
+    const status = read(`${dir}/pocp-status.yml`);
+    assert.match(status, /\n {4}if: github\.event_name != 'pull_request_target' \|\| .*startsWith\(github\.event\.label\.name, 'pocp-approve-'\).*\(github\.event\.action != 'edited' \|\| github\.event\.changes\.base\)\n/, dir);
+    const labels = read(`${dir}/pocp-labels.yml`);
+    assert.match(labels, /\n {4}if: contains\(toJSON\(github\.event\.pull_request\.labels\.\*\.name\), '"pocp-approve-'\)\n/, dir);
+  }
+});

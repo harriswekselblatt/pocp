@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **`pocp init --github` creates the approval labels** on GitHub through your `gh` login,
+  leaving existing ones alone. Before, `pocp doctor` printed the commands to run by hand.
+- **Fewer workflow runs.** The status and label workflows, and verify with the `pocp` status
+  live, skip events that can't change the result: labels other than `pocp-approve-*`, and pull
+  request edits that don't change the base. Skipped jobs use no Actions minutes. Update with
+  `pocp init --github --force`.
+
 ## 1.2.0 (2026-11-09)
 
 ### Changed

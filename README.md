@@ -15,7 +15,7 @@ npm install --save-dev proof-of-change
 npx pocp init --hooks --github
 ```
 
-`init` creates `.proof/`, installs git hooks (yours keep running) and, with `--github`, writes the workflows. Then:
+`init` creates `.proof/`, installs git hooks (yours keep running) and, with `--github`, writes the workflows and creates the approval labels. Then:
 
 1. **Say what must be proven.** A rule in `.proof/rules.json` maps files to a check, which is any command (`npm test`, `pytest`, `go test ./...`):
 
@@ -34,6 +34,8 @@ npx pocp init --hooks --github
 ```bash
 npx pocp verify origin/main..HEAD --require-coverage --rerun
 ```
+
+**Private repositories pay for CI in GitHub Actions minutes.** POCP's `verify` re-runs your tests, so each pull request costs about one extra test run, plus about a minute for each push or approval. On a free plan, check you have minutes to spare. Without Actions, only the local git hook checks changes.
 
 [docs/QUICKSTART.md](docs/QUICKSTART.md) walks through all of this on a non-JavaScript project.
 

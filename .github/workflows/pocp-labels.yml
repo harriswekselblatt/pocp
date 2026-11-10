@@ -15,6 +15,8 @@ permissions:
   pull-requests: write
 jobs:
   drop-approvals:
+    # Only when the pull request has an approval label to remove (otherwise skipped: no minutes).
+    if: contains(toJSON(github.event.pull_request.labels.*.name), '"pocp-approve-')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
