@@ -233,3 +233,26 @@ export function goLive(root, plan, { protect = false } = {}) {
   else if (!statusRequired) notes.push(`merges are not blocked yet: require the "${STATUS_CHECK}" status${reporter ? '' : ` once ${REPORTER_WORKFLOW} is on ${plan.branch}`} with: pocp ci required --apply`);
   return { ok: true, repo, live: true, reporter, protection, required_status: statusRequired, removed_verify: removedVerify, merges_blocked: statusRequired, notes };
 }
+
+/**
+ * Create the approval labels a maintainer approves changes with, on the repository `gh` is
+ * pointed at. Labels that exist are left alone. `labels` maps each name to what it approves.
+ * Returns { ok, repo, created: [], existing: [], error }.
+ */
+export function createApprovalLabels(labels) {
+  const repoR = gh(['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']);
+  if (!repoR.ok) return { ok: false, created: [], existing: [], error: repoR.error || `gh repo view failed: ${repoR.stderr}` };
+  const repo = repoR.stdout.trim();
+  const listed = gh(['label', 'list', '--repo', repo, '--limit', '500', '--json', 'name', '--jq', '.[].name']);
+  if (!listed.ok) return { ok: false, repo, created: [], existing: [], error: `could not list labels: ${ghMessage(listed)}` };
+  const have = new Set(listed.stdout.split('\n').map((l) => l.trim()).filter(Boolean));
+  const created = [];
+  const existing = [];
+  for (const [name, what] of Object.entries(labels)) {
+    if (have.has(name)) { existing.push(name); continue; }
+    const r = gh(['label', 'create', name, '--repo', repo, '--color', 'FBCA04', '--description', `POCP: a maintainer approves ${what}`]);
+    if (!r.ok) return { ok: false, repo, created, existing, error: `could not create ${name}: ${ghMessage(r)}` };
+    created.push(name);
+  }
+  return { ok: true, repo, created, existing };
+}

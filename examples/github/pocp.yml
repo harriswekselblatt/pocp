@@ -34,11 +34,11 @@ permissions:
   contents: read
 jobs:
   verify:
-    if: vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')
+    if: vars.POCP_STATUS_LIVE != 'true' || ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && (github.event.action != 'edited' || github.event.changes.base)
     # One run per pull request state: a newer push or approval cancels the older run. An ignored
     # label event gets a group of its own, so it can't cancel or replace a real run.
     concurrency:
-      group: ${{ (vars.POCP_STATUS_LIVE != 'true' || (github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && format('pocp-verify-{0}', github.event.pull_request.number) || format('pocp-ignored-{0}', github.run_id) }}
+      group: ${{ (vars.POCP_STATUS_LIVE != 'true' || ((github.event.action != 'labeled' && github.event.action != 'unlabeled') || startsWith(github.event.label.name, 'pocp-approve-')) && (github.event.action != 'edited' || github.event.changes.base)) && format('pocp-verify-{0}', github.event.pull_request.number) || format('pocp-ignored-{0}', github.run_id) }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     # verify re-runs every required check of every commit: allow for your test suite times the

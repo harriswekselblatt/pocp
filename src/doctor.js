@@ -12,7 +12,7 @@ import { APPROVE_INCONCLUSIVE_LABEL, APPROVE_POLICY_LABEL, APPROVE_TESTS_LABEL }
 import { APPROVE_WORKFLOW_LABEL } from './status-report.js';
 
 // Every approval label, and what a maintainer approves with it (for `gh label create`).
-const APPROVAL_LABELS = Object.freeze({
+export const APPROVAL_LABELS = Object.freeze({
   [APPROVE_TESTS_LABEL]: 'a test change',
   [APPROVE_POLICY_LABEL]: 'a policy change',
   'pocp-approve-coverage': 'commits listed in .proof/exceptions.json',
