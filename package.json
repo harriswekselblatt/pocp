@@ -1,6 +1,6 @@
 {
   "name": "proof-of-change",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Proof of Change Protocol: risky changes carry proof that was run, tied to the exact code it tested.",
   "type": "module",
   "bin": { "pocp": "bin/pocp.js" },
