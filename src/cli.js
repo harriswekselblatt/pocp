@@ -82,6 +82,7 @@ export { parseArgs };
 const HELP = `pocp ${VERSION}: Proof of Change Protocol
 
 Usage: pocp <command> [options]   (every command accepts --json)
+       pocp help                   the everyday commands (this full list when not in a terminal)
        pocp help <command>         one command's options (or: pocp <command> --help)
        pocp --version              print the version (also -v, -V, pocp version)
 
@@ -91,11 +92,10 @@ Setup
                                      pinned to this release (--pocp-ref <tag|sha> to pin another)
   doctor [--base <rev>] [--offline]  check an adoption: hooks, policy, Action access, labels,
                                      branch protection, and what the adoption PR carries
-  approvals [--repo <owner/repo>]... [--owner <login>]...
-                                     open PRs, across your repositories, whose verify fails only
-                                     for a maintainer's label, with what each label approves
-  approvals --approve <owner/repo#n> [--label tests|policy]
-                                     for a person at a terminal: show the change, ask, add the label
+  approve [<owner/repo#n>] [--repo <owner/repo>]... [--owner <login>]...  (also: approvals)
+                                     no PR: open PRs, across your repositories, waiting only for a
+                                     maintainer's label, with what each label approves; with a PR,
+                                     for a person at a terminal: show every approval it waits for, ask, add them
   status-report --repo <owner/name> (--sha <head> | --pr <n>) [--workflow <path>] [--dry-run]
                                      the trusted reporter: set the "pocp" commit status on a pull
                                      request's head (runs in a privileged workflow; docs/STATUS.md)
@@ -170,6 +170,32 @@ Host integration: set POCP_HOST=<module.js> (or --host) to add rules and receive
 Exit codes: 0 ok, 1 blocked or failed check, 2 usage/config error, 3 internal error.
 `;
 
+// What a person sees from `pocp help` in a terminal: the six everyday commands. The full list
+// (HELP) is `pocp help advanced`, and is also what `pocp help` prints when its output isn't a
+// terminal: CI workflows read it to learn which verify options this version supports
+// (`pocp help | grep -- --accept-uncovered`), so every verify option stays listed there.
+export const EVERYDAY_HELP = `pocp ${VERSION}: Proof of Change Protocol
+Blocks pull requests that pass by weakening their own tests or rules.
+
+Usage: pocp <command> [options]   (every command accepts --json)
+
+Start here
+  init       set up .proof/, git hooks (--hooks) and the GitHub workflows (--github)
+  doctor     check the setup and print what's missing
+  fix        make a blocked commit committable: run the required checks, record proof
+  status     what's staged, what needs proof, what's proven
+  verify     CI: check base..head against the base branch's rules
+  approve    list PRs waiting for a maintainer, or approve one (pocp approve owner/repo#12)
+
+pocp help <command>    one command's options
+pocp help advanced     every command (packets, hooks, CI, rules, misses, measuring)
+`;
+
+/** The help `pocp help` prints: the everyday commands for a person, everything otherwise. */
+export function helpFor({ advanced = false, tty = Boolean(process.stdout.isTTY) } = {}) {
+  return advanced || !tty ? HELP : EVERYDAY_HELP;
+}
+
 /**
  * The command `ci-run` runs and records. One argument is used as written (a shell command
  * line); several are joined, quoting any that the shell would otherwise split or expand, so
@@ -197,6 +223,10 @@ export async function main(argv = process.argv.slice(2)) {
     out(json, { version: VERSION }, `pocp ${VERSION}`);
     return EXIT.ok;
   }
+  if (cmd === 'help' && (rest[0] === 'advanced' || flags.all)) {
+    process.stdout.write(HELP);
+    return EXIT.ok;
+  }
   if (cmd === 'help' && rest[0] && rest[0] !== 'help') {
     if (!COMMANDS[rest[0]]) {
       const message = `unknown command "${rest[0]}" (try "pocp help")`;
@@ -212,7 +242,7 @@ export async function main(argv = process.argv.slice(2)) {
     return EXIT.ok;
   }
   if (!cmd || cmd === 'help' || flags.help) {
-    process.stdout.write(HELP);
+    process.stdout.write(helpFor());
     // No command at all is a usage error (exit 2); asking for help is not.
     return cmd || flags.help ? EXIT.ok : EXIT.usage;
   }
@@ -222,6 +252,11 @@ export async function main(argv = process.argv.slice(2)) {
 
   try {
     // Commands that need no engine (and, for init, no .proof/ yet).
+    // `approve` is the everyday name for `approvals`: `pocp approve owner/repo#12` approves one.
+    if (cmd === 'approve') {
+      const approveFlags = rest[0] && flags.approve === undefined ? { ...flags, approve: rest[0] } : flags;
+      return await EARLY_COMMANDS.approvals({ cmd: 'approvals', rest: rest.slice(rest[0] && flags.approve === undefined ? 1 : 0), flags: approveFlags, json, obligations });
+    }
     if (EARLY_COMMANDS[cmd]) return await EARLY_COMMANDS[cmd]({ cmd, rest, flags, json, obligations });
 
     // verify --isolate: the pull request's code runs only as separate unprivileged users
