@@ -140,10 +140,14 @@ function latestRuns(repo, sha) {
  */
 export function prStatus(repo, pr) {
   const { done, running } = latestRuns(repo, pr.headRefOid);
-  for (const run of done.filter((x) => x.conclusion === 'failure')) {
+  // A failed run, or (with the pocp status live, docs/STATUS.md) a passing one: a wait for an
+  // approval then passes the verify job, and only verify's own approval marker says so.
+  // Passing runs are read only for the verify job (its name in the workflow POCP writes).
+  for (const run of done.filter((x) => x.conclusion === 'failure' || (x.conclusion === 'success' && /^verify$|pocp/i.test(x.name)))) {
     const anns = ghJson(['api', `repos/${repo}/check-runs/${run.id}/annotations?per_page=100`]);
     const s = readAnnotations(Array.isArray(anns) ? anns : []);
     if (!s) continue;
+    if (run.conclusion === 'success' && (s.inferred || !s.only)) continue;
     const base = { repo, number: pr.number, title: pr.title, url: pr.url, author: pr.author?.login || null, head: pr.headRefOid, draft: Boolean(pr.isDraft), check: run.name, check_url: run.html_url || null, inferred: s.inferred };
     if (!s.only) return { ...base, state: 'blocked', needs: [] };
     const have = new Set((pr.labels || []).map((l) => l.name));
@@ -226,34 +230,37 @@ export async function approvePr({ ref, repo, label, interactive, ask, say }) {
     say(want && !st.needs.some((n) => n.label === want) ? `${r}#${number} does not need ${want}.` : `${r}#${number} already has every label it needs; verify re-runs when a label is added.`);
     return { approved: [], skipped: [] };
   }
-  const approved = [];
-  const skipped = [];
+  // Every approval this pull request waits for, shown together, then one answer for all of
+  // them. The answer covers exactly what was listed: each label is still recorded and checked
+  // on its own, and anything verify reports later needs its own approval.
+  say('');
+  say(`${r}#${number}  ${pr.title}`);
+  say(`  by ${pr.author?.login || 'unknown'} · head ${pr.headRefOid.slice(0, 12)} · ${pr.url}`);
   for (const n of todo) {
     say('');
-    say(`${r}#${number}  ${pr.title}`);
-    say(`  by ${pr.author?.login || 'unknown'} · head ${pr.headRefOid.slice(0, 12)} · ${pr.url}`);
-    say(`  ${n.label} approves ${n.kind === 'tests' ? 'a change to existing tests or test setup' : 'a change to the POCP policy or CI that judges every later change'}:`);
+    say(`  ${n.label} approves ${n.kind === 'tests' ? 'a change to existing tests or test setup' : n.kind === 'inconclusive' ? "a test change whose check didn't finish" : 'a change to the POCP policy or CI that judges every later change'}:`);
     for (const reason of n.reasons) say(`    ${reason}`);
     const d = diffFor(r, number, n.named);
     say(d.whole ? '  the whole diff (the files involved could not be told apart):' : '  the diff being approved:');
     say(d.text.split('\n').map((l) => `    ${l}`).join('\n'));
     if (d.cut) say(`    … cut; the full diff: gh pr diff ${number} --repo ${r}`);
-    const answer = String((await ask(`Add ${n.label} to ${r}#${number}? Type ${number} to approve, anything else to skip: `)) ?? '').trim();
-    if (answer !== String(number)) {
-      say(`  not approved: ${n.label} not added.`);
-      skipped.push(n.label);
-      continue;
-    }
-    // The approval is for the code just shown: refuse if the PR moved while it was read.
-    const now = fetchPr(r, number);
-    if (now.headRefOid !== pr.headRefOid) throw new ApprovalsError(`${r}#${number} got new commits while you were reviewing (${pr.headRefOid.slice(0, 12)} → ${now.headRefOid.slice(0, 12)}); nothing added. Run it again to see the new diff.`);
-    const add = gh(['pr', 'edit', String(number), '--repo', r, '--add-label', n.label]);
-    if (!add.ok) throw new ApprovalsError(`could not add ${n.label}: ${add.message}`);
-    say(`  approved: ${n.label} added to ${r}#${number}. verify runs again on the label.`);
-    approved.push(n.label);
   }
+  const labels = todo.map((n) => n.label);
+  const what = labels.length === 1 ? `Add ${labels[0]}` : `Add all ${labels.length} approvals above (${labels.join(', ')})`;
+  const answer = String((await ask(`${what} to ${r}#${number}? Type ${number} to approve, anything else to skip: `)) ?? '').trim();
+  if (answer !== String(number)) {
+    say(`  not approved: nothing added.`);
+    return { approved: [], skipped: labels };
+  }
+  // The approval is for the code just shown: refuse if the PR moved while it was read.
+  const now = fetchPr(r, number);
+  if (now.headRefOid !== pr.headRefOid) throw new ApprovalsError(`${r}#${number} got new commits while you were reviewing (${pr.headRefOid.slice(0, 12)} → ${now.headRefOid.slice(0, 12)}); nothing added. Run it again to see the new diff.`);
+  const add = gh(['pr', 'edit', String(number), '--repo', r, ...labels.flatMap((l) => ['--add-label', l])]);
+  if (!add.ok) throw new ApprovalsError(`could not add ${labels.join(', ')}: ${add.message}`);
+  say(`  approved: ${labels.join(', ')} added to ${r}#${number}. verify runs again on the labels.`);
+  const approved = labels;
   if (approved.length) say('If new commits arrive before this merges, remove the label and approve again: the label stays on through later pushes.');
-  return { approved, skipped };
+  return { approved, skipped: [] };
 }
 
 export function formatApprovals(r) {

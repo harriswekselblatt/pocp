@@ -4,6 +4,10 @@
 
 ### Changed
 
+- **One answer approves everything a pull request is waiting for.** `pocp approvals --approve`
+  now shows every listed approval together (each with its diff) and adds all of them after one
+  confirmation, in a single label edit. It also finds pull requests waiting for approval when the
+  `pocp` status is live, where the verify job passes on a wait.
 - **A new install no longer shows a red failure while it waits for an approval.** On a GitHub
   repository, `pocp init --github` turns the `pocp` status on (`POCP_STATUS_LIVE`) through the
   user's `gh` login, and writes `pocp` as the required check. `pocp ci required --apply` then
