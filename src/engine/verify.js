@@ -337,7 +337,12 @@ export function createVerify({ opts, root, emit, hostName, hostRequirements, hos
         // The packet claimed a mechanical pass and it doesn't hold here.
         if (!res.passed && job.proof?.passed && !job.attestation && entry) {
           const problem = `test guard re-run failed: ${res.summary}`;
-          const blocking = blocks('rerun_failed');
+          // In block mode the re-run's own verdict decides (test_change or test_inconclusive
+          // below, each with its own approval): this disagreement with the packet's recorded
+          // pass stays visible as a warning, not a second block no approval could clear. In
+          // attest mode it still blocks until attested. Required checks are re-run separately
+          // and still block when they fail.
+          const blocking = commitGuard.mode !== 'block' && blocks('rerun_failed');
           out.findings.push({ code: 'rerun_failed', detail: problem, blocking, packet: entry.id, unfinished: Boolean(res.unfinished) });
           if (blocking) {
             entry.ok = false;

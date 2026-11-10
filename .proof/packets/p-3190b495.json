@@ -1,0 +1,148 @@
+{
+  "pocp": 1,
+  "id": "p-3190b495",
+  "intent": "release 1.2.3",
+  "touches": [
+    "package.json",
+    "src/init.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-10T17:52:17.828Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:1cc328a46796047e5e26b32cbcadaea35102cdbc1cdf50c0be24bd02ae86df2a",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-10T17:52:18.593Z",
+      "duration_ms": 4137,
+      "stdout_sha256": "fe3dec162b94a0fc4d4ec013ec79b3a8911c338990781bb1c1e56202c779abcb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-0ccf7197",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:1cc328a46796047e5e26b32cbcadaea35102cdbc1cdf50c0be24bd02ae86df2a",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-10T17:52:22.839Z",
+      "duration_ms": 57005,
+      "stdout_sha256": "4025f0460958c2a4a68312ddce10ec46a0b5d03b8406b23e5fc972647a4d1de3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-a42017df",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:1cc328a46796047e5e26b32cbcadaea35102cdbc1cdf50c0be24bd02ae86df2a",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-10T17:53:19.955Z",
+      "duration_ms": 272741,
+      "stdout_sha256": "42ca81010be07029fcb304709b4c6084ce3d4d1931c3a81ff1f089e9b085d956",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-52f10fbe",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-10T17:52:17.828Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-10T17:52:17.828Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-10T17:57:52.810Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:1cc328a46796047e5e26b32cbcadaea35102cdbc1cdf50c0be24bd02ae86df2a"
+    }
+  ]
+}

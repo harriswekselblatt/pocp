@@ -1,9 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.2.3 (2026-11-10)
 
 ### Fixed
 
+- **A test change whose CI re-run disagrees with a local pass can be approved again.** When the
+  test-change check passed locally but its CI re-run didn't (for example an inconclusive deep-mode
+  sample), verify added a second blocking finding that no label could clear. In block mode the
+  re-run's own verdict now decides, with its usual approval, and the disagreement stays visible
+  as a warning. A failing required check still blocks, and attest mode is unchanged.
 - **Standalone test files are recognised as tests.** `test.js`, `test-unit.mjs` and the same
   names in other JavaScript/TypeScript extensions (AVA's defaults, also inside packages) are now
   guarded like `*.test.js`, and left out of the planted-bug sample. Before, a change could edit
