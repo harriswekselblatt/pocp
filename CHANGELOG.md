@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Standalone test files are recognised as tests.** `test.js`, `test-unit.mjs` and the same
+  names in other JavaScript/TypeScript extensions (AVA's defaults, also inside packages) are now
+  guarded like `*.test.js`, and left out of the planted-bug sample. Before, a change could edit
+  such a file without the old-tests check seeing it. A source file named `test-*.js` (for
+  example `test-setup.js`) now counts as test setup too: editing it goes to review.
+
 ## 1.2.2 (2026-11-10)
 
 ### Fixed

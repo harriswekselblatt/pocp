@@ -18,6 +18,11 @@ export const DEFAULT_EVAL_EXCLUDE = Object.freeze([
   '**/test-utils/**', '**/test_utils/**', '**/testutils/**', '**/test-helpers/**', '**/test_helpers/**', '**/test-support/**', '**/test_support/**',
   // JavaScript / TypeScript (and anything else named this way): a.test.js, a.spec.ts, a_spec.js, a_test.js.
   '**/*.test.*', '**/*.spec.*', '**/*_spec.*', '**/*_test.*', '**/*.snap',
+  // Standalone Node/AVA tests, also inside packages. Share these with the guard so an
+  // unrecognised test cannot both escape restoration and enter the mutation sample.
+  ...['js', 'mjs', 'cjs', 'ts', 'mts', 'cts', 'jsx', 'tsx'].flatMap((ext) => [
+    `**/test.${ext}`, `**/test-*.${ext}`,
+  ]),
   // Python: test_a.py, a_test.py (above), Django's tests.py.
   '**/test_*.py', '**/tests.py',
   // Ruby: a_spec.rb, a_test.rb (above), test_a.rb.
