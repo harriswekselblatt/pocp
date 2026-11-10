@@ -7,7 +7,9 @@ the protocol; this is the code.
 
 ```
 bin/pocp.js            the executable: runs src/cli.js and turns unexpected errors into exit 3
-src/cli.js, cli-args   commands: parse arguments, call the engine, print text or --json
+src/cli.js, cli-args   parse arguments, help and version, build the engine, dispatch to a command
+src/commands/<name>.js one file per command: run({ cmd, rest, flags, json, obligations, engine })
+src/cli/shared.js      what commands share: text and --json output, error text, building the engine
 src/engine.js          createPocp(): the engine, one instance per repository
 src/engine/            parts of the engine, each built by a factory createPocp calls
 src/*.js               the domain and adapters the engine uses (below)
