@@ -330,6 +330,15 @@ export function carriedOver(facts, label) {
   if (added.length) return no(`the merge adds changes the approval didn't cover: ${added.slice(0, 3).join(', ')}`);
   const policy = [...merged].filter((f) => f.startsWith(POLICY_PREFIX));
   if (policy.length) return no(`the merge changed policy files: ${policy.slice(0, 3).join(', ')}`);
+  // What the base branch changed since the approved head branched off. A merge can keep the
+  // pull request's own version of a file, so the merge's file list never shows that the base
+  // changed it: the base must not have changed the policy (the authority the approval was judged
+  // by) or any file the approval covers (the side the person compared against).
+  if (!Array.isArray(c.base_files)) return no("GitHub's data for the base branch's changes was missing");
+  const basePolicy = c.base_files.filter((f) => f.startsWith(POLICY_PREFIX));
+  if (basePolicy.length) return no(`the base branch changed policy files since the approval: ${basePolicy.slice(0, 3).join(', ')}`);
+  const baseTouched = c.base_files.filter((f) => approved.has(f));
+  if (baseTouched.length) return no(`the base branch changed files the approval covers: ${baseTouched.slice(0, 3).join(', ')}`);
   return { ok: true };
 }
 
@@ -466,7 +475,7 @@ async function gatherCarry(gh, repo, head, workflow) {
   const parents = (commit.parents || []).map((p) => p.sha);
   if (parents.length !== 2) return null;
   const [from, merged] = parents;
-  const carry = { from_sha: from, merged_sha: merged, complete: true, reason: null, merge_files: [], pr_files: [], approved_files: [], runs: [] };
+  const carry = { from_sha: from, merged_sha: merged, complete: true, reason: null, merge_files: [], pr_files: [], approved_files: [], base_files: [], runs: [] };
   const filesOf = async (a, b) => {
     const cmp = await gh.get(`${repo}/compare/${a}...${b}`);
     const files = (cmp.files || []).flatMap((f) => [f.filename, f.previous_filename].filter(Boolean));
@@ -477,6 +486,8 @@ async function gatherCarry(gh, repo, head, workflow) {
   carry.pr_files = await filesOf(merged, head);
   // What the approved head changed against its merge base with the base branch (three dots).
   carry.approved_files = await filesOf(merged, from);
+  // What the base changed since the approved head branched off (three dots: from their merge base).
+  carry.base_files = await filesOf(from, merged);
   const runs = await listAll(gh, `${repo}/actions/workflows/${workflow.id}/runs?head_sha=${from}&per_page=100`, 'workflow_runs', 5);
   if (!runs.complete) { carry.complete = false; carry.reason = runs.reason || 'a list was cut short'; }
   for (const r of runs.items.filter((x) => x.event === 'pull_request' && x.path === workflow.path)) {
