@@ -355,7 +355,7 @@ const carryFacts = ({ label = 'pocp-approve-tests', carry = {}, events, newRun }
   runs: [newRun || run({ approvals: ['approval-tests', 'approval-policy', 'approval-coverage'].filter((s) => label.endsWith(s.slice(9))) }, { created_at: '2026-11-05T10:00:00Z' })],
   label_events: events || [{ label, actor: 'maintainer', permission: 'write', created_at: '2026-11-04T11:00:00Z' }],
   carry: {
-    from_sha: OLD, merged_sha: BASE, complete: true, merge_files: ['src/other.js'], pr_files: ['test/a.test.js', 'src/a.js'], approved_files: ['test/a.test.js', 'src/a.js'],
+    from_sha: OLD, merged_sha: BASE, complete: true, merge_files: ['src/other.js'], pr_files: ['test/a.test.js', 'src/a.js'], approved_files: ['test/a.test.js', 'src/a.js'], base_files: ['src/other.js'],
     runs: [{ head_sha: OLD, created_at: '2026-11-04T10:00:00Z', job: { steps: [{ name: runMarker(7, 'c'.repeat(40)), conclusion: 'success' }] } }],
     ...carry,
   },
@@ -378,6 +378,11 @@ test('carry-over: the merge touching a pull request file, a policy file, or the 
     // An "evil merge" that keeps the old version of a file the base changed: absent from the
     // merge's own list, but now part of the pull request's change.
     'reverts a base change': { pr_files: ['test/a.test.js', 'src/a.js', 'src/foo.js'] },
+    // The merge keeps the pull request's own (looser) rules.json while the base added a rule to
+    // it: the merge's list doesn't show rules.json, but the base changed the authority.
+    'keeps its policy over a base policy change': { pr_files: ['test/a.test.js', 'src/a.js', '.proof/rules.json'], approved_files: ['test/a.test.js', 'src/a.js', '.proof/rules.json'], base_files: ['src/other.js', '.proof/rules.json'] },
+    'base changed the old side of an approved file': { base_files: ['src/other.js', 'test/a.test.js'] },
+    'base changes unknown': { base_files: undefined },
     'reverts a base policy change': { pr_files: ['test/a.test.js', 'src/a.js', '.proof/rules.json'] },
     incomplete: { complete: false },
     'no run for this pr on the old head': { runs: [{ head_sha: OLD, created_at: '2026-11-04T10:00:00Z', job: { steps: [{ name: runMarker(8, BASE), conclusion: 'success' }] } }] },
@@ -418,6 +423,7 @@ test('carry-over facts come from GitHub: the merge parents, both file lists and 
       if (url.includes(`/compare/${OLD}...${SHA}`)) return { files: compareFiles.merge };
       if (url.includes(`/compare/${BASE}...${SHA}`)) return { files: compareFiles.pr };
       if (url.includes(`/compare/${BASE}...${OLD}`)) return { files: compareFiles.pr };
+      if (url.includes(`/compare/${OLD}...${BASE}`)) return { files: compareFiles.merge };
       if (url.includes('/permission')) return { permission: 'write' };
       throw new Error(`unexpected ${url}`);
     };

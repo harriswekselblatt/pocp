@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.2 (2026-11-10)
+
+### Fixed
+
+- **A kept approval no longer covers changes the base branch made after it was given.** With
+  the `pocp` status live, an approval kept across "Update branch" now needs the base branch to
+  have changed nothing under `.proof/` and none of the files the approval covers since the
+  approved head branched off. Before, a merge that kept the pull request's own copy of a policy
+  file let a policy approval also cover a rule added on the base branch. Upgrading is
+  recommended if you use the `pocp` status.
+
 ## 1.2.1 (2026-11-10)
 
 ### Changed
