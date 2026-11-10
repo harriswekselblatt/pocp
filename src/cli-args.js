@@ -49,7 +49,7 @@ const SHORT = { '-h': 'help', '-v': 'version', '-V': 'version' };
  * obligation kinds it reads (no modifiers).
  */
 export const COMMANDS = {
-  help: { summary: 'show help for pocp or one command', usage: ['help [<command>]'], flags: {} },
+  help: { summary: 'show help for pocp or one command', usage: ['help [<command> | advanced]'], flags: { all: bool('every command, not only the everyday ones') } },
   version: { summary: 'print the version', usage: ['version'], flags: {} },
   init: {
     summary: 'create .proof/, and optionally the git hooks and GitHub workflows',
@@ -76,6 +76,17 @@ export const COMMANDS = {
       repo: rep('owner/repo', 'repository to scan (repeatable)'),
       owner: rep('login', "scan this owner's repositories (repeatable)"),
       approve: str('owner/repo#n', 'show the change, ask, and add the label (interactive)'),
+      label: str('tests|policy', 'which approval label to add'),
+    },
+  },
+  // The everyday name for approvals: `pocp approve` lists, `pocp approve owner/repo#12` approves.
+  approve: {
+    summary: "list PRs waiting for a maintainer's label, or approve one (alias: approvals)",
+    usage: ['approve [--repo <owner/repo>]... [--owner <login>]...', 'approve <owner/repo#n> [--label tests|policy]'],
+    flags: {
+      repo: rep('owner/repo', 'repository to scan (repeatable)'),
+      owner: rep('login', "scan this owner's repositories (repeatable)"),
+      approve: str('owner/repo#n', 'the pull request to approve (or give it as the first argument)'),
       label: str('tests|policy', 'which approval label to add'),
     },
   },

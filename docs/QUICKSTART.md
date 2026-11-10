@@ -99,8 +99,8 @@ base branch's rules, so any other change would get two verdicts). It changes not
 When pull requests wait for a maintainer's approval, find and give them in one place:
 
 ```bash
-pocp approvals                          # every open PR, across your repos, waiting only for a label
-pocp approvals --approve owner/repo#12  # shows every approval it waits for, asks you once, then adds them
+pocp approve                            # every open PR, across your repos, waiting only for a label
+pocp approve owner/repo#12              # shows every approval it waits for, asks you once, then adds them
 ```
 
 `--approve` is for a person at a terminal: it asks you to type the PR number before adding the

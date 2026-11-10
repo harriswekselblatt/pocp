@@ -4,6 +4,12 @@
 
 ### Changed
 
+- **`pocp help` shows six everyday commands** (`init`, `doctor`, `fix`, `status`, `verify`,
+  `approve`) when run in a terminal; `pocp help advanced` (or `--all`) lists every command.
+  When its output isn't a terminal, `pocp help` still prints the full list, so workflows that
+  read it to detect verify options keep working. `pocp approve` is the everyday name for
+  `pocp approvals`, and `pocp approve owner/repo#12` approves one pull request; `approvals`
+  keeps working. Every command keeps working by name.
 - **One answer approves everything a pull request is waiting for.** `pocp approvals --approve`
   now shows every listed approval together (each with its diff) and adds all of them after one
   confirmation, in a single label edit. It also finds pull requests waiting for approval when the
