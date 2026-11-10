@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 (2026-11-09)
 
 ### Changed
 
@@ -29,21 +29,10 @@
 
 ### Fixed
 
-- **A bug fix plus a new test for it is no longer read as a test-setup change.** A module that no
-  rule's globs cover, but that a test imports, counted as test support. When the module's own
-  test (`light.test.js` for `light.js`) gained an assertion alongside a fix, the guard put the
-  module back to its old version for the "old tests on the new code" run. That run then tested
-  the new test against the old module and reported a behavior change that wasn't there. A module
-  that a test named after it imports is now the code under test, unless it is explicitly test
-  support (see below). Only tests that exist before the change count, so a change can't make a
-  helper look like code by adding one.
-- **An assertion helper with its own unit test is still test support.** The fix above let a
-  module with a test named after it lose its test-support classification even when it was
-  explicitly support: test-framework or assertion imports, or a test-support path. So a change
-  could make a shared assertion helper a no-op, break the code its callers check, and pass
-  `verify --rerun` in fast mode with no test file edited and no approval, as long as the helper
-  already had an ordinary unit test. Such a helper now stays test support, and changing it needs
-  the guard's check or a person's approval again.
+- **A bug fix that adds an assertion to the module's own test is no longer held as a test-setup
+  change.** A module that a test named after it imports is now treated as the code under test.
+- **An assertion helper with its own unit test stays test support,** so changing it still needs
+  the guard's check or a maintainer's approval. Upgrading is recommended.
 
 ## 1.1.2 (2026-11-09)
 
