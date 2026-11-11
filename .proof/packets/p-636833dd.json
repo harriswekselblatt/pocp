@@ -1,0 +1,75 @@
+{
+  "pocp": 1,
+  "id": "p-636833dd",
+  "intent": "Publish the preregistered POCP 1.2.3 evaluation report under eval/campaign-123 and update README/RESULTS",
+  "touches": [
+    "eval/README.md",
+    "eval/campaign-123/PREREGISTRATION.md",
+    "eval/campaign-123/README.md",
+    "eval/campaign-123/REPORT.md",
+    "eval/campaign-123/SHA256SUMS",
+    "eval/campaign-123/report.json"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-11T19:27:18.216Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:fe7edd6aec4518de10a72d8e4781a7b34b9b7407b1944786e0a429cf163097a7",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-11T19:27:18.677Z",
+      "duration_ms": 39891,
+      "stdout_sha256": "788f993ef1d96ca08ff16d2a011a47642c884f55f6c2feec853f5d6233aba6dd",
+      "stderr_sha256": "97588a33fc438158384afd2882069bd9d1ce0a2f72f62d8321ef15420dfe58cc",
+      "run_id": "r-fe1a1f23",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-11T19:27:18.216Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-11T19:27:18.216Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-11T19:27:58.718Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:fe7edd6aec4518de10a72d8e4781a7b34b9b7407b1944786e0a429cf163097a7"
+    }
+  ]
+}
