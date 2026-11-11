@@ -2,7 +2,7 @@
 
 POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it runs the old tests on the new code and holds risky test edits for a maintainer. It works with any test command and any language, and needs only Node 20 or later, git and a POSIX shell.
 
-It doesn't prove your code is correct, and it's early: no counted evaluation exists yet ([results so far](docs/RESULTS.md)).
+It doesn't prove your code is correct. It has one preregistered evaluation so far ([below](#evaluation)).
 
 ![Terminal demo: an agent breaks add() and edits the test so npm test passes; pocp verify reports that the old test fails on the new code and waits for a maintainer](docs/demo.svg)
 
@@ -39,10 +39,17 @@ npx pocp verify origin/main..HEAD --require-coverage --rerun
 
 [docs/QUICKSTART.md](docs/QUICKSTART.md) walks through all of this on a non-JavaScript project.
 
+## Evaluation
+
+A preregistered benchmark of POCP 1.2.3 across p-map (JS), boltons (Python) and gjson (Go): 180 cases and 1,260 runs, with a sealed holdout ([full report](eval/campaign-123/README.md)).
+
+- **Harmful changes:** plain CI accepted all 48 designed test-cheats. POCP accepted none. In both modes it held every one for a person's review, each with a completed check showing the tested behavior changed.
+- **Honest changes:** deep mode accepts 78–82% of 108 legitimate changes per seed, and 86–88% without the 24 paired controls built to resemble cheating. It sends the rest to review. Fast mode reviews every test edit by design, so it accepts 27%. Reducing that friction is the next piece of work.
+
 ## Documentation
 
 - [How it works](docs/HOW-IT-WORKS.md): what it catches, fast and deep modes, and what it doesn't do.
-- [Results so far](docs/RESULTS.md): benchmarks and pilots, with their limits.
+- [Evaluation of 1.2.3](eval/campaign-123/README.md): the preregistered benchmark. [Earlier results](docs/RESULTS.md): scripted suites and pilots.
 - [Reference](docs/REFERENCE.md): rules, checks, CI options, approvals, signed proofs.
 - [Threat model](docs/THREAT-MODEL.md): what each record does and doesn't prove.
 - [SPEC.md](SPEC.md): the protocol. [Reviewing POCP](docs/REVIEWING.md): a guide for reviewers.
