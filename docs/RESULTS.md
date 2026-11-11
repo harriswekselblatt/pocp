@@ -1,8 +1,8 @@
 # Results so far
 
-None of these is a completed evaluation. The pre-registration ([eval/PREREG.md](../eval/PREREG.md)) is unfinished, and no counted run exists. The plan is in [docs/EVAL-PLAN.md](EVAL-PLAN.md).
+**The main result is the preregistered evaluation of POCP 1.2.3: [eval/campaign-123](../eval/campaign-123/README.md).** POCP accepted none of 48 harmful changes and held each for review. Deep mode accepted 78–82% of honest changes per seed; fast mode accepted 27%. The results below came earlier. None of them is a counted evaluation. They followed the earlier plan ([docs/EVAL-PLAN.md](EVAL-PLAN.md)), whose pre-registration ([eval/PREREG.md](../eval/PREREG.md)) is unfinished.
 
-These results were all measured in deep mode (`guard.mutants: 10`), before fast mode existed. They don't describe fast mode, which hasn't been benchmarked yet.
+These results were all measured in deep mode (`guard.mutants: 10`), before fast mode existed. They don't describe fast mode, which was first benchmarked in the 1.2.3 evaluation.
 
 Scripted test suite ([bench/tamper/RESULTS.md](../bench/tamper/RESULTS.md)): 79 scripted scenarios on POCP's own repository, in deep mode with the other settings at their defaults unless noted.
 - 73 of them plant a bug. Of those, 52 also cheat in a way that makes plain CI pass, and `verify --rerun` blocked all 52.
