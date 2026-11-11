@@ -40,6 +40,7 @@ export async function runGuardCheck({
   checks,
   sourceGlobs = [],
   mutants = 10,
+  additions,
   seed = 1,
   links = [],
   exclude = DEFAULT_EVAL_EXCLUDE,
@@ -431,10 +432,11 @@ export async function runGuardCheck({
       return finishUnfinished(`the old tests fail on the new code, and on the base the same checks didn't finish normally (${failedList(result.baseline.runs.filter((r) => !ranAndFailed(r)), checks)}), so it can't be told whether they were already failing: a person must approve it`);
     }
     if (mutants === 0) {
-      // Fast mode: no planted bugs, so no test change passes on its own; the review names
+      // Fast mode: no planted bugs. A test change passes on its own only with guard.additions
+      // "accept" and only when it adds whole new tests (additions.js); otherwise the review names
       // what changed and flags risky added lines for the person (guard.js).
       result.detection = { result: 'off', budget: 0, seed };
-      const reasons = structuralReview(root, { base, rev, changes });
+      const reasons = structuralReview(root, { base, rev, changes, additions });
       result.structural = { result: reasons.length ? 'needs-review' : 'passed', reasons };
       const oldPass = result.old_tests.scope === 'changed-tests'
         ? `the old versions of the edited tests (${result.old_tests.changed_tests.files.join(', ')}) pass on the new code`
@@ -443,7 +445,7 @@ export async function runGuardCheck({
         const shown = reasons.slice(0, 3).map((r) => `${r.file}: ${r.why}`).join('; ') + (reasons.length > 3 ? `; and ${reasons.length - 3} more` : '');
         return finish('needs-review', `${oldPass}; a person must review the test change (${shown}): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)`);
       }
-      return finish('passed', `${oldPass}, and the change only adds lines to existing tests, none of which matches the risky patterns (skips, exits, early returns, patched assertions, mocks, exit-code resets, test hooks, globals, empty catch); guard.mutants is 0: no planted bugs`);
+      return finish('passed', `${oldPass}, and the change only adds whole new tests, functions, imports or literal constants: nothing existing changed, nothing added runs outside a test, and no added line matches the risky patterns (skips, exits, hooks, mocks, patching, assignments to anything the added code didn't create) (guard.additions "accept"; guard.mutants is 0: no planted bugs)`);
     }
 
     // Part 2: the same seeded sample was planted on both sides (above).

@@ -1,0 +1,325 @@
+{
+  "pocp": 1,
+  "id": "p-f205ea8c",
+  "intent": "Fast mode: accept test edits that only add whole new tests (guard.additions accept), closing the attacks that ended the old add-only rule",
+  "touches": [
+    "src/additions.js",
+    "src/commands/init.js",
+    "src/engine/run.js",
+    "src/guard-check.js",
+    "src/guard.js",
+    "src/init.js",
+    "src/obligations.js",
+    "src/schema.js",
+    "src/store.js",
+    "test/e2e-guard-changed-tests.test.js",
+    "test/e2e-guard-fast-mode.test.js",
+    "test/e2e-verify-one-commit.test.js",
+    "test/guard-additions.test.js",
+    "test/helpers.js",
+    "test/init-layout.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:unit-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "test",
+      "run": "node --test test/engine.test.js",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:engine-tests"
+    },
+    {
+      "id": "o3",
+      "kind": "test",
+      "run": "npm test --silent",
+      "changed_test_command": [
+        "node",
+        "--test",
+        "{tests}"
+      ],
+      "source": "rule:test-suite"
+    },
+    {
+      "id": "o4",
+      "kind": "guard",
+      "files": [
+        "test/e2e-guard-changed-tests.test.js",
+        "test/e2e-guard-fast-mode.test.js",
+        "test/e2e-verify-one-commit.test.js",
+        "test/guard-additions.test.js",
+        "test/helpers.js",
+        "test/init-layout.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (test/e2e-guard-changed-tests.test.js, test/e2e-guard-fast-mode.test.js, test/e2e-verify-one-commit.test.js, test/guard-additions.test.js, test/helpers.js, test/init-layout.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "policy_repo": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+  "opened_at": "2026-11-11T22:37:08.721Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:5967a946f0ddf4c6e5ad3399fafadaae5c77757660b74776bcfe85ec167570ea",
+      "subject": "sha256:bfe3e52ccddb764bb2c23f09989fdd5f5e6d00f8beebf865c8cb01eddf267074",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-11T22:37:09.235Z",
+      "duration_ms": 2826,
+      "stdout_sha256": "5831e1d83b27a95791ff14ca1e5b82fe5225f328dfb3897d2169541cfa747834",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-372b037a",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:e59d33e941b1aa74e5a0136c30340922f53ef1a078123d86e9b0d6ab371792fe",
+      "subject": "sha256:bfe3e52ccddb764bb2c23f09989fdd5f5e6d00f8beebf865c8cb01eddf267074",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "node --test test/engine.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-11T22:37:12.145Z",
+      "duration_ms": 52973,
+      "stdout_sha256": "27e2dc9cc04c828218c784196e956c3b7424ad34732ddbfc39451030685d3916",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-b23f2127",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o3",
+      "obligation_digest": "sha256:833c3f8956df8546b3bad916f2ee81c237a97edf32649a3063d08a8bd748bcc5",
+      "subject": "sha256:bfe3e52ccddb764bb2c23f09989fdd5f5e6d00f8beebf865c8cb01eddf267074",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-11T22:38:05.231Z",
+      "duration_ms": 370729,
+      "stdout_sha256": "437f044bfdf386ba4deac3dbe10d8a376166438bfdd1fef21914b91ebc252f46",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-9cee4711",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:befe29e8bfba60b82f0caac5f7bc016295c01ba19778200c8e95f1979fc88181",
+      "subject": "sha256:bfe3e52ccddb764bb2c23f09989fdd5f5e6d00f8beebf865c8cb01eddf267074",
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-11T22:44:16.279Z",
+      "duration_ms": 783462,
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "behavior-changed",
+        "passed": false,
+        "summary": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: the library and the CLI decide a pull request the same way; an added test case runs only the old version of the edited file, which passes (fast mode: a person still reviews it); a rule without changed_test_command runs the whole check; a command that runs no tests is not a pass: the whole check decides; fast: an honest added test still goes to a person (no planted bugs to show it is safe); an added test case, no packet: verified as one commit and as two, the test check running once from the rules; coverage still applies: no packet is uncovered either way, and the test check still runs; a commit linked to a malformed packet still blocks, either way, and the test check still runs from the rules; a commit with a valid packet keeps its own path: no extra rules check, same verdict as two commits; golden: test-edit-fast: behavior changed, so a person must approve it",
+        "base": "ebe6af8ad08574185f336fc4cadd2ba27db847c1",
+        "checks": [
+          {
+            "id": "unit-tests",
+            "run": "node --test test/unit.test.js test/unit-more.test.js test/git.test.js"
+          },
+          {
+            "id": "engine-tests",
+            "run": "node --test test/engine.test.js"
+          },
+          {
+            "id": "test-suite",
+            "run": "npm test --silent"
+          }
+        ],
+        "old_tests": {
+          "result": "fail",
+          "restored": [
+            "test/e2e-guard-changed-tests.test.js",
+            "test/e2e-guard-fast-mode.test.js",
+            "test/e2e-verify-one-commit.test.js",
+            "-test/guard-additions.test.js",
+            "test/helpers.js",
+            "test/init-layout.test.js"
+          ],
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 3330
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 77389
+            },
+            {
+              "check": "test-suite",
+              "passed": false,
+              "exit": 1,
+              "duration_ms": 400085,
+              "failed_tests": [
+                "the library and the CLI decide a pull request the same way",
+                "an added test case runs only the old version of the edited file, which passes (fast mode: a person still reviews it)",
+                "a rule without changed_test_command runs the whole check",
+                "a command that runs no tests is not a pass: the whole check decides",
+                "fast: an honest added test still goes to a person (no planted bugs to show it is safe)",
+                "an added test case, no packet: verified as one commit and as two, the test check running once from the rules",
+                "coverage still applies: no packet is uncovered either way, and the test check still runs",
+                "a commit linked to a malformed packet still blocks, either way, and the test check still runs from the rules",
+                "a commit with a valid packet keeps its own path: no extra rules check, same verdict as two commits",
+                "golden: test-edit-fast"
+              ]
+            }
+          ],
+          "left_out": [
+            "test/guard-additions.test.js"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "test/guard-additions.test.js is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "unit-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "engine-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            },
+            {
+              "check": "test-suite",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "test-suite",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 300293
+            }
+          ]
+        },
+        "detection": {
+          "result": "not-run",
+          "budget": 0,
+          "seed": 1
+        },
+        "duration_ms": 783462,
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-11T22:37:08.721Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-11T22:37:08.721Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2",
+        "o3",
+        "o4"
+      ],
+      "policy": "sha256:e6581e6fa1a9c0a664064a66fbe6f4c49999652f6059b0557f6860d0f46ce2c3"
+    },
+    {
+      "at": "2026-11-11T22:57:19.960Z",
+      "event": "proof_failed",
+      "obligation": "o4",
+      "subject": "sha256:bfe3e52ccddb764bb2c23f09989fdd5f5e6d00f8beebf865c8cb01eddf267074"
+    },
+    {
+      "at": "2026-11-11T22:57:20.361Z",
+      "event": "deferred",
+      "obligation": "o4",
+      "by": "harriswekselblatt",
+      "subject": "sha256:bfe3e52ccddb764bb2c23f09989fdd5f5e6d00f8beebf865c8cb01eddf267074"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o4",
+      "obligation_digest": "sha256:befe29e8bfba60b82f0caac5f7bc016295c01ba19778200c8e95f1979fc88181",
+      "subject": "sha256:bfe3e52ccddb764bb2c23f09989fdd5f5e6d00f8beebf865c8cb01eddf267074",
+      "by": "harriswekselblatt",
+      "at": "2026-11-11T22:57:20.361Z",
+      "to": "ci-approval",
+      "reason": "the old tests fail on the new code (\"npm test --silent\" exit 1); failing: the library and the CLI decide a pull request the same way; an added test case runs only the old version of the edited file, which passes (fast mode: a person still reviews it); a rule without changed_test_command runs the whole check; a command that runs no tests is not a pass: the whole check decides; fast: an honest added test still goes to a person (no planted bugs to show it is safe); an added test case, no packet: verified as one commit and as two, the test check running once from the rules; coverage still applies: no packet is uncovered either way, and the test check still runs; a commit linked to a malformed packet still blocks, either way, and the test check still runs from the rules; a commit with a valid packet keeps its own path: no extra rules check, same verdict as two commits; golden: test-edit-fast: behavior changed, so a person must approve it"
+    }
+  ]
+}

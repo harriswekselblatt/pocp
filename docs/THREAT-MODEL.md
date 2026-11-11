@@ -13,7 +13,7 @@ environment.
 | The set of required checks | Rules re-derived on every gate and verify; requirements matched against the changed files a packet covers (§6, §7) |
 | The rules themselves | Policy files need a packet; CI judges each commit by the **base** branch's rules and fails any loosening without approval (§7.2) |
 | The trust root for signatures | `allowed_signers` read from the base (or a pinned file), never from the commit under review (§7.2) |
-| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code. Fast mode (`guard.mutants: 0`): every test change, new test files included, goes to a person. Deep mode: the new tests must catch every sampled mutant the old ones caught. Otherwise a sign-off, or approval in block mode (§6.2). In CI the whole pull request is also judged as one change, merges included (§7.2) |
+| Existing tests and test setup | Test guard: changes need a packet; the old tests must pass on the new code. Fast mode (`guard.mutants: 0`): every test change goes to a person, except, with `guard.additions: "accept"`, one that only adds whole new tests (§6.2). Deep mode: the new tests must catch every sampled mutant the old ones caught. Otherwise a sign-off, or approval in block mode (§6.2). In CI the whole pull request is also judged as one change, merges included (§7.2) |
 | Lessons from escapes | Misses close only through a runnable rule; replay shows it catches the old code (§8) |
 
 ## Who it defends against
@@ -335,13 +335,20 @@ other than the author can review.
   records that verify. Protect them as you would release credentials.
 - **Heuristic signals.** The test guard's "assertions removed / skips added" counts are
   hints for the reviewer, not a parser of every test framework.
-- **Limits of fast mode** (`guard.mutants: 0`). No test edit passes on its own: every
-  guarded change, new test files and lines added to existing tests included, goes to a
-  person. (Earlier versions passed edits that only added lines matching none of a list of
-  risky patterns; added lines can disable existing assertions in ways no text rule sees, so
-  that path was removed.) The risky-pattern matches are now only hints for the reviewer. Fast
-  mode is therefore as strong as the review it asks for, and trades the planted-bug check for
-  more reviews.
+- **Limits of fast mode** (`guard.mutants: 0`). Without planted bugs, a test edit passes
+  on its own only with `guard.additions: "accept"`, and only when it adds whole new
+  declarations to a JavaScript/TypeScript, Python or Go test file (SPEC §6.2). Earlier
+  versions passed any edit that added lines matching none of a list of risky patterns, and
+  that was removed: added lines can wrap existing assertions in `if (false)`, comment them
+  out, return before them, redefine or shadow what they use, or take over the rest of a
+  Python test's body. The current rule closes those specific paths structurally (blocks must
+  be self-contained, top level declarations only, no reused names, no assignments to anything
+  the added code didn't create), and the test suite carries each of them as a regression. It
+  remains a text rule: an added test can still change state shared with later tests through
+  a function call (`registry.register(fake)`, `config.set(...)`), or import an existing module
+  for its side effects, and no text rule judges that. Every other edit goes to a person, so
+  for those fast mode is as strong as the review it asks for. Deep mode is the mechanical
+  check. A config without `guard.additions` reviews every test edit, as before.
 - **Limits of `changed_test_command`** (docs/REFERENCE.md). When a rule sets it, fast mode
   runs only the old versions of the edited test files (and, when they fail, the same files on
   the base, which can only send the change to a person). A test that passes alone but fails

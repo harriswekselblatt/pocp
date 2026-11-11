@@ -95,7 +95,8 @@ function normalizeGuard(spec, { id, source }) {
   }
   if (!Number.isInteger(spec.mutants) || spec.mutants < 0) throw new ValidationError('guard obligation needs "mutants" (a whole number, 0 or more)');
   if (!Number.isInteger(spec.seed)) throw new ValidationError('guard obligation needs a whole-number "seed"');
-  const ob = { id: spec.id || id, kind: GUARD_KIND, files: [...new Set(spec.files)].sort(), mutants: spec.mutants, seed: spec.seed };
+  if (spec.additions !== undefined && !(spec.additions === 'accept' && spec.mutants === 0)) throw new ValidationError('guard obligation "additions" can only be "accept", with 0 mutants');
+  const ob = { id: spec.id || id, kind: GUARD_KIND, files: [...new Set(spec.files)].sort(), mutants: spec.mutants, seed: spec.seed, ...(spec.additions ? { additions: spec.additions } : {}) };
   if (typeof spec.text === 'string' && spec.text.trim()) ob.text = spec.text.trim();
   ob.source = src;
   return ob;
@@ -104,7 +105,7 @@ function normalizeGuard(spec, { id, source }) {
 /** Digest over the fields that define what an obligation checks. */
 export function obligationDigest(ob) {
   // The text only describes the check; the files, budget and seed define it.
-  if (isGuard(ob)) return digestJson({ kind: ob.kind, files: ob.files, mutants: ob.mutants, seed: ob.seed });
+  if (isGuard(ob)) return digestJson({ kind: ob.kind, files: ob.files, mutants: ob.mutants, seed: ob.seed, ...(ob.additions ? { additions: ob.additions } : {}) });
   if (isRunnable(ob)) {
     const fields = {
       kind: ob.kind,

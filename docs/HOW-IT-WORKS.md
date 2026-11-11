@@ -34,10 +34,17 @@ In CI, `pocp verify origin/main..HEAD --require-coverage --rerun` (the base bran
 
 Both modes first run the old versions of the edited tests on the new code. If they run to the end and fail, but pass on the base, behavior changed, and a person approves it. If they don't finish (a timeout, for example, under load), the result is inconclusive rather than a behavior change, and it still needs a re-run or a person.
 
-- **Fast** (`guard.mutants: 0`, what `pocp init` sets up). No test edit passes on its own: every change to tests or test setup goes to a person, including added lines and new test files. Text rules can't tell whether an edit still tests what it did (added lines alone can disable existing assertions), so fast mode doesn't pretend to. Its review lists what changed and flags added lines that match common risky patterns (skipping or focusing tests, exiting, early returns, patched assertions, mocking APIs, exit-code resets, test hooks, globals, empty `catch`) so the reviewer knows where to look first.
+- **Fast** (`guard.mutants: 0`, what `pocp init` sets up). Text rules can't tell whether an edited test still tests what it did, so almost every change to tests or test setup goes to a person. The exception (`guard.additions: "accept"`, which `pocp init` also writes) is an edit that only adds whole new tests to a JavaScript/TypeScript, Python or Go test file, or adds a new test file of them. It passes without a person only if all of these hold:
+  - nothing existing changed;
+  - each added block closes every bracket, string and comment it opens, so it can't wrap or comment out existing code;
+  - each block's top level holds only declarations (tests, functions, imports, constants with literal values), so nothing runs where it was inserted, and in Python it doesn't sit above deeper-indented lines that would become its body;
+  - no added name shadows or redefines one the file already uses;
+  - no added line skips tests, exits, adds hooks or mocks, patches objects, or assigns to anything the added code didn't create.
+
+  Every other test edit goes to a person, with a review that lists what changed, flags risky added lines (skipping or focusing tests, exiting, early returns, patched assertions, mocking APIs, exit-code resets, test hooks, globals, empty `catch`), and says why the edit wasn't accepted as an addition. An added test can still change shared state through a function call (`registry.register(fake)`), which no text rule can judge: deep mode is the mechanical check for that.
 - **Deep** (`guard.mutants: 10`, `pocp init --deep`). The only mode where a test edit can pass without a person. POCP plants a sample of small bugs (flipped comparisons, swapped operators, changed constants) and checks that the new tests catch every sampled bug the old tests caught. New test files count too: they run with the old ones, so one that exits early or patches an assertion makes the suite miss bugs it caught. It samples: a weakening that matters only outside the sample passes, and only the bug types POCP can plant are tried. On POCP's own code, about 14% of StrykerJS's mutants are edits POCP's operators can make. It is much slower (below).
 
-A project set up before fast mode existed, with no `guard.mutants` in its config, keeps deep mode: the built-in default is still 10, and upgrading POCP never rewrites a config. To switch such a project to fast mode, set `"guard": { "mutants": 0 }` in `.proof/config.json` in a pull request of its own. Lowering `guard.mutants` is a policy change, so CI fails it until a maintainer approves it with the `pocp-approve-policy` label.
+A fast-mode config without `guard.additions` (set up before this setting existed) keeps reviewing every test edit; turning it to `"accept"` is a policy change a maintainer approves. A project set up before fast mode existed, with no `guard.mutants` in its config, keeps deep mode: the built-in default is still 10, and upgrading POCP never rewrites a config. To switch such a project to fast mode, set `"guard": { "mutants": 0 }` in `.proof/config.json` in a pull request of its own. Lowering `guard.mutants` is a policy change, so CI fails it until a maintainer approves it with the `pocp-approve-policy` label.
 
 Within the limits in [docs/THREAT-MODEL.md](THREAT-MODEL.md):
 
@@ -52,7 +59,7 @@ Within the limits in [docs/THREAT-MODEL.md](THREAT-MODEL.md):
 | Edits or removes POCP's CI workflow | passes | with `pocp` required: stays yellow until a maintainer approves the workflow change (`pocp-approve-workflow`); see the limit below | same |
 | Writes code that special-cases the test inputs | passes | not blocked | not blocked |
 
-"Goes to a person" means the change waits until a maintainer approves it with a label. With the `pocp` status that's a yellow wait, not a red ✗. In fast mode every test edit is reviewed. In deep mode an edit passes without review only when the sampled bugs show no loss, which is evidence, not a proof that the tests are as strong as before.
+"Goes to a person" means the change waits until a maintainer approves it with a label. With the `pocp` status that's a yellow wait, not a red ✗. In fast mode every test edit is reviewed unless it only adds whole new tests (above). In deep mode an edit passes without review only when the sampled bugs show no loss, which is evidence, not a proof that the tests are as strong as before.
 
 ## What it doesn't do
 

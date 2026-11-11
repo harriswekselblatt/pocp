@@ -3,7 +3,7 @@
 // timeout, empty run or unusual change runs the whole check, as before.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { git, packetId, pocp, read, tmpRepo, write, writeRules } from './helpers.js';
+import { git, packetId, pocp, read, tmpRepo, write, writeRules, reviewEveryTestEdit } from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -42,6 +42,8 @@ function project({ command = ['node', '--test', '{tests}'], helper = false } = {
   write(dir, 'test/other.test.js', OTHER_TEST);
   const init = pocp(dir, ['init']);
   assert.equal(init.code, 0, init.stderr);
+  // These tests use an added test as a vehicle for which old tests run; keep it reviewed.
+  reviewEveryTestEdit(dir);
   const obligation = { kind: 'test', run: 'node --test test/*.test.js', ...(command ? { changed_test_command: command } : {}) };
   writeRules(dir, { requirements: [{ id: 'tests', globs: ['src/**', 'test/**'], obligation }] });
   git(dir, 'add', '-A');

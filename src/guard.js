@@ -1,3 +1,4 @@
+import { judgeAdditions } from './additions.js';
 import * as g from './git.js';
 import { matchGlob } from './glob.js';
 import { DEFAULT_EVAL_EXCLUDE } from './mutants.js';
@@ -62,32 +63,60 @@ const RISKY_ADDED = [
  * and no text rule can show it: added lines alone can disable existing assertions
  * (`if (false) {` … `}`, an opened comment, a redefined test, a new file that exits first).
  * So every guarded change goes to a person; the reasons say what changed, and RISKY_ADDED
- * flags the added lines a reviewer should look at first. Never returns [] for a change.
- * `rev` null means the staged index.
+ * flags the added lines a reviewer should look at first. `rev` null means the staged index.
+ *
+ * The one exception: with `additions` "accept" (guard.additions), a test file that only gains
+ * whole new declarations, judged by additions.js, adds no reason. Every other change still
+ * gets one, so [] means every changed file was such an addition.
  */
-export function structuralReview(root, { base, rev = null, changes = [] }) {
+export function structuralReview(root, { base, rev = null, changes = [], additions } = {}) {
   const reasons = [];
   for (const c of changes) {
     const file = c.status === 'R' ? `${c.oldPath} → ${c.path}` : c.path;
+    // The usual reason first (it names risky lines for the reviewer); with additions "accept",
+    // also why the edit wasn't accepted as an addition.
+    let note = null;
+    if (additions === 'accept' && c.kind === 'test' && (c.status === 'M' || c.status === 'A')) {
+      const next = g.git(root, ['show', rev ? `${rev}:${c.path}` : `:${c.path}`], { allowFail: true, trim: false });
+      const before = c.status === 'A' ? null : g.git(root, ['show', `${base}:${c.path}`], { allowFail: true, trim: false });
+      if (typeof next === 'string' && (c.status === 'A' || typeof before === 'string')) {
+        let verdict;
+        try {
+          verdict = judgeAdditions({ path: c.path, base: before, next });
+        } catch (err) {
+          // An analysis bug must never pass or fail a change: it goes to a person like any edit.
+          verdict = { ok: false, why: `the analysis could not read it (${err.message})` };
+        }
+        if (verdict.ok) continue;
+        note = verdict.why;
+      } else note = 'its contents could not be read';
+    }
+    const start = reasons.length;
+    classicReason(c, file);
+    if (note && reasons.length > start) reasons[reasons.length - 1].why += `; not accepted as an addition: ${note}`;
+  }
+  return reasons;
+
+  function classicReason(c, file) {
     if (c.kind !== 'test') {
       reasons.push({ file, why: c.kind === 'runner-config' ? 'test setup or a test helper changed' : 'test settings changed' });
-      continue;
+      return;
     }
     if (c.status === 'A') {
       reasons.push({ file, why: 'a test file was added (it runs with the others and can change their outcome)' });
-      continue;
+      return;
     }
     if (c.status === 'D') {
       reasons.push({ file, why: 'a test file was deleted' });
-      continue;
+      return;
     }
     if (c.status === 'R') {
       reasons.push({ file, why: 'a test file was renamed' });
-      continue;
+      return;
     }
     if (c.status !== 'M') {
       reasons.push({ file, why: `a test file changed (${c.status})` });
-      continue;
+      return;
     }
     // --text (git.js) so a "binary" test file can't hide its lines; a failed diff is not an
     // empty one.
@@ -95,12 +124,12 @@ export function structuralReview(root, { base, rev = null, changes = [] }) {
     const diff = g.git(root, args, { allowFail: true, trim: false });
     if (diff === null || diff === undefined) {
       reasons.push({ file, why: 'its diff could not be read' });
-      continue;
+      return;
     }
     const lines = diff.split('\n').filter((l) => !l.startsWith('---') && !l.startsWith('+++'));
     if (lines.some((l) => l.startsWith('-'))) {
       reasons.push({ file, why: 'existing test lines were changed or removed' });
-      continue;
+      return;
     }
     // Each added line, and all of a file's added lines joined into one, so a call split over
     // several lines (`Object.assign(\n  assert,\n  {...})`) still matches.
@@ -109,7 +138,6 @@ export function structuralReview(root, { base, rev = null, changes = [] }) {
     const hits = [...new Set(texts.flatMap((t) => RISKY_ADDED.filter(([re]) => re.test(t)).map(([, why]) => why)))];
     reasons.push({ file, why: hits.length ? `an added line ${hits.join(', ')}` : 'lines were added to an existing test' });
   }
-  return reasons;
 }
 
 /** The globs the test guard actually uses: replacements (or defaults) plus extras. */
@@ -297,9 +325,12 @@ export const DEFAULT_GUARD_SEED = 1;
 /** Mutant budget and seed for the mechanical check, from config.guard. */
 export function guardBudget(config = {}) {
   const gc = config.guard || {};
+  const mutants = Number.isInteger(gc.mutants) ? gc.mutants : DEFAULT_GUARD_MUTANTS;
   return {
-    mutants: Number.isInteger(gc.mutants) ? gc.mutants : DEFAULT_GUARD_MUTANTS,
+    mutants,
     seed: Number.isInteger(gc.seed) ? gc.seed : DEFAULT_GUARD_SEED,
+    // Only in fast mode, and only when set: older obligations keep their digest.
+    ...(mutants === 0 && gc.additions === 'accept' ? { additions: 'accept' } : {}),
   };
 }
 
@@ -319,7 +350,9 @@ export function guardRequirement(files, config = {}) {
       files,
       ...guardBudget(config),
       text: guardBudget(config).mutants === 0
-        ? `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)`
+        ? guardBudget(config).additions === 'accept'
+          ? `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and a person reviews the change unless it only adds whole new tests (fast mode, guard.additions "accept")`
+          : `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)`
         : `Existing tests or test setup changed (${shown}): the old tests still pass on the new code, and the new tests catch every sampled mutant the old ones caught`,
     },
   });

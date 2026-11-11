@@ -99,6 +99,7 @@ export function createRun({ root, store, VERSION, config, runner }) {
       checks,
       sourceGlobs,
       mutants: ob.mutants,
+      additions: ob.additions,
       seed: seed ?? ob.seed,
       links: cfg.snapshot.link,
       exclude: cfg.eval?.exclude || DEFAULT_EVAL_EXCLUDE,

@@ -1,15 +1,17 @@
 // The fast test guard (guard.mutants 0, what `pocp init` writes for new projects): no planted
-// bugs, so no test edit passes on its own; the review names what changed and flags risky added
-// lines. (Before 2026-11 an edit that only added non-risky lines passed; added lines can still
-// disable existing assertions, so that rule was dropped.) Deep mode (planted bugs) stays opt-in, and
-// projects set up before this keep it, since the built-in default is still 10.
+// bugs. Before 2026-11 an edit that only added non-risky lines passed; added lines can disable
+// existing assertions, so that rule was dropped and every test edit went to a person. Since
+// guard.additions "accept" (written by `pocp init`), an edit that adds only whole new tests,
+// judged by src/additions.js, passes again; everything else, including every attack below, still
+// goes to a person. Configs without the key keep reviewing every edit. Deep mode (planted bugs)
+// stays opt-in, and projects set up before fast mode keep it, since the built-in default is 10.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { git, packetId, pocp, read, sampleRepo, tmpRepo, write, writeConfig } from './helpers.js';
 import { DEFAULT_GUARD_MUTANTS, guardBudget, structuralReview } from '../src/guard.js';
-import { configWeakening, withDefaults } from '../src/store.js';
+import { configWeakening, strictConfig, validateConfig, withDefaults } from '../src/store.js';
 
 const MATH_TEST = [
   "import { add, isPositive } from '../src/math.js';",
@@ -23,6 +25,7 @@ const MATH_TEST = [
 function fastRepo() {
   const dir = sampleRepo({
     deep: false,
+    additions: true,
     rules: { requirements: [{ id: 'math-tests', globs: ['src/**', 'test/**', 'package.json', '.mocharc.json'], obligation: { kind: 'test', run: 'for f in test/*.check.mjs; do node "$f" || exit 1; done' }, source: 'author' }] },
   });
   write(dir, 'test/math.check.mjs', MATH_TEST);
@@ -47,11 +50,11 @@ test('fresh init writes the fast guard; --deep writes planted bugs', () => {
   const fast = tmpRepo();
   const r = pocp(fast, ['init']);
   assert.equal(r.code, 0, r.stderr);
-  assert.equal(JSON.parse(read(fast, '.proof/config.json')).guard.mutants, 0);
+  assert.deepEqual(JSON.parse(read(fast, '.proof/config.json')).guard, { mutants: 0, additions: 'accept' });
   assert.match(r.stdout, /test guard: fast \(guard\.mutants 0\)/);
   const deep = tmpRepo();
   assert.match(pocp(deep, ['init', '--deep']).stdout, /test guard: deep/);
-  assert.equal(JSON.parse(read(deep, '.proof/config.json')).guard.mutants, 10);
+  assert.deepEqual(JSON.parse(read(deep, '.proof/config.json')).guard, { mutants: 10 });
   // init never rewrites an existing config.
   assert.match(pocp(fast, ['init', '--deep']).stdout, /already set up/);
   assert.equal(JSON.parse(read(fast, '.proof/config.json')).guard.mutants, 0);
@@ -88,17 +91,94 @@ test('turning planted bugs off, explicitly or by dropping the key from 10, is a 
   assert.match(JSON.stringify(gate.json), /guard\.mutants lowered from 10/);
 });
 
-test('fast: an honest added test still goes to a person (no planted bugs to show it is safe)', () => {
+test('fast: an honest added check written as a top-level statement still goes to a person', () => {
   const dir = fastRepo();
   write(dir, 'test/math.check.mjs', MATH_TEST.replace("console.log('math ok');", "if (add(0, 0) !== 0) { console.error('add zero'); process.exitCode = 1; }\nconsole.log('math ok');"));
   const { ob, guard } = guardOf(dir, ['test/math.check.mjs']);
   assert.equal(ob.mutants, 0);
-  assert.match(ob.text, /a person reviews the change/);
+  assert.equal(ob.additions, 'accept');
   assert.equal(guard.old_tests.result, 'pass');
   assert.equal(guard.verdict, 'needs-review', guard.summary);
   assert.equal(guard.detection.result, 'off');
-  assert.deepEqual(guard.structural.reasons, [{ file: 'test/math.check.mjs', why: 'lines were added to an existing test' }]);
+  assert.equal(guard.structural.reasons.length, 1);
+  assert.match(guard.structural.reasons[0].why, /^lines were added to an existing test; not accepted as an addition: .*not a whole declaration/);
   assert.match(guard.summary, /deep mode/);
+});
+
+// node:test style: what an honest added test usually looks like.
+const NODE_TEST = [
+  "import test from 'node:test';",
+  "import assert from 'node:assert/strict';",
+  "import { add } from '../src/math.js';",
+  '',
+  "test('adds', () => {",
+  '  assert.equal(add(2, 3), 5);',
+  '});',
+  '',
+].join('\n');
+
+function nodeTestRepo(config) {
+  const dir = fastRepo();
+  if (config) writeConfig(dir, { ...JSON.parse(read(dir, '.proof/config.json')), guard: config });
+  write(dir, 'test/add.check.mjs', NODE_TEST);
+  git(dir, 'add', '-A');
+  git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'node:test file');
+  return dir;
+}
+const ADDED = `${NODE_TEST}test('adds zero', () => {\n  const result = add(0, 0);\n  assert.equal(result, 0);\n});\n`;
+
+test('fast with additions "accept": an added whole test passes without a person', () => {
+  const dir = nodeTestRepo();
+  write(dir, 'test/add.check.mjs', ADDED);
+  const { ob, guard } = guardOf(dir, ['test/add.check.mjs']);
+  assert.equal(ob.additions, 'accept');
+  assert.match(ob.text, /unless it only adds whole new tests/);
+  assert.equal(guard.old_tests.result, 'pass');
+  assert.equal(guard.verdict, 'passed', guard.summary);
+  assert.deepEqual(guard.structural.reasons, []);
+  assert.match(guard.summary, /only adds whole new tests/);
+  assert.equal(pocp(dir, ['gate']).code, 0, 'the gate passes it on its own');
+});
+
+test('fast with additions "accept": a new test file of whole tests passes', () => {
+  const dir = nodeTestRepo();
+  write(dir, 'test/zero.check.mjs', "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { add } from '../src/math.js';\n\ntest('zero', () => {\n  assert.equal(add(0, 0), 0);\n});\n");
+  const { guard } = guardOf(dir, ['test/zero.check.mjs']);
+  assert.equal(guard.verdict, 'passed', guard.summary);
+});
+
+test('fast with additions "accept": an added test that patches an assertion through an alias goes to a person', () => {
+  // The risky-pattern hints miss the alias (see the last test below); the additions check doesn't.
+  const dir = nodeTestRepo();
+  write(dir, 'test/add.check.mjs', `${NODE_TEST}test('setup', () => {\n  const a = assert;\n  a.equal = () => {};\n});\n`);
+  const { guard } = guardOf(dir, ['test/add.check.mjs']);
+  assert.equal(guard.verdict, 'needs-review', guard.summary);
+  assert.match(guard.summary, /not accepted as an addition: an added line assigns to an attribute of a, which the added code did not create/);
+});
+
+test('fast without guard.additions (configs before it existed): an added whole test still goes to a person', () => {
+  const dir = nodeTestRepo({ mutants: 0 });
+  write(dir, 'test/add.check.mjs', ADDED);
+  const { ob, guard } = guardOf(dir, ['test/add.check.mjs']);
+  assert.equal(ob.additions, undefined);
+  assert.equal(guard.verdict, 'needs-review', guard.summary);
+  assert.deepEqual(guard.structural.reasons, [{ file: 'test/add.check.mjs', why: 'lines were added to an existing test' }]);
+});
+
+test('deep mode ignores guard.additions (planted bugs decide)', () => {
+  assert.deepEqual(guardBudget({ guard: { mutants: 10, additions: 'accept' } }), { mutants: 10, seed: guardBudget({}).seed });
+  assert.equal(guardBudget({ guard: { mutants: 0, additions: 'accept' } }).additions, 'accept');
+  assert.equal(guardBudget({ guard: { mutants: 0, additions: 'review' } }).additions, undefined);
+});
+
+test('turning guard.additions to "accept" is a policy loosening, and the base decides', () => {
+  const review = withDefaults({ pocp: 1, guard: { mutants: 0 } });
+  const accept = withDefaults({ pocp: 1, guard: { mutants: 0, additions: 'accept' } });
+  assert.deepEqual(configWeakening(review, accept), ['guard.additions turned to "accept" (add-only test edits pass without a person in fast mode)']);
+  assert.deepEqual(configWeakening(accept, review), [], 'going back to reviewing every edit is stricter');
+  assert.equal(strictConfig(review, accept).guard.additions, undefined, 'a change cannot turn it on for itself');
+  assert.equal(strictConfig(accept, accept).guard.additions, 'accept');
+  assert.match(validateConfig({ ...accept, guard: { ...accept.guard, additions: 'yes' } }).join('\n'), /guard\.additions must be "review" or "accept"/);
 });
 
 const NEEDS_REVIEW = [
