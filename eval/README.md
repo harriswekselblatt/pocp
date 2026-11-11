@@ -13,7 +13,7 @@ This folder implements [docs/EVAL-PLAN.md](../docs/EVAL-PLAN.md). The plan says 
 | `e1/` | E1/E2 harness: turns a task into a git repo, runs an agent (Claude Code, Codex) in each arm, then the judges | Node ≥ 20 |
 | `e3/` | E3: an outside mutation tool's mutants replayed through POCP, mutant by mutant | Node |
 | (`e4/`) | E4: planned, not run. Not on this branch: its sampling frame and scripts are parked on the `e4/sampling-frame` branch for review, and no outside repository has been fetched or run | — |
-| `campaign-123/` | The preregistered A/B benchmark of POCP 1.2.3 (harmful and honest changes across three libraries, with a sealed holdout): the report, the frozen protocol and fingerprints. Its harness ran outside this repository. | text |
+| `campaign-123/` | The preregistered A/B benchmark of POCP 1.2.3 (harmful and honest changes across three libraries, with a sealed holdout): the summary, the generated report, the frozen protocol and fingerprints. Its records and harness are in pocp-eval under `results/campaign-123/`, fetched with the other records. | text |
 | `e5/` | E5: friction from real `gate.jsonl` timestamps, and test-guard profiling | Node |
 | `lib/` | Shared Node helpers for the harnesses: the run record writer, hashing, Wilson intervals | Node |
 | `results/` | Raw, immutable run records (`*.jsonl`) and their manifests. Reports are generated from these. Kept in their own repository, [pocp-eval](https://github.com/harriswekselblatt/pocp-eval), and fetched here (below). | data |

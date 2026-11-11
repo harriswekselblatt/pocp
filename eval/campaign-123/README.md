@@ -1,94 +1,98 @@
-# POCP 1.2.3: evaluation results and status
+# POCP 1.2.3 evaluation
 
-*November 11, 2026 · POCP 1.2.3 · preregistered campaign `campaign-123-counted-01` · full tables in [REPORT.md](REPORT.md) · protocol in [PREREGISTRATION.md](PREREGISTRATION.md)*
+*Preregistered benchmark, run November 10–11, 2026. Full tables: [REPORT.md](REPORT.md). Protocol: [PREREGISTRATION.md](PREREGISTRATION.md). Raw records and harness: [pocp-eval/results/campaign-123](https://github.com/harriswekselblatt/pocp-eval/tree/87c8cddaba9322255184800ea344eca78362f656/results/campaign-123).*
 
 ## Summary
 
-- **Zero harmful changes accepted.** POCP caught all 48 designed test-cheating changes in every mode. Plain CI accepted all 48.
-- **Deep mode is usable.** It accepted 78–82% of honest changes. The remaining ~20% go to human review.
-- **Fast mode is too strict.** It accepted 27% of honest changes. That is not shippable as a default, and fixing it is the next piece of work.
-- **The sealed holdout reproduced the development results.** The results do not depend on cases the design was tuned against.
+POCP is a CI gate for pull requests that edit tests. This evaluation asks two questions. Does POCP hold back changes that make the test suite pass by weakening it? And how often does it hold back honest changes?
 
-## What POCP is
+- **Harmful changes:** 48 test-weakening changes were built so that each one passes the project's own checks. Plain CI accepted all 48. POCP accepted none. In both of its modes, it held all 48 for review. For each one it also ran the old tests against the new code, and they failed, which shows the tested behavior had changed. POCP blocks the merge, and a maintainer makes the final decision.
+- **Honest changes:** in deep mode, POCP accepted 78–82% of 108 legitimate changes on each of five random seeds. Leaving out the 24 hardest cases, honest changes written to look like the harmful ones, it accepted 86–88%. Fast mode, the default, accepted 27%, because by design it sends every test edit to a maintainer.
+- **Holdout:** 68 of the 180 cases were sealed until development results were validated and the scoring script was locked. The sealed cases showed the same pattern.
 
-POCP (proof-of-change) is a CI gate for changes that pass their tests but may have weakened the tests themselves. For each change it returns one of three decisions: **accept**, **review** (a human looks), or **reject**.
+## How POCP decides
 
-It runs in two modes:
-- **Fast** applies static policy checks only.
-- **Deep** also runs mutation guards. These try to prove whether the tested behavior actually changed.
+For each pull request POCP returns **accept**, **review** (a maintainer must approve) or **reject**. When a change edits existing tests, both modes first run the *old* tests against the *new* code. If those tests pass on the base and fail on the change, the tested behavior changed, and the change goes to review.
+
+- **Fast mode** (`guard.mutants: 0`, the default) also sends every other test edit to review.
+- **Deep mode** (`guard.mutants: 10`) plants a seeded sample of ten small bugs instead. A test edit is accepted without review only if the new tests catch every sampled bug the old tests caught.
 
 ## Method
 
-| | |
-|---|---|
-| Libraries | p-map (JS), boltons (Python), gjson (Go) |
-| Set A: harmful | 48 changes built to pass CI while weakening what the tests check |
-| Set B: honest | 108 legitimate changes, 36 per library, judged in each library's native test suite |
-| A-control | 24 legitimate edits of the same shape as set A (diagnostic only) |
-| Modes | plain CI (baseline), POCP fast, POCP deep at 5 fixed seeds (11, 29, 47, 71, 101) |
-| Total | 180 cases × 7 cells = **1,260 runs**, with 0 missing and 0 malformed |
-| Split | 784 development runs and 476 holdout runs. The holdout stayed sealed until development was validated and the report script was hash-locked. |
+**Projects.** Three open-source libraries, pinned to fixed commits: p-map (JavaScript), boltons (Python) and gjson (Go).
 
-The protocol was set before any counted run. The preregistration, runner, validator and report generator were frozen by SHA-256, along with the case labels, which were reviewed blind to outcomes. Every run writes an append-only record and an artifact hash inventory. A fail-closed validator checked every record against the frozen inventory before the holdout opened, and again after it closed. The run is fully local: no network and no LLM in the loop.
+**Harmful changes (48).** Each one weakens what the tests check while keeping them green. They cover four parts of a test suite (assertions, shared test helpers, fixtures, and runner configuration), with 12 each, spread over four behavioral contracts and the three libraries. Each is judged against a focused check: the specific test command the change was meant to slip past.
 
-A detection is counted as **mechanical** only when a guard proves the behavior changed. A review triggered by policy alone is reported separately.
+**Honest changes (108, 36 per library).** Each is judged against the library's full native test suite:
+- 67 commits drawn from the libraries' histories;
+- 17 constructed changes, built to fill gaps in that sample, mainly test-only edits;
+- 24 *paired controls*: legitimate edits to the same four parts of the suite, each written to resemble one of the harmful changes.
+
+The changes break down as: 31 add tests, 26 edit tests or setup without changing what they check, 24 touch source code only, 20 change behavior together with its tests, and 7 are other changes.
+
+**Provenance.** The cases were built and labeled by AI coding agents (Claude and Codex) under my direction. Labels were assigned without access to POCP's output. Three further independent reviewers labeled all 48 harmful cases and a seeded sample of 27 honest cases, with identifiers removed. Their labels agreed with the originals on 75 of 75. The 17 constructed cases were built after earlier diagnostic runs had been seen, so they are tagged and can be excluded (see Sensitivity).
+
+**Diagnostic set (24).** The remaining paired controls, of the same kind as the 24 above but judged against the focused check. They are reported separately and are not part of the headline numbers.
+
+**Runs.** Each of the 180 cases ran under plain CI, POCP fast, and POCP deep at five fixed seeds (11, 29, 47, 71, 101). That makes 1,260 runs. All ran locally on one machine, sequentially, with no network access and no language model involved.
+
+**Controls against tuning.** Several measures kept results from shaping the analysis:
+- The protocol, case labels, runner, validator and scoring script were frozen by SHA-256 before any counted run. Two amendments, both recorded in the preregistration, were made before any counted result was read.
+- 68 cases (476 runs) were held out. They stayed unrun until all development runs passed validation and the scoring script was locked by hash. 64 of the 72 honest development cases had been through earlier diagnostic runs of POCP. The 36 honest holdout cases were drawn only from changes POCP had never run on.
+- Every run writes an append-only record with hashes of its artifacts. A validator rejects missing, duplicate or altered records, and any record whose outcome contradicts its own evidence.
+- Before the holdout, harness canaries confirmed the runner classifies known passing, failing, skipped, crashing and timed-out checks correctly, and that the validator catches tampered records.
 
 ## Results
 
-### Harmful changes (A, n = 48)
+### Harmful changes (n = 48)
 
-| | plain CI | POCP fast | POCP deep (each of 5 seeds) |
+| | Plain CI | POCP fast | POCP deep (each of 5 seeds) |
 |---|---|---|---|
-| Accepted (missed) | 48 | **0** | **0** |
-| Caught mechanically | – | 48 | 48 |
+| Accepted | 48 | **0** | **0** |
+| Held for review, behavior change shown | 0 | 48 | 48 |
 
-Every harmful change that passed CI was stopped by POCP, with mechanical proof, at every seed. The development split (32) and the holdout (16) look the same. All three libraries are at 0 missed.
+The result is the same in the development set (32) and the holdout (16), and in each library.
 
-### Honest changes (B, n = 108): how much friction
+### Honest changes (n = 108)
 
-| Accept rate | development (72) | holdout (36) | all (108) |
+| Accepted | Development (72) | Holdout (36) | All (108) |
 |---|---|---|---|
-| plain CI | 100% | 100% | 100% |
+| Plain CI | 100% | 100% | 100% |
 | POCP fast | 21% | 39% | **27%** |
 | POCP deep, per seed | 75–82% | 81–83% | **78–82%** |
+| POCP deep, per seed, excluding paired controls | 88–92% (48) | 81–83% (36) | **86–88%** (84) |
 
-Notes:
-- **No honest change was wrongly rejected outright, except one.** Non-accepted changes went to *review*. The single rejection came from one deep seed on one case.
-- **Fast-mode reviews are almost all policy-driven.** Of 79 fast-mode reviews, 71 came from policy rules and 8 from guards. In other words, fast mode flags the *shape* of a change, such as an edited test file, without evidence that behavior changed.
-- **Deep mode depends on the seed.** The same honest change is accepted on at least one seed in 88% of cases, and on all five seeds in 70%. A change can therefore get a different outcome on a rerun.
-- **The results hold up when cases are removed.** Removing constructed cases, paired controls, or low-confidence labels moves fast mode between 21% and 35%. Deep mode stays roughly where it was. Per library, fast mode ranges from 19% to 31%.
+The two splits differ in composition. All paired controls are in development, and 14 of the 36 honest holdout cases are constructed, against 17 of 108 overall. This accounts for much of the fast-mode gap between development (21%) and holdout (39%): without paired controls, development is 31%.
 
-### A-control diagnostic (n = 24)
+- **Changes not accepted almost always went to review.** One run rejected an honest change outright: one case, on one deep-mode seed.
+- **Fast mode's reviews come mostly from its design.** Of 79 fast-mode reviews, 71 were triggered by the rule that every test edit is reviewed. The other 8 were honest changes whose old tests fail on the new code: the tested behavior did change, and a maintainer is meant to see that.
+- **Deep mode depends on the seed.** 88% of honest changes were accepted on at least one seed, and 70% on all five. Re-running the same change with a different seed can change the outcome.
+- **Sensitivity.** Excluding constructed cases, paired controls, or cases with flagged or low-confidence labels gives 21–35% for fast mode and 76–88% per seed for deep mode. By library, fast mode ranges from 19% to 31%.
 
-These are legitimate edits that look like set A. Deep mode accepts only 25–46% of them per seed, and fast mode accepts none. This is expected: these edits deliberately resemble cheating. But it shows where review burden will concentrate in practice.
+### Diagnostic set (n = 24)
+
+Legitimate edits written to resemble the harmful changes, judged against the focused check. Fast mode accepted none of them. Deep mode accepted 25–46% per seed. These are the cases where review effort concentrates: an honest edit to an assertion, helper, fixture or runner config looks much like a harmful one.
 
 ### Reliability
 
-1,254 of 1,260 runs produced a decision. The other 6 were harness errors, and none were POCP crashes or timeouts. All 6 came from one broken diagnostic case, `boltons-first-fixture-legitimate`. Its patch produced an empty commit, so its POCP runs had no candidate to judge. The defect is in the case, not in POCP. It is recorded as-is under the preregistration and falls outside the A and B headline numbers.
+1,254 of 1,260 runs completed with a decision. POCP did not crash or time out. The other 6 were harness errors, all from one diagnostic case whose patch applied as an empty commit, which left nothing to evaluate. The preregistration requires errors to be recorded rather than retried, so they are reported as-is. None affects the harmful or honest-change results.
 
 ## Limitations
 
-- Three libraries, and harmful changes that were *designed*. These results do not measure attacks found in the wild.
-- Set A was judged with a focused check per case. Set B was judged in each library's native suite. The two regimes differ on purpose, and the rates should not be combined.
-- Deep-mode variance across seeds is a property of the product, and it has to be addressed before deep mode can be the default gate.
-- Timing results are in REPORT.md and are not summarized here.
+- **Designed attacks.** The harmful changes were built by hand and do not measure attacks found in the wild. Only three libraries were tested.
+- **Holdout scope.** It sealed individual cases, not new libraries or new attack types. It shows the results hold on unseen cases of the same kinds.
+- **Two judging setups.** Harmful changes were judged against a focused check, honest changes against each library's full suite. This matches how each kind of change is usually checked, but the two rates are not directly comparable.
+- **Seed variance.** As noted above, deep-mode outcomes can vary from one seed to another.
+- **Timing.** Run times are reported in [REPORT.md](REPORT.md) and not summarized here. They were measured on one laptop and are indicative only.
 
-## Status and next steps
+## Next
 
-1. **Fix fast-mode over-flagging.** Make the policy rules require stronger evidence before they force a review. This will be tested as a **new versioned campaign** with its own preregistration. The 1.2.3 results above stay as recorded.
-2. **Reduce deep-mode seed variance**, or define how reruns are aggregated.
-3. **Track D (authority/boundary grid)** is preregistered separately and will be reported on its own.
-4. Replace the broken diagnostic case in the next corpus version.
+1. **Reduce review load in fast mode.** Fast mode is the default, and a 27% acceptance rate on honest changes is too much friction. The aim is to let a test edit pass without review when there is evidence it does not weaken the suite, instead of reviewing every test edit. The change will be evaluated as a new version, under its own preregistration and on new holdout cases. The results above stand as recorded.
+2. **Make deep mode deterministic in practice,** either by sampling bugs independently of the seed or by defining how multiple runs combine into one decision.
+3. **Evaluate POCP's approval and trust boundaries:** whether a change can approve itself, loosen the rules that judge it, or make a verification pass that should fail. That study is being preregistered now and will be published separately.
 
-## Files and reproducing
+## Verify these results
 
-| File | What |
-|---|---|
-| [PREREGISTRATION.md](PREREGISTRATION.md) | The protocol, frozen before any counted run, including amendments 1–2 (made before the holdout opened) |
-| [REPORT.md](REPORT.md) | Every table, generated by the frozen report script with no hand edits |
-| [report.json](report.json) | The same tables as data |
-| [SHA256SUMS](SHA256SUMS) | Fingerprints of the preregistration, runner, validator, report generator, corpus files, command manifest, the development-complete lock and the report |
+The raw records, the frozen harness and the corpus are published in [pocp-eval](https://github.com/harriswekselblatt/pocp-eval/tree/87c8cddaba9322255184800ea344eca78362f656/results/campaign-123). With Python 3 alone, its validator checks all 1,260 records, and its scoring script regenerates [REPORT.md](REPORT.md) and [report.json](report.json) byte for byte. Local file paths in the records were redacted. Every redacted file is listed with its hash before and after, and no file the scores are computed from was changed.
 
-The report generator (SHA-256 `e5dcc0b0…`) was locked in `DEV-COMPLETE.json` before the holdout opened. The lock also fingerprints all 784 development records (`82740a1f…`). The report header fingerprints all 1,260 records (`97673606…`).
-
-The benchmark harness and raw run records (about 76 MB) are not in this repository yet. They will go to [pocp-eval](https://github.com/harriswekselblatt/pocp-eval) once local paths are redacted, as `eval/README.md` rule 9 requires, with a mapping from the original fingerprints to the redacted ones.
+[SHA256SUMS](SHA256SUMS) gives the original hashes of the protocol, harness, corpus and report. The scoring script (`e5dcc0b0…`) was locked before the holdout opened, together with the 784 development records (`82740a1f…`). The report header gives the hash over all 1,260 records (`97673606…`).

@@ -43,8 +43,8 @@ npx pocp verify origin/main..HEAD --require-coverage --rerun
 
 A preregistered benchmark of POCP 1.2.3 across p-map (JS), boltons (Python) and gjson (Go): 180 cases and 1,260 runs, with a sealed holdout ([full report](eval/campaign-123/README.md)).
 
-- **Harmful changes:** 0 of 48 designed test-cheats got through. Plain CI accepted all 48. POCP stopped every one in both modes, each with a mechanical proof that behavior changed.
-- **Honest changes:** deep mode accepts about 80% of 108 legitimate changes and sends the rest to review. Fast mode accepts only 27%. It is too strict, and fixing it is the next piece of work.
+- **Harmful changes:** plain CI accepted all 48 designed test-cheats. POCP accepted none. In both modes it held every one for a person's review, each with a completed check showing the tested behavior changed.
+- **Honest changes:** deep mode accepts 78–82% of 108 legitimate changes per seed, and 86–88% without the 24 paired controls built to resemble cheating. It sends the rest to review. Fast mode reviews every test edit by design, so it accepts 27%. Reducing that friction is the next piece of work.
 
 ## Documentation
 

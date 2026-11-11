@@ -1,0 +1,73 @@
+{
+  "pocp": 1,
+  "id": "p-376873ae",
+  "intent": "Rewrite the 1.2.3 evaluation summary for outside readers and pin pocp-eval 87c8cdd, which publishes the redacted records and harness",
+  "touches": [
+    "eval/README.md",
+    "eval/campaign-123/README.md",
+    "eval/lib/results-source.js",
+    "eval/results.sha256"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-11T19:52:19.285Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:79811665657a5e88e38f73dcabe1e21d3d6c15f671abb70ead8723f348bd316f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-11T19:52:20.005Z",
+      "duration_ms": 99548,
+      "stdout_sha256": "52a51c10bc33092b1d58492facdfc9d519c245b753f9aad55dad21a2e63edd60",
+      "stderr_sha256": "a7959d81519e98f874d54d4dc4f0407ded54f246a8d853da91b21325ba90a29a",
+      "run_id": "r-3986ddca",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-11T19:52:19.285Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-11T19:52:19.285Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-11T19:53:59.756Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:79811665657a5e88e38f73dcabe1e21d3d6c15f671abb70ead8723f348bd316f"
+    }
+  ]
+}

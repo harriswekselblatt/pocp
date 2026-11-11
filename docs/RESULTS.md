@@ -1,6 +1,6 @@
 # Results so far
 
-**The main result is the preregistered evaluation of POCP 1.2.3: [eval/campaign-123](../eval/campaign-123/README.md).** It found 0 of 48 harmful changes accepted, about 80% of honest changes accepted in deep mode, and 27% in fast mode. The results below came earlier. None of them is a counted evaluation. They followed the earlier plan ([docs/EVAL-PLAN.md](EVAL-PLAN.md)), whose pre-registration ([eval/PREREG.md](../eval/PREREG.md)) is unfinished.
+**The main result is the preregistered evaluation of POCP 1.2.3: [eval/campaign-123](../eval/campaign-123/README.md).** POCP accepted none of 48 harmful changes and held each for review. Deep mode accepted 78–82% of honest changes per seed; fast mode accepted 27%. The results below came earlier. None of them is a counted evaluation. They followed the earlier plan ([docs/EVAL-PLAN.md](EVAL-PLAN.md)), whose pre-registration ([eval/PREREG.md](../eval/PREREG.md)) is unfinished.
 
 These results were all measured in deep mode (`guard.mutants: 10`), before fast mode existed. They don't describe fast mode, which was first benchmarked in the 1.2.3 evaluation.
 
