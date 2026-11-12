@@ -28,7 +28,7 @@ export async function run({ flags, json }) {
     r.created.length ? `created ${r.created.join(', ')}` : '.proof/ already set up',
     ...(r.config_created ? [flags.deep
       ? 'test guard: deep (guard.mutants 10): test edits are also checked with 10 planted bugs; slower'
-      : 'test guard: fast (guard.mutants 0): every test edit, new test files included, goes to a person. "pocp init --deep" or guard.mutants 10 adds planted bugs, which can pass a test edit without one'] : []),
+      : 'test guard: fast (guard.mutants 0): a test edit that only adds whole new tests passes (guard.additions "accept"); every other test edit goes to a person. "pocp init --deep" or guard.mutants 10 adds planted bugs, which can pass other test edits without one'] : []),
     // The layout on a first init, or when it needs something done; quiet otherwise.
     ...(r.config_created || r.layout.extra.length || r.layout.uncovered.length ? formatLayout(r.layout, { written: r.layout_written }) : []),
     hooks?.refused ? `hooks not installed: ${hooks.refused}` : hooks ? `hooks installed in ${hooks.dir}` : Object.values(hooksHealth(process.cwd()).hooks).some((v) => v === 'ok') ? 'hooks: already installed' : 'hooks not installed (run "pocp hooks install")',

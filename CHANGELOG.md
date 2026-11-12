@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Fast mode accepts test edits that only add whole new tests.** In the preregistered 1.2.3
+  evaluation, fast mode accepted 27% of honest changes, because it sent every test edit to a
+  person. With the new `guard.additions: "accept"` (written by `pocp init` with fast mode), a
+  JavaScript/TypeScript, Python or Go test file that only gains new tests, functions, imports
+  or literal constants passes without a person. The rule closes the ways added lines disabled
+  existing assertions under the add-only rule removed earlier: wrapping (`if (false) {`),
+  opened comments, early returns, redefined or shadowed names, Python bodies taken over by an
+  inserted `def`, and patching through aliases or module attributes. Everything else still goes
+  to a person, and the review says why an edit wasn't accepted as an addition. Existing
+  configs are unchanged: without `guard.additions`, every test edit is still reviewed, and
+  turning it on is a policy loosening that needs `pocp-approve-policy`. Limits are in
+  docs/THREAT-MODEL.md.
+
 ## 1.2.3 (2026-11-10)
 
 ### Fixed

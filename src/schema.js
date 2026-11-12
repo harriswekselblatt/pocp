@@ -12,7 +12,7 @@ const OBLIGATION = {
   id: LEAF, kind: LEAF, run: LEAF, text: LEAF, expect: LEAF, inputs: LEAF, timeout_ms: LEAF, cwd: LEAF,
   target: LEAF, changed_test_command: LEAF, source: LEAF,
   // the test guard's own obligations
-  files: LEAF, mutants: LEAF, seed: LEAF,
+  files: LEAF, mutants: LEAF, seed: LEAF, additions: LEAF,
 };
 
 export const RULES_SCHEMA = Object.freeze({
@@ -34,7 +34,7 @@ export const CONFIG_SCHEMA = Object.freeze({
   run: { mode: LEAF, timeout_ms: LEAF, kill_grace_ms: LEAF, env: LEAF, env_allow: LEAF, log_cap_bytes: LEAF, lockfile: LEAF },
   snapshot: { link: LEAF },
   sign: { key: LEAF, principal: LEAF },
-  guard: { tests: LEAF, test_globs: LEAF, runner_globs: LEAF, extra_test_globs: LEAF, extra_runner_globs: LEAF, mutants: LEAF, seed: LEAF },
+  guard: { tests: LEAF, test_globs: LEAF, runner_globs: LEAF, extra_test_globs: LEAF, extra_runner_globs: LEAF, mutants: LEAF, seed: LEAF, additions: LEAF },
   verify: { fail_on: LEAF, require_ci: LEAF },
   ci: { files: LEAF, branch: LEAF, required_checks: LEAF, require_pull_request: LEAF, enforce_admins: LEAF, require_up_to_date: LEAF, workflow_approver: LEAF },
   eval: { exclude: LEAF },

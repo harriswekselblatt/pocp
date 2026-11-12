@@ -5,7 +5,7 @@
 // packet covers from the rules too. Packets, coverage and plain `verify <rev>` are unchanged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { git, pocp, tmpRepo, write, writeConfig, writeRules } from './helpers.js';
+import { git, pocp, tmpRepo, write, writeConfig, writeRules, reviewEveryTestEdit } from './helpers.js';
 
 const T = "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { add } from '../src/math.js';\ntest('adds', () => {\n  assert.equal(add(2, 3), 5);\n  assert.equal(add(-1, 1), 0);\n});\n";
 const RULE = { id: 'tests', globs: ['src/**', 'test/**'], obligation: { kind: 'test', run: 'node --test test/*.test.js', changed_test_command: ['node', '--test', '{tests}'] } };
@@ -17,6 +17,8 @@ function project({ rules = [RULE], config } = {}) {
   write(dir, 'src/math.js', 'export const add = (a, b) => a + b;\n');
   write(dir, 'test/add.test.js', T);
   assert.equal(pocp(dir, ['init']).code, 0);
+  // An added test is the vehicle here; keep it reviewed (configs before guard.additions).
+  reviewEveryTestEdit(dir);
   writeRules(dir, { requirements: rules });
   if (config) writeConfig(dir, config);
   git(dir, 'add', '-A');

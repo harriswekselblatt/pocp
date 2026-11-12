@@ -155,11 +155,14 @@ export function writeConfig(dir, config) {
 }
 
 /** A repo with a tiny module, a test for it, pocp initialised, and one baseline commit. */
-export function sampleRepo({ hooks = false, rules, deep = true } = {}) {
-  return fromTemplate(JSON.stringify(['sample', hooks, deep, rules ?? null]), (dir) => buildSampleRepo(dir, { hooks, rules, deep }));
+// `additions` (fast mode only): keep what `pocp init` writes, guard.additions "accept". Off by
+// default, so fast-mode fixtures review every test edit as configs before that setting did, and
+// tests that use an added test as a vehicle for something else keep testing that.
+export function sampleRepo({ hooks = false, rules, deep = true, additions = false } = {}) {
+  return fromTemplate(JSON.stringify(['sample', hooks, deep, rules ?? null, additions]), (dir) => buildSampleRepo(dir, { hooks, rules, deep, additions }));
 }
 
-function buildSampleRepo(dir, { hooks, rules, deep }) {
+function buildSampleRepo(dir, { hooks, rules, deep, additions }) {
   sh(dir, 'git', ['init', '-q', '-b', 'main']);
   quietRepo(dir);
   write(dir, 'src/math.js', 'export function add(a, b) {\n  return a + b;\n}\n\nexport function isPositive(n) {\n  return n > 0;\n}\n');
@@ -174,6 +177,7 @@ function buildSampleRepo(dir, { hooks, rules, deep }) {
   // Most tests exercise the planted-bug check, so the fixture is deep unless asked otherwise.
   const init = pocp(dir, ['init', ...(hooks ? ['--hooks'] : []), ...(deep ? ['--deep'] : [])]);
   if (init.code !== 0) throw new Error(`init failed: ${init.stderr}`);
+  if (!deep && !additions) reviewEveryTestEdit(dir);
   writeRules(dir, rules || {
     triggers: { broad_files: 6, cross_area: { areas: 3, min_files: 4 }, globs: [] },
     requirements: [
@@ -189,4 +193,12 @@ export function packetId(stdout) {
   const m = /opened (p-[0-9a-f]+)/.exec(stdout);
   if (!m) throw new Error(`no packet id in: ${stdout}`);
   return m[1];
+}
+
+/** Fast mode as configs before guard.additions: every test edit goes to a person. */
+export function reviewEveryTestEdit(dir) {
+  const file = path.join(dir, '.proof/config.json');
+  const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (cfg.guard) delete cfg.guard.additions;
+  fs.writeFileSync(file, `${JSON.stringify(cfg, null, 2)}\n`);
 }

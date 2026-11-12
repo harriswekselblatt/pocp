@@ -384,6 +384,7 @@ export function validateConfig(config) {
   }
   if (!Number.isInteger(guard.mutants) || guard.mutants < 0 || guard.mutants > 1000) problems.push('guard.mutants must be a whole number from 0 to 1000');
   if (!Number.isInteger(guard.seed)) problems.push('guard.seed must be a whole number');
+  if (guard.additions !== undefined && !['review', 'accept'].includes(guard.additions)) problems.push('guard.additions must be "review" or "accept"');
   if (c.eval?.exclude !== undefined && !isStrArray(c.eval.exclude)) problems.push('eval.exclude must be an array of globs');
   const v = c.verify || {};
   if (!isStrArray(v.fail_on)) problems.push('verify.fail_on must be an array of finding codes');
@@ -418,6 +419,8 @@ export function configWeakening(base, head) {
   // A smaller sample catches less; a different seed lets a change pick a sample it passes.
   if (Number.isInteger(base.guard?.mutants) && !(head.guard?.mutants >= base.guard.mutants)) out.push(`guard.mutants lowered from ${base.guard.mutants}`);
   if (Number.isInteger(base.guard?.seed) && head.guard?.seed !== base.guard.seed) out.push(`guard.seed changed from ${base.guard.seed}`);
+  // Fast mode accepting add-only test edits without a person is looser than reviewing them all.
+  if (head.guard?.additions === 'accept' && base.guard?.additions !== 'accept') out.push('guard.additions turned to "accept" (add-only test edits pass without a person in fast mode)');
   for (const gl of base.ci?.files || []) if (!(head.ci?.files || []).includes(gl)) out.push(`ci.files no longer protects "${gl}"`);
   for (const check of base.ci?.required_checks || []) {
     if (!(head.ci?.required_checks || []).includes(check)) out.push(`ci.required_checks no longer requires "${check}"`);
@@ -452,6 +455,7 @@ export function strictConfig(base, head) {
   if ((GUARD_STRENGTH[base.guard?.tests] ?? 0) > (GUARD_STRENGTH[head.guard?.tests] ?? 0)) out.guard.tests = base.guard.tests;
   if (Number.isInteger(base.guard?.mutants) && !(out.guard.mutants >= base.guard.mutants)) out.guard.mutants = base.guard.mutants;
   if (Number.isInteger(base.guard?.seed)) out.guard.seed = base.guard.seed;
+  if (base.guard?.additions !== 'accept') delete out.guard.additions;
   out.ci.files = [...new Set([...(base.ci?.files || []), ...(head.ci?.files || [])])];
   out.ci.required_checks = [...new Set([...(base.ci?.required_checks || []), ...(head.ci?.required_checks || [])])];
   out.ci.require_pull_request = base.ci?.require_pull_request === true || head.ci?.require_pull_request === true;

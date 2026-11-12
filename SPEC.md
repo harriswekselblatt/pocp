@@ -414,6 +414,17 @@ runnable obligations. Every run below is in its own fresh copy of the code.
    text rule can show that a test edit still catches what it caught (added lines alone can
    disable existing assertions). The review names what changed and flags added lines that
    match a list of risky patterns, as a hint to the reviewer, not as a pass condition.
+   One exception, with `guard.additions: "accept"` (which `pocp init` writes with fast mode):
+   a guarded test file in JavaScript/TypeScript, Python or Go whose base lines all appear
+   unchanged and in order in the new file (or a new test file), where each block of added
+   lines closes what it opens, holds only declarations at its top level (tests, functions,
+   imports, literal constants; in Python, not above deeper-indented existing lines), declares
+   no name the base file uses (except re-importing it from the same module), and contains no
+   line matching the additions risk list (skips, exits, hooks, mocks, object patching,
+   assignments to anything the added code didn't create, eval). Such a file adds no review
+   reason; the guard passes when every guarded file does. Runner config, helpers and test
+   settings are never accepted this way. The obligation records `additions: "accept"` and
+   its digest covers it.
    config without `guard.mutants` (any project set up before fast mode) keeps deep mode.
 
    **Only a normal failure catches a mutant.** A check catches a mutant only if it ran to
@@ -522,7 +533,8 @@ Packets made before this check carry a free-text `manual` sign-off instead. `ver
 accepts it for those commits, as an attestation, and says so.
 
 Lowering `guard.mutants` or changing `guard.seed` is a policy loosening (§7.2): a smaller
-sample catches less, and a new seed would let a change pick a sample it passes.
+sample catches less, and a new seed would let a change pick a sample it passes. So is setting
+`guard.additions` to `"accept"` where the base doesn't.
 
 ## 7. The gate
 
@@ -753,7 +765,7 @@ dropping any glob the test guard uses (whether set by `test_globs`/`runner_globs
 defaults, or `extra_*`), lowering `area_depth`, changing `run.env` from `minimal` or adding
 names to `run.env_allow`, removing globs from `ci.files`, dropping checks from
 `ci.required_checks`, turning off `ci.require_pull_request` or `ci.enforce_admins`, or
-changing `ci.branch`, lowering `guard.mutants` or changing `guard.seed`. Until approved, the
+changing `ci.branch`, lowering `guard.mutants`, changing `guard.seed`, or turning `guard.additions` to `"accept"`. Until approved, the
 base's stricter values stay in force.
 
 **Evidence labels.** Each packet in the result lists, per obligation, what establishes it:
