@@ -81,12 +81,15 @@ function runObligation(ob, dir) {
   });
 }
 
-/** The result with every timing removed (timings are the only thing allowed to differ). */
+/**
+ * The result with every timing removed (timings are the only thing allowed to differ): each
+ * run's `duration_ms`, and the per-phase `timings` the guard adds for profiling.
+ */
 function normalize(x) {
   if (Array.isArray(x)) return x.map(normalize);
   if (x && typeof x === 'object') {
     const out = {};
-    for (const k of Object.keys(x).sort()) if (k !== 'duration_ms') out[k] = normalize(x[k]);
+    for (const k of Object.keys(x).sort()) if (k !== 'duration_ms' && k !== 'timings') out[k] = normalize(x[k]);
     return out;
   }
   return x;
@@ -197,5 +200,75 @@ test('mutants start while the old-tests baseline runs, within the job limit, and
       const firstFail = runs.find((r) => /-old-fast$/.test(r.log) && !/-m\d+-/.test(r.log)).end;
       assert.ok(!mutantRuns.some((r) => r.start > firstFail), 'no mutant check starts after the baseline\'s first failure');
     }
+  }
+});
+
+// Per-phase timings (profiling for the deep-mode speed work). They are a top-level field of their
+// own, the only key the frozen guard doesn't have, and they count exactly the guard's work.
+test('the per-phase timings are the only addition, and they account for every run, copy and snapshot', async () => {
+  const bucketOf = (log) => {
+    // Fast mode's changed-tests runs, on the new code or the base, are part of the old-tests baseline.
+    if (/-changed-/.test(log)) return 'old_baseline';
+    if (/-m\d+-old-/.test(log)) return 'mutants.old';
+    if (/-m\d+-new-/.test(log)) return 'mutants.new';
+    if (/-base-/.test(log)) return 'base_check';
+    if (/-old-/.test(log)) return 'old_baseline';
+    if (/-new-/.test(log)) return 'new_baseline';
+    return `unknown: ${log}`;
+  };
+  const get = (t, k) => k.split('.').reduce((o, x) => o[x], t);
+  // Verify's path: `share` given, so the two baselines run at once (here it always runs the check itself).
+  const share = async (ob, run) => ({ result: await run() });
+  for (const [name, opts] of [
+    ['kept', { mutants: 8, jobs: 2 }],
+    ['changed', { mutants: 8, jobs: 2 }],
+    ['red', { mutants: 4, jobs: 3 }],
+    ['dropped', { mutants: 10, jobs: 1 }],
+    ['kept', { mutants: 0, jobs: 2 }],
+    ['changed', { mutants: 0, jobs: 2 }],
+    ['kept', { mutants: 6, jobs: 3, share }],
+    ['changed', { mutants: 6, jobs: 3, share }],
+  ]) {
+    const fx = repo({ base: {}, ...SCENARIOS[name] });
+    const seen = {};
+    const sides = new Set();
+    const spy = async (ob, dir, o) => {
+      const r = await runObligation(ob, dir, o);
+      const side = /-(m\d+-(?:old|new))-/.exec(o?.logName || '')?.[1];
+      if (side) sides.add(side);
+      const k = bucketOf(o?.logName || '');
+      seen[k] ??= { runs: 0, run_ms: 0 };
+      seen[k].runs++;
+      seen[k].run_ms += r.duration_ms;
+      return r;
+    };
+    const args = { root: fx.dir, base: fx.base, rev: fx.rev, changes: fx.changes, checks: CHECKS, sourceGlobs: ['src/**'], links: [], guardGlobs: { test: ['test/**'], runner: [] }, seed: 1, ...opts };
+    const b = await runNow({ ...args, runObligation: spy });
+    // The frozen guard predates fast mode's structural review and verify's shared baselines, so
+    // only deep, prove-mode results can be compared with it key by key.
+    if (opts.mutants > 0 && !opts.share) {
+      const a = await runV0({ ...args, runObligation });
+      assert.deepEqual(Object.keys(b).filter((k) => !(k in a)), ['timings'], `${name}: timings is the one new key`);
+    }
+    const t = b.timings;
+    for (const [k, v] of Object.entries(seen)) {
+      assert.ok(!k.startsWith('unknown'), `${name}: a run the test can't place (${k})`);
+      assert.equal(get(t, k).runs, v.runs, `${name}: ${k} runs`);
+      assert.equal(get(t, k).run_ms, v.run_ms, `${name}: ${k} run_ms`);
+    }
+    for (const k of ['new_baseline', 'old_baseline', 'base_check', 'mutants.old', 'mutants.new']) {
+      if (!seen[k]) assert.equal(get(t, k).runs, 0, `${name}: ${k} has no runs`);
+    }
+    const baselineRuns = ['new_baseline', 'old_baseline', 'base_check'].reduce((s, k) => s + (seen[k]?.runs || 0), 0);
+    // A fresh copy for every baseline run, one per mutant and side (its checks share it), and the
+    // old-tests template copied from the new snapshot. (No retries here, so no retry copies.)
+    assert.equal(t.copy.count, baselineRuns + sides.size + 1, `${name}: copies`);
+    assert.equal(t.snapshot.count, 1 + (seen.base_check ? 1 : 0), `${name}: snapshots`);
+    assert.equal(t.cleanup.count, t.copy.count + t.snapshot.count, `${name}: everything made is removed`);
+    assert.ok(t.new_baseline.wall_ms > 0 && t.old_baseline.wall_ms > 0, `${name}: baselines timed`);
+    if (seen['mutants.old']) assert.ok(t.mutants.wall_ms > 0, `${name}: mutant pool timed`);
+    if (seen.base_check) assert.ok(t.base_check.wall_ms > 0, `${name}: base check timed`);
+    assert.ok(t.setup_ms >= 0 && t.plan_ms >= 0);
+    assert.equal(t.mutants.old.retries + t.mutants.new.retries, 0, `${name}: no run timed out here`);
   }
 });

@@ -75,6 +75,8 @@ test('a run that times out under a short limit but finishes on the retry is meas
   ]);
   const retries = seen.filter((s) => s.log.endsWith('-retry'));
   assert.equal(retries.length, 2, 'one retry per side, for that mutant only');
+  assert.equal(res.timings.mutants.old.retries, 1, 'the per-phase timings count the retries, per side');
+  assert.equal(res.timings.mutants.new.retries, 1);
   assert.ok(retries.every((s) => s.timeout_ms === TIMEOUT_MS * RETRY_FACTOR && !s.timed_out));
   assert.equal(res.verdict, 'passed', res.summary);
   assert.equal(res.detection.result, 'kept');
