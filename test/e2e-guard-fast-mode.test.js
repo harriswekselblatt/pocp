@@ -168,6 +168,21 @@ test('fast with additions "accept": code after a test, or inside a constant, goe
   }
 });
 
+test('fast with additions "accept": a decorator added above an existing Python test goes to a person (gate and guard)', () => {
+  // Codex review of PR #81, round 2: @pytest.mark.parametrize("x", []) above an existing test makes
+  // pytest skip it, with no existing line edited.
+  const dir = nodeTestRepo();
+  const OLD = 'import pytest\n\n\n@pytest.fixture\ndef x():\n    return 1\n\n\ndef test_old(x):\n    assert x == 1\n';
+  write(dir, 'test/test_old.py', OLD);
+  git(dir, 'add', '-A');
+  git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'python test');
+  write(dir, 'test/test_old.py', OLD.replace('def test_old(x):', '@pytest.mark.parametrize("x", [])\ndef test_old(x):'));
+  const { guard } = guardOf(dir, ['test/test_old.py']);
+  assert.equal(guard.verdict, 'needs-review', guard.summary);
+  assert.match(guard.summary, /end with a decorator, which attaches to the existing definition after them/);
+  assert.notEqual(pocp(dir, ['gate']).code, 0, 'the gate does not pass it on its own');
+});
+
 test('fast without guard.additions (configs before it existed): an added whole test still goes to a person', () => {
   const dir = nodeTestRepo({ mutants: 0 });
   write(dir, 'test/add.check.mjs', ADDED);

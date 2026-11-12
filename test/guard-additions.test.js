@@ -284,3 +284,49 @@ test('js and py: inert constants, plain tests and helpers are still accepted', (
   accept('test/math.test.js', JS, `${JS}const CASES = [[1, 2, 3], [2, 2, 4]];\nconst OPTS = { timeout: 5, name: 'x' };\nconst neg = (x) => -x;\ntest('neg', (t) => {\n  t.is(neg(1), -1);\n});\n`);
   accept('tests/test_math.py', PY, `${PY}\n\nCASES = [(1, 2, 3), (2, 2, 4)]\n\n\n@pytest.mark.parametrize('a,b,c', CASES)\ndef test_table(a, b, c=0):\n    assert add(a, b) == c\n`);
 });
+
+// Regression (Codex review of PR #81, round 2): added lines that change the meaning of a RETAINED
+// neighbour, with no retained line edited.
+const NEIGHBOUR = [
+  ['py', 'a decorator added above an existing test (Codex: pytest skips it)', 'tests/test_x.py',
+    'import pytest\n\n\n@pytest.fixture\ndef x():\n    return 1\n\n\ndef test_old(x):\n    assert x == 1\n',
+    'import pytest\n\n\n@pytest.fixture\ndef x():\n    return 1\n\n\n@pytest.mark.parametrize("x", [])\ndef test_old(x):\n    assert x == 1\n'],
+  ['py', 'a bare decorator above an existing test', 'tests/test_x.py',
+    'def test_old():\n    assert True\n', '@other\ndef test_old():\n    assert True\n'],
+  ['py', 'a def inserted between an existing decorator and its test', 'tests/test_x.py',
+    '@pytest.mark.parametrize("a", [1, 2])\ndef test_old(a):\n    assert a\n',
+    '@pytest.mark.parametrize("a", [1, 2])\ndef test_new():\n    assert True\n\n\ndef test_old(a):\n    assert a\n'],
+  ['py', 'a line continuation joining the next line', 'tests/test_x.py',
+    'def test_old():\n    assert True\n', 'X = 1 + \\\ndef test_old():\n    assert True\n'],
+  ['py', 'pytestmark (skips every test in the module)', 'tests/test_x.py',
+    'import pytest\n\n\ndef test_old():\n    assert True\n', 'import pytest\n\npytestmark = []\n\n\ndef test_old():\n    assert True\n'],
+  ['py', 'pytest_generate_tests (parametrizes existing tests)', 'tests/test_x.py',
+    'def test_old(x):\n    assert x\n', 'def test_old(x):\n    assert x\n\n\ndef pytest_generate_tests(metafunc):\n    metafunc.parametrize("x", [])\n'],
+  ['py', 'load_tests (chooses which unittest tests load)', 'tests/test_x.py',
+    'def test_old():\n    assert True\n', 'def test_old():\n    assert True\n\n\ndef load_tests(loader, tests, pattern):\n    return tests\n'],
+  ['py', 'a __future__ import', 'tests/test_x.py',
+    'def test_old():\n    assert True\n', 'from __future__ import annotations\n\n\ndef test_old():\n    assert True\n'],
+  ['js', 'an addition completing an unfinished retained line', 'test/x.test.js',
+    "import test from 'ava';\nconst EXPECTED =\n  5;\ntest('old', (t) => {\n  t.is(5, EXPECTED);\n});\n",
+    "import test from 'ava';\nconst EXPECTED =\ntest('new', (t) => {\n  t.pass();\n})\n  5;\ntest('old', (t) => {\n  t.is(5, EXPECTED);\n});\n"],
+  ['js', 'a retained line that continues the added statement (ASI)', 'test/x.test.js',
+    "import test from 'ava';\n[1, 2].forEach((n) => test(`n${n}`, (t) => t.pass()));\n",
+    "import test from 'ava';\nconst f = () => 1\n[1, 2].forEach((n) => test(`n${n}`, (t) => t.pass()));\n"],
+  ['js', 'a Jest environment pragma', 'test/x.test.js',
+    "import test from 'ava';\ntest('old', (t) => {\n  t.pass();\n});\n",
+    "/** @jest-environment node */\nimport test from 'ava';\ntest('old', (t) => {\n  t.pass();\n});\n"],
+  ['go', 'a build constraint (drops the whole file)', 'x_test.go',
+    'package x\n\nimport "testing"\n\nfunc TestOld(t *testing.T) {}\n',
+    '//go:build ignore\n\npackage x\n\nimport "testing"\n\nfunc TestOld(t *testing.T) {}\n'],
+  ['go', 'a legacy build tag', 'x_test.go',
+    'package x\n\nimport "testing"\n\nfunc TestOld(t *testing.T) {}\n',
+    '// +build ignore\n\npackage x\n\nimport "testing"\n\nfunc TestOld(t *testing.T) {}\n'],
+];
+for (const [, name, path, base, next] of NEIGHBOUR) {
+  test(`neighbour: ${name} goes to review`, () => review(path, base, next));
+}
+
+test('neighbour: a decorated new test, and a new method right after a class header, are still accepted', () => {
+  accept('tests/test_x.py', 'def test_old():\n    assert True\n', 'def test_old():\n    assert True\n\n\n@pytest.mark.parametrize("a", [1, 2])\ndef test_new(a):\n    assert a\n');
+  accept('tests/test_x.py', 'class TestX:\n    def test_old(self):\n        assert True\n', 'class TestX:\n    def test_new(self):\n        assert True\n\n    def test_old(self):\n        assert True\n');
+});

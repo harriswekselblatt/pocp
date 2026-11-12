@@ -466,6 +466,10 @@ export function judgeAdditions({ path, base, next }) {
     const unitWhy = checkUnits(blockLines, s.lines, lang, topIndent);
     if (unitWhy) return { ok: false, why: `${where}: ${unitWhy}` };
 
+    // Nor may it change the meaning of the retained lines around it.
+    const neighbourWhy = checkNeighbours({ lang, blockLines, info: s.lines, topIndent, nextLines, start, after });
+    if (neighbourWhy) return { ok: false, why: `${where} ${neighbourWhy}` };
+
     // No shadowing or redefinition of anything the base file mentions.
     for (const { name, line } of declaredHere) {
       if (!baseWords.has(name)) continue;
@@ -807,5 +811,50 @@ function checkUnits(blockLines, info, lang, topIndent) {
     }
     if (why) return `${why} ("${blockLines[from].trim().slice(0, 60)}")`;
   }
+  return null;
+}
+
+// --- Neighbours ----------------------------------------------------------------------------------
+//
+// Added lines can change a RETAINED line without editing it: a decorator that attaches to the
+// existing def below, a backslash or an unfinished expression that joins two lines, JavaScript's
+// semicolon insertion continuing a statement across the boundary, or a file-level directive that
+// switches tests off (Go build constraints, pytestmark, pytest_generate_tests, load_tests,
+// __future__, Jest environment pragmas).
+
+const isCodeLine = (l, lang) => l.trim() !== '' && !isCommentOrBlank(l, lang);
+
+function checkNeighbours({ lang, blockLines, info, topIndent, nextLines, start, after }) {
+  let prev = null;
+  for (let i = start - 1; i >= 0; i--) if (isCodeLine(nextLines[i], lang)) { prev = nextLines[i]; break; }
+  let next = null;
+  if (after !== null) for (let i = after; i < nextLines.length; i++) if (isCodeLine(nextLines[i], lang)) { next = nextLines[i]; break; }
+  const text = blockLines.join('\n');
+  const lastCode = [...blockLines].reverse().find((l) => isCodeLine(l, lang));
+
+  if (lang === 'py') {
+    const tops = blockLines.filter((l, k) => isCodeLine(l, lang) && !info[k].inString && info[k].depth === 0 && indentOf(l) === topIndent);
+    if (tops.length && tops.at(-1).trim().startsWith('@')) return 'end with a decorator, which attaches to the existing definition after them';
+    if (lastCode && /\\\s*$/.test(lastCode)) return 'end with a line continuation, which joins the existing line after them';
+    if (prev !== null && prev.trim().startsWith('@')) return 'sit between an existing decorator and the definition it decorated';
+    if (prev !== null && /\\\s*$/.test(prev)) return 'continue an existing line that ends with a backslash';
+    if (/^\s*from\s+__future__\s+import\b/m.test(text)) return 'add a __future__ import, which changes how the existing code is compiled';
+    const special = text.match(/^\s*(?:(?:async\s+)?def\s+|class\s+)?(pytestmark|pytest_\w+|load_tests|collect_ignore\w*|setUpModule|tearDownModule)\b/m);
+    if (special) return `define ${special[1]}, which pytest or unittest applies to the existing tests`;
+    return null;
+  }
+
+  const strip = (l) => sanitize(l, lang).trim();
+  if (prev !== null) {
+    const p = strip(prev);
+    if (/(?:[=,([.?:+\-*/%&|^!<>~]|=>)$/.test(p) || /\b(?:return|typeof|new|await|yield|in|of|instanceof|extends|delete|void|case|else|do)$/.test(p)) {
+      return 'follow an existing line that is not finished, so they would become part of it';
+    }
+  }
+  if (next !== null && /^[([`.+\-*/%,=?:<>&|^]/.test(strip(next))) {
+    return 'sit before an existing line that would continue their last statement (automatic semicolon insertion)';
+  }
+  if (lang === 'go' && /^\s*\/\/\s*(?:go:|\+build\b)/m.test(text)) return 'add a Go build constraint or directive, which can drop or change the whole file';
+  if (lang === 'js' && /@(?:jest|vitest)-environment\b|@jest-|@vitest-|@flow\b/.test(text)) return 'add a test-runner pragma, which changes how the existing tests run';
   return null;
 }
