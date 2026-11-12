@@ -233,3 +233,54 @@ test('go: raw strings, including multi-line ones, are judged', () => {
   const base = 'package g\n\nimport "testing"\n\nfunc TestA(t *testing.T) {\n\tjson := `{"a":\n1}`\n\tif json == "" {\n\t\tt.Fatal("x")\n\t}\n}\n';
   accept('g_test.go', base, `${base}\nfunc TestB(t *testing.T) {\n\tjson := \`{"b": [1, 2]}\`\n\tif json == "" {\n\t\tt.Fatal("y")\n\t}\n}\n`);
 });
+
+// Regression (Codex review of PR #81): a top-level line was judged by how it STARTS, so code
+// after a declaration, or inside a constant's value, ran at load time and was accepted.
+const JS_TRAILING = [
+  ['a statement after a test on the same line', "test('new', () => {}); disableAssertions();"],
+  ['a comma expression after a test', "test('new', () => {}), disableAssertions();"],
+  ['a call inside an array constant', 'const setup = [disableAssertions()];'],
+  ['a call inside an object constant', 'const o = { a: disableAssertions() };'],
+  ['an immediately invoked function', 'const f = (() => disableAssertions())();'],
+  ['a second declarator with a call', 'const a = 1, b = disableAssertions();'],
+  ['an arrow constant followed by a call', 'const f = () => 1; disableAssertions();'],
+  ['a function declaration followed by a call', 'function helper() {}\ndisableAssertions();'],
+  ['a function declaration with a call after its body', 'function helper() {} disableAssertions();'],
+  ['a computed test title', 'test(disableAssertions(), () => {});'],
+  ['an interpolated test title', 'test(`x ${disableAssertions()}`, () => {});'],
+  ['an interpolated template constant', 'const s = `${disableAssertions()}`;'],
+  ['a tagged template constant', 'const s = tag`x`;'],
+  ['a constant read through a getter', 'const v = lib.patched;'],
+  ['test.each with a computed table', 'test.each([[disableAssertions()]])("x", () => {});'],
+  ['a multi-line test followed by a call', "test('new', () => {\n  t.pass();\n}); disableAssertions();"],
+];
+for (const [name, line] of JS_TRAILING) {
+  test(`js: code that runs at load is not accepted: ${name}`, () => {
+    review('test/math.test.js', JS, `${JS}${line}\n`);
+  });
+}
+
+const PY_IMPORT_TIME = [
+  ['a call in a list constant', 'X = [disable()]'],
+  ['a call in a tuple constant', 'X = (disable(), 1)'],
+  ['a call in a dict constant', 'Y = {1: disable()}'],
+  ['a call in an f-string constant', "S = f'{disable()}'"],
+  ['a statement after a constant', 'X = 1; disable()'],
+  ['a call in a default argument', 'def test_b(a=disable()):\n    assert a'],
+  ['a call in an annotation', 'def test_b(a: disable()):\n    assert a'],
+  ['a call in decorator arguments', "@pytest.mark.parametrize('a', [disable()])\ndef test_b(a):\n    assert a"],
+  ['a call in class bases', 'class TestB(make_base()):\n    def test_x(self):\n        assert True'],
+  ['a call in a class attribute', 'class TestB:\n    X = [disable()]\n\n    def test_x(self):\n        assert True'],
+  ['a decorated method with a computed argument', "class TestB:\n    @pytest.mark.parametrize('a', [disable()])\n    def test_x(self, a):\n        assert a"],
+  ['a constant read through an attribute', 'X = lib.patched'],
+];
+for (const [name, code] of PY_IMPORT_TIME) {
+  test(`py: code that runs at import is not accepted: ${name}`, () => {
+    review('tests/test_math.py', PY, `${PY}\n\n${code}\n`);
+  });
+}
+
+test('js and py: inert constants, plain tests and helpers are still accepted', () => {
+  accept('test/math.test.js', JS, `${JS}const CASES = [[1, 2, 3], [2, 2, 4]];\nconst OPTS = { timeout: 5, name: 'x' };\nconst neg = (x) => -x;\ntest('neg', (t) => {\n  t.is(neg(1), -1);\n});\n`);
+  accept('tests/test_math.py', PY, `${PY}\n\nCASES = [(1, 2, 3), (2, 2, 4)]\n\n\n@pytest.mark.parametrize('a,b,c', CASES)\ndef test_table(a, b, c=0):\n    assert add(a, b) == c\n`);
+});

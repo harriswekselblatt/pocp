@@ -462,6 +462,10 @@ export function judgeAdditions({ path, base, next }) {
       for (const name of declaredNames(l, lang)) declaredHere.push({ name, line: l });
     }
 
+    // Each top-level statement as a whole: nothing in it may run where the block was inserted.
+    const unitWhy = checkUnits(blockLines, s.lines, lang, topIndent);
+    if (unitWhy) return { ok: false, why: `${where}: ${unitWhy}` };
+
     // No shadowing or redefinition of anything the base file mentions.
     for (const { name, line } of declaredHere) {
       if (!baseWords.has(name)) continue;
@@ -496,4 +500,312 @@ function matchesDecl(trimmed, table) {
 
 function sameImportInBase(baseLines, src, name, lang) {
   return baseLines.some((b) => importSource(b, lang) === src && new RegExp(`\\b${name.replace(/[$]/g, '\\$')}\\b`).test(b));
+}
+
+// --- Whole statements ---------------------------------------------------------------------------
+//
+// A line that STARTS like a declaration can still run code: `test('x', fn); disable();`,
+// `const a = [disable()]`, `def t(a=disable()):`. So each top-level statement of a block is
+// checked whole. Strings and comments are blanked first (sanitize), so their contents can't
+// hide or fake code; an interpolated string keeps a marker, since interpolation runs code.
+
+/** Code with string contents and comments removed; newlines kept. */
+export function sanitize(text, lang) {
+  let out = '';
+  let i = 0;
+  const n = text.length;
+  while (i < n) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (lang === 'py' && ch === '#') { while (i < n && text[i] !== '\n') i++; continue; }
+    if (lang !== 'py' && ch === '/' && next === '/') { while (i < n && text[i] !== '\n') i++; continue; }
+    if (lang !== 'py' && ch === '/' && next === '*') {
+      const end = text.indexOf('*/', i + 2);
+      const body = end < 0 ? text.slice(i) : text.slice(i, end + 2);
+      out += body.replace(/[^\n]/g, ' ');
+      i = end < 0 ? n : end + 2;
+      continue;
+    }
+    if (lang === 'js' && ch === '`') {
+      let k = i + 1;
+      let interp = false;
+      while (k < n && text[k] !== '`') {
+        if (text[k] === '\\') { k += 2; continue; }
+        if (text[k] === '$' && text[k + 1] === '{') interp = true;
+        k++;
+      }
+      const lines = (text.slice(i, k + 1).match(/\n/g) || []).length;
+      out += interp ? '`${}`' : '``';
+      out += '\n'.repeat(lines);
+      i = k + 1;
+      continue;
+    }
+    if (lang === 'go' && ch === '`') {
+      const end = text.indexOf('`', i + 1);
+      const lines = (text.slice(i, end < 0 ? n : end + 1).match(/\n/g) || []).length;
+      out += '""' + '\n'.repeat(lines);
+      i = end < 0 ? n : end + 1;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      const triple = lang === 'py' && text.startsWith(ch.repeat(3), i);
+      const q = triple ? ch.repeat(3) : ch;
+      let k = i + q.length;
+      while (k < n && !text.startsWith(q, k)) {
+        if (text[k] === '\\') { k += 2; continue; }
+        if (!triple && text[k] === '\n') break;
+        k++;
+      }
+      const lines = (text.slice(i, k + q.length).match(/\n/g) || []).length;
+      out += '""' + '\n'.repeat(lines);
+      i = k + q.length;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
+}
+
+const OPEN = { '(': ')', '[': ']', '{': '}' };
+/** Index of the bracket closing the one at `at`, or -1. */
+function closeOf(code, at) {
+  let depth = 0;
+  for (let i = at; i < code.length; i++) {
+    if (OPEN[code[i]]) depth++;
+    else if (code[i] === ')' || code[i] === ']' || code[i] === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+/** Characters of `code` at bracket depth 0 that match `re` (a one-char class). */
+function atDepthZero(code, re) {
+  let depth = 0;
+  for (const ch of code) {
+    if (OPEN[ch]) depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    else if (depth === 0 && re.test(ch)) return true;
+  }
+  return false;
+}
+function splitArgs(inner) {
+  const args = [];
+  let depth = 0;
+  let cur = '';
+  for (const ch of inner) {
+    if (OPEN[ch]) depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    if (ch === ',' && depth === 0) { args.push(cur.trim()); cur = ''; continue; }
+    cur += ch;
+  }
+  if (cur.trim()) args.push(cur.trim());
+  return args;
+}
+
+/** True when evaluating `seg` (sanitized) can't run code: literals, names, operators only. */
+function inert(seg, lang) {
+  if (/[\w$)\]}"]\s*\(/.test(seg)) return false; // a call (including on a string or result)
+  if (/\bnew\b|\bawait\b|\byield\b|\bimport\b|\brequire\b/.test(seg)) return false;
+  if (/\$\{/.test(seg)) return false; // template interpolation
+  if (/[\w$)\]]\s*`/.test(seg)) return false; // tagged template
+  if (/\.\s*[A-Za-z_$]/.test(seg)) return false; // attribute access: a getter can run code
+  if (/\[\s*[^\]]*\]\s*$/.test(seg) && /[\w$)\]]\s*\[/.test(seg)) return false; // indexing into something
+  if (/=>|\bfunction\b|\blambda\b/.test(seg)) return false; // keep data to data
+  if (lang === 'py' && /(^|[^\w])[rRbBuU]*[fF][rRbBuU]*""/.test(seg)) return false; // f-string
+  if (lang === 'py' && /:=/.test(seg)) return false;
+  if (lang === 'js' && /(^|[^=!<>])=(?![=>])/.test(seg)) return false; // assignment inside a value
+  return true;
+}
+
+/** A JS function expression whose body doesn't run when it's defined. */
+function jsFunctionExpr(x) {
+  let t = x.trim().replace(/^async\s+/, '');
+  if (/^function\b/.test(t)) {
+    const p = t.indexOf('(');
+    const pc = p < 0 ? -1 : closeOf(t, p);
+    if (pc < 0) return false;
+    const rest = t.slice(pc + 1).trim();
+    if (!rest.startsWith('{')) return false;
+    const bc = closeOf(rest, 0);
+    return bc >= 0 && rest.slice(bc + 1).trim() === '';
+  }
+  let afterParams;
+  if (t.startsWith('(')) {
+    const pc = closeOf(t, 0);
+    if (pc < 0) return false;
+    afterParams = t.slice(pc + 1).trim();
+    // TypeScript return type
+    afterParams = afterParams.replace(/^:\s*[\w$<>[\]., |]+(?=\s*=>)/, '').trim();
+  } else {
+    const m = t.match(/^[\w$]+\s*/);
+    if (!m) return false;
+    afterParams = t.slice(m[0].length);
+  }
+  if (!afterParams.startsWith('=>')) return false;
+  const body = afterParams.slice(2).trim();
+  if (body.startsWith('{')) {
+    const bc = closeOf(body, 0);
+    return bc >= 0 && body.slice(bc + 1).trim() === '';
+  }
+  return body.length > 0; // an expression body runs only when called
+}
+
+const stripSemi = (c) => c.trim().replace(/;\s*$/, '').trim();
+
+function jsUnit(code) {
+  const c = stripSemi(code);
+  if (atDepthZero(c, /;/)) return 'more than one statement';
+  if (/^import\b/.test(c)) return /^import\s+(?:type\s+)?[^;]*\bfrom\s*""$/.test(c) ? null : 'an import with code after it';
+  if (/^(?:export\s+)?(?:type|interface)\b/.test(c)) return null;
+  if (atDepthZero(c, /,/)) return 'a comma expression or several declarators';
+  let m = c.match(/^(?:export\s+)?(?:const|let|var)\s+(?:[\w$]+|\{[^}]*\}|\[[^\]]*\])\s*(?::\s*[\w$<>[\]., |]+)?\s*=\s*/);
+  if (m) {
+    const init = c.slice(m[0].length);
+    if (/^require\(\s*""\s*\)$/.test(init)) return null;
+    if (jsFunctionExpr(init)) return null;
+    return inert(init, 'js') ? null : 'a constant whose value runs code (a call, getter, interpolation or new)';
+  }
+  m = c.match(/^(?:export\s+)?(?:async\s+)?function\s*\*?\s*[\w$]+\s*/);
+  if (m) return jsFunctionExpr(c.replace(/^export\s+/, '').replace(/^(async\s+)?function\s*\*?\s*[\w$]+/, '$1function')) ? null : 'a function declaration with code after it';
+  m = c.match(/^(?:test|it|describe|suite|context|bench)(?:\.(?:concurrent|serial|sequential))*\s*\(/);
+  if (m) {
+    const open = m[0].length - 1;
+    const close = closeOf(c, open);
+    if (close < 0) return 'an unclosed test';
+    if (c.slice(close + 1).trim() !== '') return 'code after a test declaration';
+    const args = splitArgs(c.slice(open + 1, close));
+    if (args.length < 2) return 'a test without a function';
+    const [title, ...rest] = args;
+    if (!/^(?:""|``|[\w$]+)$/.test(title)) return 'a test title computed by code';
+    for (const a of rest) if (!jsFunctionExpr(a) && !inert(a, 'js')) return 'a test argument that runs code';
+    if (!rest.some((a) => jsFunctionExpr(a))) return 'a test without a function';
+    return null;
+  }
+  return 'not a whole declaration';
+}
+
+function goUnit(code) {
+  const c = code.trim();
+  if (atDepthZero(c.replace(/;\s*$/, ''), /;/)) return 'more than one statement';
+  if (/^func\b/.test(c)) {
+    // Find the body: the first { at depth 0 after the parameter list(s).
+    let depth = 0;
+    for (let i = 0; i < c.length; i++) {
+      const ch = c[i];
+      if (ch === '{' && depth === 0) {
+        const close = closeOf(c, i);
+        return close >= 0 && c.slice(close + 1).trim() === '' ? null : 'code after a function';
+      }
+      if (OPEN[ch]) depth++;
+      else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    }
+    return 'a function without a body';
+  }
+  if (/^(?:import|type|const)\b/.test(c)) return null; // no runtime code (Go constants are compile-time)
+  if (/^var\b/.test(c)) return /=/.test(c) && !inert(c.slice(c.indexOf('=') + 1), 'go') ? 'a variable whose value runs code' : null;
+  return 'not a whole declaration';
+}
+
+function pyHeaderEnd(c) {
+  // The ':' that ends a def/class header, at depth 0.
+  let depth = 0;
+  for (let i = 0; i < c.length; i++) {
+    const ch = c[i];
+    if (OPEN[ch]) depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    else if (ch === ':' && depth === 0) return i;
+  }
+  return -1;
+}
+
+function pyUnit(lines, info, topIndent) {
+  const code = sanitize(lines.join('\n'), 'py');
+  const first = code.trimStart();
+  if (/^@/.test(first)) {
+    const c = first.trim();
+    const m = c.match(/^@[\w.]+\s*/);
+    if (!m) return 'a decorator that runs code';
+    const rest = c.slice(m[0].length);
+    if (rest === '') return null;
+    if (!rest.startsWith('(')) return 'a decorator that runs code';
+    const close = closeOf(rest, 0);
+    if (close < 0 || rest.slice(close + 1).trim() !== '') return 'a decorator with code after it';
+    return inert(rest.slice(1, close), 'py') ? null : 'decorator arguments that run code at import';
+  }
+  if (/^(?:async\s+)?def\b/.test(first)) {
+    const end = pyHeaderEnd(first);
+    if (end < 0) return 'a def without a body';
+    const header = first.slice(0, end);
+    const open = header.indexOf('(');
+    const close = open < 0 ? -1 : closeOf(header, open);
+    if (close < 0) return 'a def without parameters';
+    // Defaults and annotations run when the def runs, at import.
+    const params = header.slice(open + 1, close).replace(/(^|,)\s*\*{0,2}[A-Za-z_]\w*/g, '$1');
+    if (!inert(params, 'py')) return 'default values or annotations that run code at import';
+    const ret = header.slice(close + 1).replace(/^\s*->/, '');
+    if (ret.trim() && !inert(ret, 'py')) return 'a return annotation that runs code at import';
+    return null;
+  }
+  if (/^class\b/.test(first)) {
+    const end = pyHeaderEnd(first);
+    if (end < 0) return 'a class without a body';
+    const header = first.slice(0, end);
+    const open = header.indexOf('(');
+    if (open >= 0) {
+      const close = closeOf(header, open);
+      if (close < 0 || !inert(header.slice(open + 1, close), 'py')) return 'class bases that run code at import';
+    }
+    // The class body runs at import: check its statements the same way.
+    const bodyLines = lines.slice(1);
+    const bodyInfo = info.slice(1);
+    const codeIdx = bodyLines.map((l, k) => k).filter((k) => bodyLines[k].trim() && !bodyInfo[k].inString && bodyInfo[k].depth === 0 && !bodyLines[k].trim().startsWith('#'));
+    if (!codeIdx.length) {
+      const sameLine = first.slice(end + 1).trim();
+      return sameLine === '' || /^(?:pass|\.\.\.|"")$/.test(sameLine) ? null : 'a class body that runs code at import';
+    }
+    const bodyIndent = indentOf(bodyLines[codeIdx[0]]);
+    const starts = codeIdx.filter((k) => indentOf(bodyLines[k]) === bodyIndent);
+    for (let u = 0; u < starts.length; u++) {
+      const why = pyUnit(bodyLines.slice(starts[u], starts[u + 1] ?? bodyLines.length), bodyInfo.slice(starts[u], starts[u + 1] ?? bodyLines.length), bodyIndent);
+      if (why) return why;
+    }
+    return null;
+  }
+  const c = first.trim();
+  if (atDepthZero(c, /;/)) return 'more than one statement';
+  if (/^(?:import|from)\b/.test(c)) return null;
+  if (/^(?:pass|\.\.\.|"")$/.test(c)) return null;
+  const m = c.match(/^([A-Za-z_]\w*)\s*(:[^=]*)?=\s*/);
+  if (m && !/^=/.test(c.slice(m[0].length))) {
+    if (m[2] && !inert(m[2].slice(1), 'py')) return 'an annotation that runs code at import';
+    const init = c.slice(m[0].length);
+    if (atDepthZero(init, /,/)) return 'a tuple constant (write it in parentheses)';
+    return inert(init, 'py') ? null : 'a constant whose value runs code at import (a call, attribute or f-string)';
+  }
+  return 'not a whole declaration';
+}
+
+/** Check every top-level statement of a block; returns why one runs code, or null. */
+function checkUnits(blockLines, info, lang, topIndent) {
+  const isStart = (k) => {
+    const l = blockLines[k];
+    if (!l.trim() || info[k].inString || info[k].depth !== 0 || isCommentOrBlank(l, lang)) return false;
+    return lang !== 'py' || indentOf(l) === topIndent;
+  };
+  const starts = blockLines.map((_, k) => k).filter(isStart);
+  for (let u = 0; u < starts.length; u++) {
+    const from = starts[u];
+    const to = starts[u + 1] ?? blockLines.length;
+    const lines = blockLines.slice(from, to);
+    let why;
+    if (lang === 'py') why = pyUnit(lines, info.slice(from, to), topIndent);
+    else {
+      const code = sanitize(lines.join('\n'), lang);
+      why = lang === 'js' ? jsUnit(code) : goUnit(code);
+    }
+    if (why) return `${why} ("${blockLines[from].trim().slice(0, 60)}")`;
+  }
+  return null;
 }

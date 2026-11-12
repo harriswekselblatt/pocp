@@ -156,6 +156,18 @@ test('fast with additions "accept": an added test that patches an assertion thro
   assert.match(guard.summary, /not accepted as an addition: an added line assigns to an attribute of a, which the added code did not create/);
 });
 
+test('fast with additions "accept": code after a test, or inside a constant, goes to a person (gate and guard)', () => {
+  // Codex review of PR #81: these were accepted when lines were judged by how they start.
+  for (const extra of ["test('new', () => {}); console.log('ran at load');", "const setup = [console.log('ran at load')];"]) {
+    const dir = nodeTestRepo();
+    write(dir, 'test/add.check.mjs', `${NODE_TEST}${extra}\n`);
+    const { guard } = guardOf(dir, ['test/add.check.mjs']);
+    assert.equal(guard.verdict, 'needs-review', `${extra}: ${guard.summary}`);
+    assert.match(guard.summary, /not accepted as an addition: .*(more than one statement|code after a test declaration|constant whose value runs code)/);
+    assert.notEqual(pocp(dir, ['gate']).code, 0, `${extra}: the gate does not pass it on its own`);
+  }
+});
+
 test('fast without guard.additions (configs before it existed): an added whole test still goes to a person', () => {
   const dir = nodeTestRepo({ mutants: 0 });
   write(dir, 'test/add.check.mjs', ADDED);
