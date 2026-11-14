@@ -30,6 +30,9 @@ jobs:
     concurrency:
       group: pocp-status-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
       cancel-in-progress: false
+    # The reporter's own identity (docs/STATUS.md): the App's key lives in this environment,
+    # limited to the default branch, so only this job can post as the App.
+    environment: pocp-reporter
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -41,10 +44,21 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false   # no cache restore in a job that can write statuses
+      - id: app
+        if: vars.POCP_REPORTER_CLIENT_ID != ''
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.POCP_REPORTER_CLIENT_ID }}
+          private-key: ${{ secrets.POCP_REPORTER_KEY }}
+          permission-actions: read
+          permission-contents: read
+          permission-issues: read
+          permission-pull-requests: read
+          permission-statuses: write
       - name: report
         run: node bin/pocp.js status-report
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number || '' }}

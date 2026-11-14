@@ -315,14 +315,20 @@ request changed: such a pull request stays yellow until a maintainer adds
 `pocp-approve-workflow` (by default someone other than its author). A pull request from a fork
 gets a read-only token and can't post a status at all.
 
-One gap remains. The reporter and every workflow in the repository post as the same app,
-GitHub Actions, so a branch pushed to **this** repository by someone with write access
-(including an agent using a maintainer's token) can edit its workflow to post its own
-`pocp: success`. Until the reporter has its own GitHub App identity, with the required check
-pinned to that app, read the diff of any same-repository pull request that touches `.github/`
-(or the files your workflow runs before `verify`) before merging. On GitHub, a `CODEOWNERS`
+By default the reporter and every workflow in the repository post as the same app, GitHub
+Actions, so a branch pushed to **this** repository by someone with write access (including an
+agent using a maintainer's token) can edit its workflow to post its own `pocp: success`. Give
+the reporter its own GitHub App, keep the app's key in an environment limited to the default
+branch, and pin the required check to that app ([docs/STATUS.md](STATUS.md), "Give the reporter
+its own identity"). A branch then can't read the key, and a status it posts as GitHub Actions
+doesn't count. Without the app, read the diff of any same-repository pull request that touches
+`.github/` (or the files your workflow runs before `verify`) before merging; a `CODEOWNERS`
 entry for `.github/` with "Require review from Code Owners" makes that a rule, when someone
 other than the author can review.
+
+Neither stops a repository **admin**. An admin can loosen the environment, the branch
+protection or the app, so an agent holding an admin token can undo the setup. Agents should
+use a token without the *Administration* permission.
 
 ## Out of scope
 

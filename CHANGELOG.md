@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Security
+
+- **The reporter can post as its own GitHub App.** Until now the `pocp` status was posted as
+  GitHub Actions, like every workflow, so a branch pushed to the repository could edit a workflow
+  and post its own `pocp: success`. The example `pocp-status.yml` now runs in a `pocp-reporter`
+  environment and, when `POCP_REPORTER_CLIENT_ID` is set, posts with a token from your own App
+  whose key lives only in that environment. Limit the environment to your default branch and pin
+  the required `pocp` check to the app (docs/STATUS.md, "Give the reporter its own identity").
+  Without the app it posts as before. Re-run `pocp init --github --force` to get the new workflow.
+
 ## 1.2.3 (2026-11-10)
 
 ### Fixed

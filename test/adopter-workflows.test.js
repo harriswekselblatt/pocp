@@ -76,6 +76,23 @@ test('the example reporter never checks out or runs pull request code', () => {
   assert.match(run, /status-report --workflow "\$WORKFLOW"/);
 });
 
+test('the reporter posts as its own app, with the key only in the default-branch environment', () => {
+  for (const rel of ['examples/github/pocp-status.yml', '.github/workflows/pocp-status.yml']) {
+    const wf = read(rel);
+    // The key's environment is what keeps a branch's workflows from posting as the app.
+    assert.match(wf, /^    environment: pocp-reporter$/m, rel);
+    const app = wf.slice(wf.indexOf('- id: app'));
+    assert.match(app, /^\s+if: vars\.POCP_REPORTER_CLIENT_ID != ''$/m, `${rel}: without an app it falls back`);
+    assert.match(app, /uses: actions\/create-github-app-token@[0-9a-f]{40} # v\d/, `${rel}: pinned to a commit`);
+    assert.match(app, /client-id: \$\{\{ vars\.POCP_REPORTER_CLIENT_ID \}\}/, rel);
+    assert.match(app, /private-key: \$\{\{ secrets\.POCP_REPORTER_KEY \}\}/, rel);
+    // The app token gets only what the reporter uses, and writes nothing but statuses.
+    const perms = [...app.matchAll(/permission-([a-z-]+): (\w+)/g)].map((m) => `${m[1]}:${m[2]}`).sort();
+    assert.deepEqual(perms, ['actions:read', 'contents:read', 'issues:read', 'pull-requests:read', 'statuses:write'], rel);
+    assert.match(wf, /\$\{\{ steps\.app\.outputs\.token \|\| github\.token \}\}/, `${rel}: the reporter uses the app's token`);
+  }
+});
+
 test('the example labels workflow removes every approval label on push', () => {
   const wf = read('examples/github/pocp-labels.yml');
   for (const l of ['pocp-approve-tests', 'pocp-approve-policy', 'pocp-approve-coverage', 'pocp-approve-inconclusive', 'pocp-approve-workflow']) assert.ok(wf.includes(l), l);
