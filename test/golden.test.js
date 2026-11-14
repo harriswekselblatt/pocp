@@ -319,7 +319,9 @@ function commitRoles(dir) {
  * 3. Random record ids: packets (p-…), misses (m-…), run logs (r-…): <packet:N>, <miss:N>,
  *    <run:N>, by first appearance (they are random; there is no role to check).
  * 4. Clock times (ISO 8601).
- * 5. Measured durations only: the `duration_ms` and `ms` fields (elapsed time; configured
+ * 5. Measured durations only: the `duration_ms` and `ms` fields, and every number in the test
+ *    guard's per-phase `timings` (its shape is kept: its counts vary with load, since the planted-bug
+ *    runs that start alongside a failing old-tests baseline stop whenever they see it; configured
  *    timeouts are `timeout_ms` and are kept), and in verify's human output the elapsed time in
  *    its header line ("… in a..b · 1.2s") and at the end of each re-run line ("(62ms)").
  * 6. The test guard's seed, which verify derives from the compared commit ids (rule 2): the `seed`
@@ -363,7 +365,14 @@ function normalize(capture, { dir }) {
   text = text.replace(/( commit\(s\) in [^·]*? · )\d+(\.\d+)?(ms|s)\b/g, (_, head) => `${head}<duration>`);
   // Each re-run line of verify's human output ends with its elapsed time: "  rerun passed   cmd (62ms)".
   text = text.replace(/(  rerun \w+ (?:(?!\\n).)*?\()\d+(?:\.\d+)?(?:ms|s)\)/g, (_, head) => `${head}<duration>)`);
-  return JSON.parse(text);
+  return zeroTimings(JSON.parse(text));
+}
+
+/** Every number under a `timings` key becomes 0 (rule 5); everything else is returned as is. */
+function zeroTimings(x, inside = false) {
+  if (Array.isArray(x)) return x.map((v) => zeroTimings(v, inside));
+  if (x && typeof x === 'object') return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, zeroTimings(v, inside || k === 'timings')]));
+  return inside && typeof x === 'number' ? 0 : x;
 }
 
 /** A guard summary that reports mutant results: its outcome depended on the varying seed. */

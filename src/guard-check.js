@@ -51,6 +51,51 @@ export async function runGuardCheck({
   share,
 }) {
   const started = Date.now();
+  // Where the guard's time goes (profiling only: nothing reads it to decide). `wall_ms` is
+  // elapsed time for a phase, waits for a job slot included; `run_ms` sums the checks' own run
+  // times (`duration_ms` as the runner reports it), so with several jobs a phase's run_ms can
+  // exceed its wall_ms. Snapshot, copy and cleanup times are summed across all jobs the same way,
+  // and are also inside the phases' wall times (they overlap; don't add them up). Fast mode's
+  // changed-tests runs, on either tree, are part of the old-tests baseline. In verify the two
+  // baselines run at once, and the new-code baseline can wait on verify's own run of a check.
+  const timings = {
+    setup_ms: 0,
+    new_baseline: { wall_ms: 0, run_ms: 0, runs: 0 },
+    old_baseline: { wall_ms: 0, run_ms: 0, runs: 0 },
+    plan_ms: 0,
+    mutants: { wall_ms: 0, old: { run_ms: 0, runs: 0, retries: 0 }, new: { run_ms: 0, runs: 0, retries: 0 } },
+    base_check: { wall_ms: 0, run_ms: 0, runs: 0 },
+    snapshot: { ms: 0, count: 0 },
+    copy: { ms: 0, count: 0 },
+    cleanup: { ms: 0, count: 0 },
+  };
+  const clock = (bucket, fn) => {
+    const t = Date.now();
+    try {
+      return fn();
+    } finally {
+      bucket.ms += Date.now() - t;
+      bucket.count++;
+    }
+  };
+  const withCleanup = (s) => ({ dir: s.dir, cleanup: () => clock(timings.cleanup, s.cleanup) });
+  const snapshotOf = (rev_) => withCleanup(clock(timings.snapshot, () => createTreeSnapshot(root, rev_, { links })));
+  const copyOf = (dir) => withCleanup(clock(timings.copy, () => copySnapshot(dir)));
+  // Runs a check and adds its own run time to `bucket`. The result is returned unchanged.
+  const run = async (bucket, ob, dir, opts) => {
+    const r = await runObligation(ob, dir, opts);
+    bucket.run_ms += Number(r?.duration_ms) || 0;
+    bucket.runs++;
+    return r;
+  };
+  const span = async (bucket, fn) => {
+    const t = Date.now();
+    try {
+      return await fn();
+    } finally {
+      bucket.wall_ms += Date.now() - t;
+    }
+  };
   const result = {
     pocp: 1,
     verdict: 'inconclusive',
@@ -68,6 +113,7 @@ export async function runGuardCheck({
     result.passed = verdict === 'passed';
     result.summary = summary;
     result.duration_ms = Date.now() - started;
+    result.timings = timings;
     return result;
   };
   // Inconclusive because a run didn't finish (a timeout, a signal, a spawn error), not because
@@ -80,10 +126,11 @@ export async function runGuardCheck({
   if (!base) return finish('inconclusive', 'no base revision to compare the tests with');
   if (!checks.length) return finish('inconclusive', 'no check runs these tests; add a test obligation that does (pocp add <packet> --test "<command>")');
 
-  const newTpl = createTreeSnapshot(root, rev, { links });
+  const setupStarted = Date.now();
+  const newTpl = snapshotOf(rev);
   let oldTpl = null;
   try {
-    oldTpl = copySnapshot(newTpl.dir);
+    oldTpl = copyOf(newTpl.dir);
     result.old_tests.restored = restoreOldTests(root, base, changes, oldTpl.dir);
     // Tests the change adds aren't old tests: they stay out of the old-tests run, or a new test
     // of changed test support would run against the old support and read as a behavior change.
@@ -92,6 +139,7 @@ export async function runGuardCheck({
       .filter((f) => !checks.some((c) => String(c.run || '').includes(f)));
     for (const f of added) fs.rmSync(path.join(oldTpl.dir, f), { force: true });
     if (added.length) result.old_tests.left_out = added;
+    timings.setup_ms = Date.now() - setupStarted;
 
     // Baselines: the checks on the new code with the new tests (as proven), then with the old.
     const speed = new Map();
@@ -130,10 +178,11 @@ export async function runGuardCheck({
       // A fresh copy for every check: one check's tests (the pull request's code) must not be
       // able to rewrite the files another check then runs, since a pass here is shared with
       // verify's re-runs (onPass).
+      const bucket = { new: timings.new_baseline, old: timings.old_baseline, base: timings.base_check }[label];
       const runIn = (ob) => () => slotted(async () => {
-        const copy = copySnapshot(tplDir);
+        const copy = copyOf(tplDir);
         try {
-          return await runObligation(ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
+          return await run(bucket, ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
         } finally {
           copy.cleanup();
         }
@@ -186,7 +235,7 @@ export async function runGuardCheck({
         const ob = { id: c.ob.id, kind: 'test', run: args.map(shellQuote).join(' ') };
         if (c.ob.cwd) ob.cwd = c.ob.cwd;
         if (c.ob.timeout_ms) ob.timeout_ms = c.ob.timeout_ms;
-        const r = await slotted(() => runObligation(ob, dir, { logName: `${logPrefix}-${side}-changed-${c.ob.id}` }));
+        const r = await slotted(() => run(timings.old_baseline, ob, dir, { logName: `${logPrefix}-${side}-changed-${c.ob.id}` }));
         const tests = countTests(r.output);
         // Node's runner reports a file that ran no test as one passing "test" named after the
         // file (a helper, or a filter that matched nothing). Those aren't tests that ran.
@@ -212,7 +261,7 @@ export async function runGuardCheck({
       };
       // The base versions of the edited files on the new code.
       const failed = [];
-      const copy = copySnapshot(oldTpl.dir);
+      const copy = copyOf(oldTpl.dir);
       try {
         for (const c of plan.commands) {
           const o = await runOne(c, copy.dir, 'new-code');
@@ -231,7 +280,7 @@ export async function runGuardCheck({
       // They fail on the new code. The same files on the base code: if they pass there,
       // behavior changed, and a person decides (this can only escalate, never pass). If they
       // fail there too, or a run is unclear, the whole check decides.
-      const baseTree = createTreeSnapshot(root, base, { links });
+      const baseTree = snapshotOf(base);
       try {
         for (const { c } of failed) {
           const b = await runOne(c, baseTree.dir, 'base');
@@ -259,9 +308,9 @@ export async function runGuardCheck({
       }
       return runAll(oldTpl.dir, 'old', result.old_tests.runs);
     };
-    const startOld = () => (together ? oldTests() : inSlot(oldTests)).then((r) => ({ r }), (err) => ({ err }));
+    const startOld = () => span(timings.old_baseline, () => (together ? oldTests() : inSlot(oldTests))).then((r) => ({ r }), (err) => ({ err }));
     let oldDone = together ? startOld() : null;
-    const fresh = await runAll(newTpl.dir, 'new', result.new_tests.runs).then((r) => ({ r }), (err) => ({ err }));
+    const fresh = await span(timings.new_baseline, () => runAll(newTpl.dir, 'new', result.new_tests.runs)).then((r) => ({ r }), (err) => ({ err }));
     if (fresh.err) {
       // The old-tests run uses the snapshots removed below: let it end first.
       abandon = true;
@@ -277,11 +326,13 @@ export async function runGuardCheck({
     let plan = null;
     let planError = null;
     if (result.new_tests.result === 'pass' && mutants !== 0) {
+      const planStarted = Date.now();
       try {
         plan = mutationPlan({ root, base, rev, dir: newTpl.dir, changes, sourceGlobs, exclude, guardGlobs, mutants, seed });
       } catch (err) {
         planError = err;
       }
+      timings.plan_ms = Date.now() - planStarted;
     }
     const ordered = [...checks].sort((a, b) => (speed.get(a) ?? 0) - (speed.get(b) ?? 0));
     // One side's verdict on a mutant: `by` is the check that caught it, `unfinished` the checks
@@ -302,11 +353,12 @@ export async function runGuardCheck({
     // Caught means any check fails normally, so the order changes only how soon that is known,
     // never the answer (the speed order above already varies with measured times).
     const killedIn = async (tplDir, m, label, first = null) => {
-      const copy = copySnapshot(tplDir);
+      const bucket = label.endsWith('-old') ? timings.mutants.old : timings.mutants.new;
+      const copy = copyOf(tplDir);
       const unfinished = [];
       const retried = [];
       const fresh = () => {
-        const c = copySnapshot(tplDir);
+        const c = copyOf(tplDir);
         fs.writeFileSync(path.join(c.dir, m.file), m.mutatedText);
         return c;
       };
@@ -315,7 +367,7 @@ export async function runGuardCheck({
         const order = first ? [...ordered.filter((ob) => ob.id === first), ...ordered.filter((ob) => ob.id !== first)] : ordered;
         for (const ob of order) {
           if (abandon) return { by: null, unfinished, retried };
-          let r = await runObligation(ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
+          let r = await run(bucket, ob, copy.dir, { logName: `${logPrefix}-${label}-${ob.id}` });
           if (!r.passed && !ranAndFailed(r) && !abandon) {
             const firstReason = unfinishedReason(r);
             // The limit the run hit: its own, or (when it uses the config's default, which
@@ -325,7 +377,8 @@ export async function runGuardCheck({
             const again = limit ? { ...ob, timeout_ms: limit * RETRY_FACTOR } : ob;
             const rc = fresh();
             try {
-              r = await runObligation(again, rc.dir, { logName: `${logPrefix}-${label}-${ob.id}-retry` });
+              bucket.retries++;
+              r = await run(bucket, again, rc.dir, { logName: `${logPrefix}-${label}-${ob.id}-retry` });
             } finally {
               rc.cleanup();
             }
@@ -344,6 +397,7 @@ export async function runGuardCheck({
     const outcomes = new Array(plan?.picked.length || 0);
     // Outside verify the old tests start here, taking a slot before the mutants queue for the rest.
     oldDone ??= startOld();
+    const poolStarted = Date.now();
     const pool = Promise.all((plan?.picked || []).map(async (m, i) => {
       await slots.acquire();
       try {
@@ -372,7 +426,9 @@ export async function runGuardCheck({
       } finally {
         slots.release();
       }
-    })).then(() => null, (err) => err);
+    })).then(() => null, (err) => err).finally(() => {
+      if (plan?.picked.length) timings.mutants.wall_ms = Date.now() - poolStarted;
+    });
     const old = await oldDone;
     if (old.err || old.r !== 'pass') abandon = true;
     const poolError = await pool;
@@ -392,9 +448,11 @@ export async function runGuardCheck({
       // Were these checks already failing before the change? Run the ones that failed on the
       // base itself. If they all fail there too, the failure says nothing about this change.
       const failing = checks.filter((ob) => result.old_tests.runs.some((r) => r.check === ob.id && !r.passed));
-      const baseTpl = createTreeSnapshot(root, base, { links });
+      const baseStarted = Date.now();
+      const baseTpl = snapshotOf(base);
       try {
         result.baseline.result = await runAll(baseTpl.dir, 'base', result.baseline.runs, failing);
+        timings.base_check.wall_ms = Date.now() - baseStarted;
       } finally {
         baseTpl.cleanup();
       }
