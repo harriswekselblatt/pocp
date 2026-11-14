@@ -71,11 +71,21 @@ If your `pocp.yml` was written before the `pocp-run` step existed, add it (`pocp
 
 The status text is generic. What the run asks for is in the run's summary, which the status links to.
 
-## A limit of the `pocp` status
+## Give the reporter its own identity
 
-GitHub matches a required check by its name and the app that set it. The reporter and every workflow in the repository post as the same app, GitHub Actions. A pull request from a **fork** gets a read-only token and can't post a status. But a branch pushed to **this** repository by someone with write access (including an agent using a maintainer's token) can edit its workflow to give itself `statuses: write` and post its own `pocp: success`. The reporter's own status may then be overwritten.
+GitHub matches a required check by its name and the app that set it. By default the reporter and every workflow in the repository post as the same app, GitHub Actions. A pull request from a **fork** gets a read-only token and can't post a status. But a branch pushed to **this** repository by someone with write access (including an agent using a maintainer's token) can edit a workflow to give itself `statuses: write` and post its own `pocp: success`, and branch protection can't tell it from the reporter's.
 
-That's no worse than requiring `verify`, which such a branch can fake just as easily (docs/THREAT-MODEL.md, "Verification vs. merge enforcement"). Until the reporter has its own GitHub App identity, with the required check pinned to that app, read the diff of any same-repository pull request that touches CI files before merging.
+Close that by giving the reporter its own GitHub App and requiring `pocp` from that app only:
+
+1. **Create a GitHub App** (Settings → Developer settings → GitHub Apps → New). No webhook. Repository permissions: Commit statuses *read and write*; Actions, Contents, Issues, Pull requests *read*. Install it on the repository. Note its **Client ID** and generate a **private key**.
+2. **Create the environment `pocp-reporter`** (repository Settings → Environments). Under *Deployment branches and tags*, choose *Selected branches* and add only your default branch. Add the secret `POCP_REPORTER_KEY` (the whole private key file) and the variable `POCP_REPORTER_CLIENT_ID` to the environment.
+3. **Pin the required check to the app.** In branch protection (or a ruleset), set the required `pocp` check's source to the new app instead of "any source".
+
+The example `pocp-status.yml` already runs in that environment and uses the app when `POCP_REPORTER_CLIENT_ID` is set; without it, it posts as GitHub Actions as before.
+
+Why the environment matters: secrets in an environment limited to the default branch reach only jobs running from the default branch. The reporter runs from there (`workflow_run`, `pull_request_target`). A pull request's own workflows run from its branch or merge ref, so a branch that edits a workflow can't read the key, can't post as the app, and anything it posts as GitHub Actions doesn't count. Keeping the key in a plain repository secret would let any workflow on any branch read it, and the app would protect nothing.
+
+What it doesn't cover: anyone who can change the repository's settings. An **admin** can loosen the environment's branch rule, the branch protection or the app, so a coding agent holding an admin token (a classic token with `repo` scope on a repository you own is one) can undo all of this. Give agents a fine-grained token without the *Administration* permission. Until the app is set up, read the diff of any same-repository pull request that touches CI files before merging.
 
 ## Turning it on
 
