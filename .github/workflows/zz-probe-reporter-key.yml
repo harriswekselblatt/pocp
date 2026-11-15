@@ -1,0 +1,13 @@
+# THROWAWAY (never merge): checks that a branch's own workflow can't reach the reporter's key.
+name: probe-reporter-key
+on: push
+permissions: {}
+jobs:
+  probe:
+    environment: pocp-reporter
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          K: ${{ secrets.POCP_REPORTER_KEY }}
+        run: if [ -n "$K" ]; then echo "KEY REACHABLE"; exit 1; else echo "key not reachable"; fi

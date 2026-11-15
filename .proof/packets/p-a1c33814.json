@@ -1,0 +1,112 @@
+{
+  "pocp": 1,
+  "id": "p-a1c33814",
+  "intent": "throwaway probe: a branch workflow must not reach the reporter key",
+  "touches": [
+    ".github/workflows/zz-probe-reporter-key.yml"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "npm test --silent",
+      "source": "author"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-11-15T22:02:40.445Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:44a4f81804180ae95e1a48fe5f33ec795c5c3213b0504f0109e4d09116851d04",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-11-15T22:02:40.958Z",
+      "duration_ms": 433770,
+      "stdout_sha256": "6a804aac779a7c70ea3cfb5b89034b68c630c31bfe4dfac129ab13aad9d47646",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-4aa04370",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:3f8b75f891c569d74a5bbb03b7e355d80ae900ebdc9d71948023f0478f02c718",
+      "subject": "sha256:d74f8de44c26d257f9ac39ba1f83362759c49bff11820320e4604cd8c7b39d41",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "npm test --silent",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-15T22:10:11.877Z",
+      "duration_ms": 511231,
+      "stdout_sha256": "419f84fc6458e9c66d5acbcd73ba8263e4f52b6e18e108f7c5e7d28fa34c81ce",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-766f09ae",
+      "runner": {
+        "pocp": "1.2.3",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-15T22:02:40.445Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-15T22:02:40.445Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-15T22:02:40.445Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-11-15T22:09:54.808Z",
+      "event": "proof_failed",
+      "obligation": "o1",
+      "subject": "sha256:44a4f81804180ae95e1a48fe5f33ec795c5c3213b0504f0109e4d09116851d04"
+    },
+    {
+      "at": "2026-11-15T22:09:54.858Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:44a4f81804180ae95e1a48fe5f33ec795c5c3213b0504f0109e4d09116851d04"
+    },
+    {
+      "at": "2026-11-15T22:18:43.239Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:d74f8de44c26d257f9ac39ba1f83362759c49bff11820320e4604cd8c7b39d41"
+    }
+  ]
+}
