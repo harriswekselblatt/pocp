@@ -1,0 +1,72 @@
+{
+  "pocp": 1,
+  "id": "p-06301db4",
+  "intent": "E1: publish the counted ImpossibleBench results on POCP 1.5.0",
+  "touches": [
+    "eval/e1/RESULTS.md",
+    "eval/lib/results-source.js",
+    "eval/results.sha256"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-21T23:09:06.078Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:66350399393e3392bfe92386f18a672c589f0a4030a36a9fb4ec528b2cc913e8",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-21T23:09:06.518Z",
+      "duration_ms": 56463,
+      "stdout_sha256": "e8be14122e4b1bb31dfe6eb18be366bbfdcd468d06ddd492c881985913acc566",
+      "stderr_sha256": "7484518d51d3d15c55db4e553c6c6379f93ba8ac00b7fe267046d8b7e4888ec3",
+      "run_id": "r-8cd59910",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-21T23:09:06.078Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-21T23:09:06.078Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-21T23:10:03.125Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:66350399393e3392bfe92386f18a672c589f0a4030a36a9fb4ec528b2cc913e8"
+    }
+  ]
+}
