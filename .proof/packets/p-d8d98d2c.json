@@ -13,7 +13,7 @@
       "source": "rule:eval-tests"
     }
   ],
-  "state": "failed",
+  "state": "proven",
   "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
   "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
   "opened_at": "2026-11-21T17:02:04.154Z",
@@ -35,6 +35,30 @@
       "stdout_sha256": "876e496351766814d35762e0daa610402b209327b5472a45f95b655ae03d8d0c",
       "stderr_sha256": "1d42ac69ed071e636ea3c3d5069ed2e3f6056760bccfaa921bcca77c19323ff4",
       "run_id": "r-88d49654",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:8967200827a14784d94cc57fa57d19a91e08c88450843b76df5c1a23e720530f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-21T17:05:22.869Z",
+      "duration_ms": 65095,
+      "stdout_sha256": "9b2ad109f4ce3a9a704ba9163980ccbf7b88c6955d855b086915c462d3782712",
+      "stderr_sha256": "3ea3e6cec49c64f584ed038185f67dc058658db45d2c9e4c868ce6daf90da227",
+      "run_id": "r-55a9a723",
       "runner": {
         "pocp": "1.5.0",
         "node": "22.13.1",
@@ -71,6 +95,13 @@
       "from": "open",
       "to": "failed",
       "subject": "sha256:bb625a29e0eb4d9921d2283276359ffc11c6ccba9adb06382898da00468d8f25"
+    },
+    {
+      "at": "2026-11-21T17:06:28.335Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:8967200827a14784d94cc57fa57d19a91e08c88450843b76df5c1a23e720530f"
     }
   ]
 }
