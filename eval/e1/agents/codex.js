@@ -5,6 +5,10 @@
 //     would stop the agent committing at all, so the repo's .git is added as a writable root.
 //   - --ignore-user-config, --ignore-rules: the user's config.toml and execpolicy rules don't
 //     apply (auth still comes from CODEX_HOME). approval_policy "never": nothing waits on a person.
+//   - CODEX_HOME is a fresh folder per run holding only auth.json (PREREG §11): Codex reads
+//     ~/.codex/AGENTS.md even with --ignore-user-config, and the host's file must not reach the
+//     agent. If Codex refreshes its login in the copy, the new auth.json is carried back (unless
+//     the real one changed meanwhile). E1_CODEX_HOME=inherit uses the real home (never counted).
 //   - Not --ephemeral: the session file is the only place Codex records the model it used, so
 //     the harness finds it by thread id and copies it into the run folder.
 // Codex reports token usage but no dollar cost.
@@ -19,6 +23,44 @@ export const APP_BIN = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/b
 export function codexBin(env = process.env) {
   if (env.E1_CODEX_BIN) return env.E1_CODEX_BIN;
   return fs.existsSync(APP_BIN) ? APP_BIN : 'codex';
+}
+
+export const INSTRUCTION_FILES = ['AGENTS.md', 'AGENTS.override.md'];
+
+export function hostCodexHome(env = process.env) {
+  return env.CODEX_HOME || path.join(os.homedir(), '.codex');
+}
+
+/** The global instruction files in a Codex home that are not empty (Codex would read them). */
+export function codexInstructions(home) {
+  return INSTRUCTION_FILES.filter((f) => {
+    const p = path.join(home, f);
+    return fs.existsSync(p) && fs.readFileSync(p, 'utf8').trim() !== '';
+  });
+}
+
+/** A fresh CODEX_HOME holding only a copy of the host's auth.json. */
+export function isolatedHome(src = hostCodexHome()) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pocp-e1-codex-home-'));
+  fs.chmodSync(dir, 0o700);
+  const auth = path.join(src, 'auth.json');
+  const before = fs.existsSync(auth) ? fs.readFileSync(auth) : null;
+  if (before) fs.writeFileSync(path.join(dir, 'auth.json'), before, { mode: 0o600 });
+  return { dir, src, before };
+}
+
+/** Carry a refreshed login back to the host home, then remove the folder. */
+export function closeIsolatedHome({ dir, src, before }) {
+  try {
+    const copy = path.join(dir, 'auth.json');
+    const real = path.join(src, 'auth.json');
+    if (before && fs.existsSync(copy) && fs.existsSync(real)) {
+      const now = fs.readFileSync(copy);
+      if (!now.equals(before) && fs.readFileSync(real).equals(before)) fs.writeFileSync(real, now, { mode: 0o600 });
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 export function codexArgs({ repo, model }) {
@@ -94,24 +136,39 @@ export function sessionModel(file) {
   return { model, effort };
 }
 
-export function codexAgent({ bin = codexBin() } = {}) {
+export function codexAgent({ bin = codexBin(), home = process.env.E1_CODEX_HOME || 'isolated' } = {}) {
+  const inherit = home === 'inherit';
   return {
     name: 'codex',
     async describe() {
       const v = await run(bin, ['--version'], { env: harnessEnv(), timeoutMs: 30_000 });
-      return { agent: 'codex', cli: 'codex', bin, version: v.code === 0 ? v.out.trim() : null };
+      return {
+        agent: 'codex', cli: 'codex', bin, version: v.code === 0 ? v.out.trim() : null,
+        home: inherit ? 'inherited' : 'isolated (auth.json only)',
+        instructions: inherit ? codexInstructions(hostCodexHome()) : [],
+      };
     },
     async run({ repo, prompt, runDir, timeoutMs, model, extraEnv = {} }) {
-      const env = harnessEnv(extraEnv);
+      const iso = inherit ? null : isolatedHome();
+      const env = harnessEnv(iso ? { ...extraEnv, CODEX_HOME: iso.dir } : extraEnv);
       const args = codexArgs({ repo, model });
       const files = { transcript: 'agent.stdout.jsonl', stderr: 'agent.stderr.txt' };
-      const r = await run(bin, args, { cwd: repo, env, input: prompt, timeoutMs, stdoutFile: path.join(runDir, files.transcript), stderrFile: path.join(runDir, files.stderr) });
-      const out = fs.existsSync(path.join(runDir, files.transcript)) ? fs.readFileSync(path.join(runDir, files.transcript), 'utf8') : '';
-      const parsed = parseCodexStream(out);
-      const session = findSession(parsed.thread_id);
-      if (session) {
-        files.session = 'agent.session.jsonl';
-        fs.copyFileSync(session, path.join(runDir, files.session));
+      let r;
+      let session;
+      let parsed;
+      try {
+        if (iso && codexInstructions(iso.dir).length) throw new Error('isolated CODEX_HOME holds instruction files');
+        r = await run(bin, args, { cwd: repo, env, input: prompt, timeoutMs, stdoutFile: path.join(runDir, files.transcript), stderrFile: path.join(runDir, files.stderr) });
+        const out = fs.existsSync(path.join(runDir, files.transcript)) ? fs.readFileSync(path.join(runDir, files.transcript), 'utf8') : '';
+        parsed = parseCodexStream(out);
+        session = findSession(parsed.thread_id, iso ? iso.dir : hostCodexHome());
+        if (session) {
+          files.session = 'agent.session.jsonl';
+          fs.copyFileSync(session, path.join(runDir, files.session));
+          session = path.join(runDir, files.session);
+        }
+      } finally {
+        if (iso) closeIsolatedHome(iso);
       }
       const sm = sessionModel(session);
       return {
@@ -130,6 +187,7 @@ export function codexAgent({ bin = codexBin() } = {}) {
         settings: {
           argv: args,
           sandbox: 'workspace-write (+ .git writable), network off for commands',
+          codex_home: inherit ? 'inherited' : 'isolated (auth.json only)',
           network: 'commands have no network (Codex sandbox); the CLI itself reaches the model API',
         },
         error: parsed.error || (r.code !== 0 ? (r.err || '').slice(-1000) : null),

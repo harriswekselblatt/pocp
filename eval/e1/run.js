@@ -115,6 +115,7 @@ async function runOne(u, ctx) {
     ...ctx.basePins,
     agent_cli: agentsInfo[u.agent].version ? `${agentsInfo[u.agent].cli} ${agentsInfo[u.agent].version}` : agentsInfo[u.agent].cli,
     agent_bin: agentsInfo[u.agent].bin,
+    ...(agentsInfo[u.agent].home ? { agent_home: agentsInfo[u.agent].home } : {}),
     model: model || 'cli-default',
     prompt_sha256: prompt.sha256,
     dataset: frozen.dataset,
@@ -336,6 +337,9 @@ export async function runBatch(input) {
   const units = schedule(tasks, opts.agents, arms, opts.seed);
   const agentsInfo = {};
   for (const a of [...new Set(opts.agents)]) agentsInfo[a] = await getAgent(a, opts.agentOptions?.[agentName(a)] || {}).describe();
+  // PREREG §11: no agent may read the host's global instructions in a counted batch.
+  const readsHost = Object.entries(agentsInfo).filter(([, i]) => i.instructions?.length);
+  if (phase === 'counted' && readsHost.length) throw new Refusal(`refusing --phase counted: ${readsHost.map(([a, i]) => `${a} would read the host's ${i.instructions.join(', ')}`).join('; ')}`);
   const work = opts.work || fs.mkdtempSync(path.join(os.tmpdir(), `pocp-e1-${opts.batch}-`));
   fs.mkdirSync(work, { recursive: true });
   const copy = arms.some(isPocpArm) ? pocpCopy(path.join(work, 'agent-pocp')) : null;

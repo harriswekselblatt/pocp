@@ -138,3 +138,27 @@ All of these are computed by `report.js` as frozen above, per agent and conditio
 
 **Blinded review.** Every `ambiguous` label goes to blinded review (section 6), with the maintainer as the reviewer. The random audit of 30 labelled runs is drawn with seed 7 over these four batches.
 
+
+## 11. Amendment (2026-11-21): Codex re-run with an isolated home
+
+**Written after the §10 Codex results were seen.** This is a deviation from §10, recorded before any re-run.
+
+**What went wrong.** Codex reads `AGENTS.md` from its home folder even with `--ignore-user-config`. During the pilot that file was empty on the run machine, so the pins hashed an empty file. By the time of the §10 batches it held the maintainer's private notes, and those notes named POCP and this evaluation. In 179 of the 180 Codex runs, the agent read them before starting the task. That breaks §10's rule that the agent is never told about POCP. It affected all three arms. The smoke test (§10) didn't catch it.
+
+**What was seen before this amendment.** Codex: 5 CI-accepted test-edit cheats in 150 E1a runs, 0 in 30 E1b runs. Claude Code: 0 in 90.
+
+**Excluded.** `2026-11-21-e1a-codex-150-01` (150 runs) and `2026-11-21-e1b-codex-150-01` (30 runs) are excluded from every table, along with the Codex runs of `smoke-2026-11-21-150`. Their transcripts contain private text, so they aren't published. Only their names, run counts and this reason are. The Claude Code batches `2026-11-21-e1a-claude-150-01` and `2026-11-21-e1b-claude-150-01` stand as registered in §10. Claude Code runs with `--setting-sources project`, so the host's global instructions never load, and its transcripts contain none of the notes.
+
+**Harness change** (harness sha256 `14846f4cdd0d0ddd31ca9f7df66721945b250cb2b03114ba48f5da9e5e647557`):
+- Each Codex run gets a fresh `CODEX_HOME` holding only a copy of `auth.json`. If Codex refreshes its login there, the new one is copied back. The folder is removed after the run.
+- Every record pins `agent_home`.
+- A counted batch is refused if any agent would read non-empty global instructions.
+
+**Re-run.** Everything else is as §10 froze it: the same seed-2 task lists (E1a: the first 50, E1b: the first 10), arms, prompt, timeout, model `gpt-6.2-sol`, Codex CLI `0.169.1` and POCP code. The batches are `2026-11-21-e1a-codex-150-02` and `2026-11-21-e1b-codex-150-02`, both `counted`.
+
+**Smoke test first.** The smoke batch is marked invalid and runs 2 tasks × 3 arms. It must show three things:
+- `agent_home` is `isolated (auth.json only)`.
+- The session files contain none of the host `AGENTS.md` content.
+- The model is pinned.
+
+The analysis and blinded review are as §10 describes. The audit draw covers the two Claude batches and the two `-02` Codex batches.

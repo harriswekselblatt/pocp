@@ -1,0 +1,274 @@
+{
+  "pocp": 1,
+  "id": "p-21ba88ec",
+  "intent": "Change to eval/PREREG.md, eval/e1/README.md, eval/e1/agents/codex.js and 2 more",
+  "touches": [
+    "eval/PREREG.md",
+    "eval/e1/README.md",
+    "eval/e1/agents/codex.js",
+    "eval/e1/run.js",
+    "eval/e1/test/codex-home.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "guard",
+      "files": [
+        "eval/e1/test/codex-home.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/e1/test/codex-home.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-21T19:55:24.741Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-11-21T19:55:25.117Z",
+      "duration_ms": 39254,
+      "stdout_sha256": "8f68cb3b8a7eeaf14e65964cd022b44d62a1e6dd3bfa9d9d9efa6611d5a7f64a",
+      "stderr_sha256": "0fd175c68818ba778d1758e4b253ff2e99f137fb1a41ce185300d87233a04184",
+      "run_id": "r-f5e0c02a",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:dc43eb2175e92e2c88cb82d8cebbfc98ef28dac1c7446da58f134ad264fac256",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-21T19:56:04.492Z",
+      "duration_ms": 72688,
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "needs-review",
+        "passed": false,
+        "summary": "the old tests pass on the new code; a person must review the test change (eval/e1/test/codex-home.test.js: a test file was added (it runs with the others and can change their outcome)): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)",
+        "base": "dba2fd155eafd8a44fa32619e1032c53cc066997",
+        "checks": [
+          {
+            "id": "eval-tests",
+            "run": "./eval/run-tests.sh"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "-eval/e1/test/codex-home.test.js"
+          ],
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 36271
+            }
+          ],
+          "left_out": [
+            "eval/e1/test/codex-home.test.js"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "eval/e1/test/codex-home.test.js is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 35539
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "off",
+          "budget": 0,
+          "seed": 1
+        },
+        "structural": {
+          "result": "needs-review",
+          "reasons": [
+            {
+              "file": "eval/e1/test/codex-home.test.js",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            }
+          ]
+        },
+        "duration_ms": 72688,
+        "timings": {
+          "setup_ms": 316,
+          "new_baseline": {
+            "wall_ms": 35779,
+            "run_ms": 35539,
+            "runs": 1
+          },
+          "old_baseline": {
+            "wall_ms": 36593,
+            "run_ms": 36271,
+            "runs": 1
+          },
+          "plan_ms": 0,
+          "mutants": {
+            "wall_ms": 0,
+            "old": {
+              "run_ms": 0,
+              "runs": 0,
+              "retries": 0
+            },
+            "new": {
+              "run_ms": 0,
+              "runs": 0,
+              "retries": 0
+            }
+          },
+          "base_check": {
+            "wall_ms": 0,
+            "run_ms": 0,
+            "runs": 0
+          },
+          "snapshot": {
+            "ms": 150,
+            "count": 1
+          },
+          "copy": {
+            "ms": 532,
+            "count": 3
+          },
+          "cleanup": {
+            "ms": 389,
+            "count": 4
+          }
+        },
+        "checks_from": "rules"
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-21T19:57:43.286Z",
+      "duration_ms": 40307,
+      "stdout_sha256": "f89574b762c8166e8ece45940b196a3bebcd34aa6afa781399d23dec1804d29a",
+      "stderr_sha256": "edecfbb791b3b018ed0a3b43b0e68f43fb468d9aed1e8aff448f9ecf7b4a23e9",
+      "run_id": "r-ae976f5f",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-21T19:55:24.741Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-21T19:55:24.741Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-21T19:56:04.433Z",
+      "event": "proof_failed",
+      "obligation": "o1",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db"
+    },
+    {
+      "at": "2026-11-21T19:57:17.424Z",
+      "event": "proof_failed",
+      "obligation": "o2",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db"
+    },
+    {
+      "at": "2026-11-21T19:57:17.467Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db"
+    },
+    {
+      "at": "2026-11-21T19:57:17.750Z",
+      "event": "deferred",
+      "obligation": "o2",
+      "by": "Harris Wekselblatt",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db"
+    },
+    {
+      "at": "2026-11-21T19:58:23.719Z",
+      "event": "state",
+      "from": "failed",
+      "to": "proven",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:dc43eb2175e92e2c88cb82d8cebbfc98ef28dac1c7446da58f134ad264fac256",
+      "subject": "sha256:027eb2992a45dfd44a8007aac9e6fa781789db43fa72fdc29ff4efd7040143db",
+      "by": "Harris Wekselblatt",
+      "at": "2026-11-21T19:57:17.750Z",
+      "to": "ci-approval",
+      "reason": "the old tests pass on the new code; a person must review the test change (eval/e1/test/codex-home.test.js: a test file was added (it runs with the others and can change their outcome)): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)"
+    }
+  ]
+}
