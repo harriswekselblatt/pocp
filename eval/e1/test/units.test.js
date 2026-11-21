@@ -170,7 +170,7 @@ test('attempt signatures collapse repeats', () => {
 
 test('PREREG registration is read from the "Registered:" line', () => {
   assert.equal(preregRegistered(path.join(FIX, 'prereg_registered.md')), true);
-  assert.equal(preregRegistered(path.join(FIX, '..', '..', '..', 'PREREG.md')), false);
+  assert.equal(preregRegistered(path.join(FIX, 'prereg_unregistered.md')), false);
   assert.equal(preregRegistered('/nonexistent'), false);
 });
 

@@ -1,0 +1,240 @@
+{
+  "pocp": 1,
+  "id": "p-e69426fc",
+  "intent": "Change to eval/e1/test/batch.test.js, eval/e1/test/fixtures/prereg_unregistered.md, eval/e1/test/units.test.js",
+  "touches": [
+    "eval/e1/test/batch.test.js",
+    "eval/e1/test/fixtures/prereg_unregistered.md",
+    "eval/e1/test/units.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "guard",
+      "files": [
+        "eval/e1/test/batch.test.js",
+        "eval/e1/test/fixtures/prereg_unregistered.md",
+        "eval/e1/test/units.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/e1/test/batch.test.js, eval/e1/test/fixtures/prereg_unregistered.md, eval/e1/test/units.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-21T17:03:48.102Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:85b1f3c2a6eb6cf67b8be8fa40aeb128dc065485458472b27956406bdbab956f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-21T17:03:48.777Z",
+      "duration_ms": 43568,
+      "stdout_sha256": "c010a6046c63f1485ed40021d9ba0dd6efb958cf9b2e1f929f194bd08d28debd",
+      "stderr_sha256": "8b34b8755e76b59cbdca8292572f1d6ed407d4048e1cbcfe607b90d7de51d48a",
+      "run_id": "r-96c51cdc",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:240cdba756c036047610a26957a35045e10a6146fc8e6d7dc6131a16056e0343",
+      "subject": "sha256:85b1f3c2a6eb6cf67b8be8fa40aeb128dc065485458472b27956406bdbab956f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-21T17:04:32.501Z",
+      "duration_ms": 47734,
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "needs-review",
+        "passed": false,
+        "summary": "the old tests pass on the new code; a person must review the test change (eval/e1/test/batch.test.js: existing test lines were changed or removed; eval/e1/test/fixtures/prereg_unregistered.md: a test file was added (it runs with the others and can change their outcome); eval/e1/test/units.test.js: existing test lines were changed or removed): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)",
+        "base": "24df82bcd5365a4ca8aaf43911e84c7f1b610e74",
+        "checks": [
+          {
+            "id": "eval-tests",
+            "run": "./eval/run-tests.sh"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "eval/e1/test/batch.test.js",
+            "-eval/e1/test/fixtures/prereg_unregistered.md",
+            "eval/e1/test/units.test.js"
+          ],
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 46977
+            }
+          ],
+          "left_out": [
+            "eval/e1/test/fixtures/prereg_unregistered.md"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "eval/e1/test/fixtures/prereg_unregistered.md is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "off",
+          "budget": 0,
+          "seed": 1
+        },
+        "structural": {
+          "result": "needs-review",
+          "reasons": [
+            {
+              "file": "eval/e1/test/batch.test.js",
+              "why": "existing test lines were changed or removed"
+            },
+            {
+              "file": "eval/e1/test/fixtures/prereg_unregistered.md",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "eval/e1/test/units.test.js",
+              "why": "existing test lines were changed or removed"
+            }
+          ]
+        },
+        "duration_ms": 47734,
+        "timings": {
+          "setup_ms": 454,
+          "new_baseline": {
+            "wall_ms": 0,
+            "run_ms": 0,
+            "runs": 0
+          },
+          "old_baseline": {
+            "wall_ms": 47242,
+            "run_ms": 46977,
+            "runs": 1
+          },
+          "plan_ms": 0,
+          "mutants": {
+            "wall_ms": 0,
+            "old": {
+              "run_ms": 0,
+              "runs": 0,
+              "retries": 0
+            },
+            "new": {
+              "run_ms": 0,
+              "runs": 0,
+              "retries": 0
+            }
+          },
+          "base_check": {
+            "wall_ms": 0,
+            "run_ms": 0,
+            "runs": 0
+          },
+          "snapshot": {
+            "ms": 178,
+            "count": 1
+          },
+          "copy": {
+            "ms": 395,
+            "count": 2
+          },
+          "cleanup": {
+            "ms": 249,
+            "count": 3
+          }
+        },
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-21T17:03:48.102Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-21T17:03:48.102Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-21T17:05:20.432Z",
+      "event": "proof_failed",
+      "obligation": "o2",
+      "subject": "sha256:85b1f3c2a6eb6cf67b8be8fa40aeb128dc065485458472b27956406bdbab956f"
+    },
+    {
+      "at": "2026-11-21T17:05:20.939Z",
+      "event": "deferred",
+      "obligation": "o2",
+      "by": "Harris Wekselblatt",
+      "subject": "sha256:85b1f3c2a6eb6cf67b8be8fa40aeb128dc065485458472b27956406bdbab956f"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:240cdba756c036047610a26957a35045e10a6146fc8e6d7dc6131a16056e0343",
+      "subject": "sha256:85b1f3c2a6eb6cf67b8be8fa40aeb128dc065485458472b27956406bdbab956f",
+      "by": "Harris Wekselblatt",
+      "at": "2026-11-21T17:05:20.939Z",
+      "to": "ci-approval",
+      "reason": "the old tests pass on the new code; a person must review the test change (eval/e1/test/batch.test.js: existing test lines were changed or removed; eval/e1/test/fixtures/prereg_unregistered.md: a test file was added (it runs with the others and can change their outcome); eval/e1/test/units.test.js: existing test lines were changed or removed): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)"
+    }
+  ]
+}

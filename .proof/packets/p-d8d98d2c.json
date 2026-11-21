@@ -1,0 +1,76 @@
+{
+  "pocp": 1,
+  "id": "p-d8d98d2c",
+  "intent": "Change to eval/PREREG.md",
+  "touches": [
+    "eval/PREREG.md"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "failed",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-21T17:02:04.154Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:bb625a29e0eb4d9921d2283276359ffc11c6ccba9adb06382898da00468d8f25",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 1,
+      "signal": null,
+      "timed_out": false,
+      "passed": false,
+      "started_at": "2026-11-21T17:02:04.509Z",
+      "duration_ms": 44858,
+      "stdout_sha256": "876e496351766814d35762e0daa610402b209327b5472a45f95b655ae03d8d0c",
+      "stderr_sha256": "1d42ac69ed071e636ea3c3d5069ed2e3f6056760bccfaa921bcca77c19323ff4",
+      "run_id": "r-88d49654",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-21T17:02:04.154Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-21T17:02:04.154Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-21T17:02:49.447Z",
+      "event": "proof_failed",
+      "obligation": "o1",
+      "subject": "sha256:bb625a29e0eb4d9921d2283276359ffc11c6ccba9adb06382898da00468d8f25"
+    },
+    {
+      "at": "2026-11-21T17:02:49.498Z",
+      "event": "state",
+      "from": "open",
+      "to": "failed",
+      "subject": "sha256:bb625a29e0eb4d9921d2283276359ffc11c6ccba9adb06382898da00468d8f25"
+    }
+  ]
+}

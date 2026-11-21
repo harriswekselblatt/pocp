@@ -25,7 +25,7 @@ test('missing or failing canaries make the batch invalid', async () => {
 
 test('--phase counted is refused unless PREREG is registered and canaries pass', async () => {
   const results = tmp();
-  await assert.rejects(runBatch({ ...base, agents: [fake('crash')], batch: 'c1', phase: 'counted', results, canaries: path.join(FIX, 'canaries_pass.py') }), (e) => e instanceof Refusal && /Registered: yes/.test(e.message));
+  await assert.rejects(runBatch({ ...base, agents: [fake('crash')], batch: 'c1', phase: 'counted', results, prereg: path.join(FIX, 'prereg_unregistered.md'), canaries: path.join(FIX, 'canaries_pass.py') }), (e) => e instanceof Refusal && /Registered: yes/.test(e.message));
   await assert.rejects(runBatch({ ...base, agents: [fake('crash')], batch: 'c2', phase: 'counted', results, prereg: path.join(FIX, 'prereg_registered.md'), canaries: CANARIES_FAIL }), (e) => e instanceof Refusal && /canaries/.test(e.message) && !/Registered/.test(e.message));
   await assert.rejects(runBatch({ ...base, agents: [fake('crash')], batch: 'c3', phase: 'counted', results, prereg: path.join(FIX, 'prereg_registered.md'), canaries: path.join(FIX, 'canaries_pass.py') }), /fake agents/);
   assert.ok(!fs.existsSync(path.join(results, 'E1a')), 'nothing was recorded');
