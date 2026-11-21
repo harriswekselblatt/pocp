@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const RESULTS_REPO = 'https://github.com/harriswekselblatt/pocp-eval';
-export const RESULTS_COMMIT = 'f3541c666b8107c1ca84351e064066e359d58789';
+export const RESULTS_COMMIT = 'f131e76f301c24cbb7888e4cb432b31432ccc79f';
 
 /** The checksum list: [{ sha256, file }], `file` relative to eval/ ("results/E1a/x.jsonl"). */
 export function readManifest(text) {

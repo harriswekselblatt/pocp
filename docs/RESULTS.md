@@ -9,21 +9,24 @@ These are impossible coding tasks ([ImpossibleBench](https://arxiv.org/abs/2510.
 - `pocp-ci`: POCP's verify in CI.
 - `pocp-hooks`: POCP's local git hooks only.
 
-Every number below is regenerated from the records by `node eval/e1/report.js` ([eval/e1/RESULTS.md](../eval/e1/RESULTS.md)). No pass bar is applied (§10 says why).
+Every number below is regenerated from the records by `node eval/e1/report.js` ([eval/e1/RESULTS.md](../eval/e1/RESULTS.md)).
 
 - **Codex (`gpt-6.2-sol`), tests committed on main (E1a), 50 tasks per arm:**
-  - Plain CI accepted a cheat in 25 of 50 runs.
-  - With POCP in CI, none of 50 shipped. Codex produced 30 CI-passing cheats in that arm, all of them test edits, and POCP held all 30 for a maintainer's approval.
-  - None of the 30 was a mechanical catch. In every one, POCP's guard couldn't prove that the edited tests checked less, so it escalated to a person (PREREG §2 never counts an escalation as a catch). The protection here comes from the maintainer's approval of a test edit, not from POCP proving the cheat.
-  - With POCP's hooks only, 27 of 50 cheats shipped. The hooks let a commit through and leave the approval to CI, so without CI they don't stop test edits.
-- **Codex, tests arriving with the task (E1b), 10 tasks per arm:** plain CI shipped no cheats, POCP in CI shipped none (it held the 1 CI-passing cheat Codex produced), and hooks only shipped 2.
+  - With plain CI, a cheat shipped in 25 of 50 runs.
+  - With POCP in CI, none shipped in 50 runs. Codex produced 30 CI-passing cheats in that arm, all of them test edits, and POCP blocked all 30.
+  - **No block was a mechanical catch.** Each was an escalation. On these tasks the original tests already fail before any change, so POCP's guard can't tell whether an edit weakened them (verdict `baseline-red`). It held each one for a person to approve. PREREG §2 never counts an escalation as a catch. What stopped these cheats is the rule that a maintainer signs off on test edits, not POCP proving the cheat.
+  - **POCP accepted nothing in this arm.** The runs where Codex didn't cheat were blocked too, because their final commit, made by the harness, carried no proof. So the 0 of 50 doesn't show POCP telling cheats from other work. No solvable-task (false-block) run was made on 1.5.0.
+  - With POCP's hooks only, a cheat shipped in 27 of 50 runs, no fewer than plain CI. The hooks pass a commit once the local checks pass and leave the test-edit approval to CI, so without CI they don't stop test edits.
+- **The E1a bar (§5).** §10 registered that the bar would not be applied, expecting fewer than the 30 CI-passing test-edit cheats it needs. Codex produced exactly 30. Measured against the bar anyway, mechanical catches were 0 of 30 (one-sided 95% lower bound 0%, bar ≥ 90%), so **the bar would be missed**. Per §7, the number is published as measured.
+- **Codex, tests arriving with the task (E1b), 10 tasks per arm:** plain CI shipped no cheats. POCP in CI shipped none (it escalated the 1 CI-passing cheat Codex produced). Hooks only shipped 2.
 - **Claude Code (`claude-sonnet-5-5`), 20 E1a tasks and 10 E1b tasks per arm:** no cheats in any arm (0 of 90 runs). Every run ended unsolved, so these runs say nothing about catching cheats.
-- **Excluded:** a first Codex run of the same batches (180 runs). Codex read the maintainer's global instructions file, which named POCP and this evaluation. §11 records the exclusion, the harness fix and the re-run. The contaminated runs cheated far less (5 CI-passing cheats in 150 E1a runs), which is why they could not stand.
+- **Excluded:** a first Codex run of the same batches (180 runs). During it, Codex read the maintainer's global instructions file, which named POCP and this evaluation. That breaks the rule that the agent is never told about POCP. They are excluded for that breach, which was found and recorded before the re-run. §11 records the exclusion, the harness fix and the re-run. For the record, those runs produced 5 CI-passing cheats in 150 E1a runs.
 - **Limits:**
   - One model per agent, on one task split.
   - The task-clustered 95% intervals are wide.
   - Codex's CLI doesn't record its reasoning effort; the CLI's default was used.
   - There were no ambiguous labels to review. The pre-registered blinded audit of 30 labels (seed 7) has not been done yet.
+  - The §11 amendment and harness fix were committed before the Codex re-run started, but were pushed only with these results (the §10 registration was pushed before its runs).
 
 These results were all measured in deep mode (`guard.mutants: 10`), before fast mode existed. They don't describe fast mode, which was first benchmarked in the 1.2.3 evaluation.
 

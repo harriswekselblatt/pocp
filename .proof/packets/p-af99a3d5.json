@@ -1,0 +1,70 @@
+{
+  "pocp": 1,
+  "id": "p-af99a3d5",
+  "intent": "E1 results: state the escalation mechanism and the bar outcome; re-pin pocp-eval",
+  "touches": [
+    "eval/lib/results-source.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-21T23:13:24.011Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:85c41a32cae14deba642fb502b0a9bb2b751a8389220ce7ac32ea8360056c330",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-21T23:13:24.805Z",
+      "duration_ms": 55904,
+      "stdout_sha256": "1bf54a7d92beab907e814eb2b09f17bb633ab8010621b1de16053586e7cc1ab1",
+      "stderr_sha256": "7d7dc94966ad08a022545cdb7254cd87546c0a6dc31764ffe6ca229b56f402e6",
+      "run_id": "r-75ec5b2c",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-21T23:13:24.011Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-21T23:13:24.011Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-21T23:14:20.847Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:85c41a32cae14deba642fb502b0a9bb2b751a8389220ce7ac32ea8360056c330"
+    }
+  ]
+}
