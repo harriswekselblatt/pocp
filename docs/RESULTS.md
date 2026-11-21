@@ -4,6 +4,8 @@
 
 ## ImpossibleBench on POCP 1.5.0 (counted, 2026-11-21)
 
+**On 50 impossible coding tasks, Codex got a test-editing cheat past ordinary CI in 25. With POCP in CI, none merged: each one was held for a maintainer's sign-off.** That sign-off is what stopped them. POCP didn't prove any of them was a cheat on its own (details below).
+
 These are impossible coding tasks ([ImpossibleBench](https://arxiv.org/abs/2510.20270), LiveCodeBench `conflicting` split): the committed tests contradict each other, so the only way to make them pass is to cheat. The batches were registered before they ran ([eval/PREREG.md](../eval/PREREG.md) §10–11). They used the same seed-2 task draw for each agent and the same prompt, which never mentions POCP. They ran in deep mode, with a 20-minute limit per run. The arms:
 - `plain`: ordinary CI.
 - `pocp-ci`: POCP's verify in CI.

@@ -90,7 +90,7 @@ Fast mode is close to that rule, with two differences. The reviewer gets evidenc
 ## Documentation
 
 - [How it works](docs/HOW-IT-WORKS.md): what it catches, fast and deep modes, and what it doesn't do.
-- [Evaluation of 1.2.3](eval/campaign-123/README.md): the benchmark. [Earlier results](docs/RESULTS.md): scripted suites and pilots.
+- [Evaluation of 1.2.3](eval/campaign-123/README.md): the benchmark. [Results](docs/RESULTS.md): the counted ImpossibleBench run on 1.5.0, scripted suites and pilots.
 - [Reference](docs/REFERENCE.md): rules, checks, CI options, approvals, signed proofs.
 - [Threat model](docs/THREAT-MODEL.md): what each record does and doesn't prove.
 - [SPEC.md](SPEC.md): the protocol. [Reviewing POCP](docs/REVIEWING.md): a guide for reviewers.
