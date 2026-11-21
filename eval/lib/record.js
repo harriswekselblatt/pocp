@@ -60,14 +60,15 @@ export function readRecords(file) {
   return fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
 }
 
-/** All records in a results folder (optionally one eval), with superseded ones dropped. */
-export function loadResults(resultsDir, evalName) {
+/** All records in a results folder (optionally one eval), with superseded ones dropped unless keepSuperseded. */
+export function loadResults(resultsDir, evalName, { keepSuperseded = false } = {}) {
   const dirs = evalName ? [path.join(resultsDir, evalName)] : EVALS.map((e) => path.join(resultsDir, e));
   const out = [];
   for (const d of dirs) {
     if (!fs.existsSync(d)) continue;
     for (const f of fs.readdirSync(d).filter((x) => x.endsWith('.jsonl')).sort()) out.push(...readRecords(path.join(d, f)));
   }
+  if (keepSuperseded) return out;
   const superseded = new Set(out.map((r) => r.supersedes).filter(Boolean));
   return out.filter((r) => !superseded.has(r.run_id));
 }

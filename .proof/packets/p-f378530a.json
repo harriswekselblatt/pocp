@@ -1,0 +1,237 @@
+{
+  "pocp": 1,
+  "id": "p-f378530a",
+  "intent": "Change to eval/e1/README.md, eval/e1/report.js, eval/e1/run.js and 3 more",
+  "touches": [
+    "eval/e1/README.md",
+    "eval/e1/report.js",
+    "eval/e1/run.js",
+    "eval/e1/test/fixtures/agents/limit-once.js",
+    "eval/e1/test/usage-limit-stop.test.js",
+    "eval/lib/record.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "guard",
+      "files": [
+        "eval/e1/test/fixtures/agents/limit-once.js",
+        "eval/e1/test/usage-limit-stop.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/e1/test/fixtures/agents/limit-once.js, eval/e1/test/usage-limit-stop.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-21T16:55:26.735Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:49b2468d5235248f95d080c41a7ae5693d3eed1906bd33c6b8e1ff2523ca327f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-21T16:55:27.112Z",
+      "duration_ms": 54429,
+      "stdout_sha256": "5444e809a3ca755789547ebbaed388a19937f65985477266d608d0afe09de743",
+      "stderr_sha256": "da0146405fc133d7275b6f648c95d82170c637db4be046976b2c89eb83b41f24",
+      "run_id": "r-4bb532c9",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:523fd511723bb32b555fa82df6d0632faa555a4aa95f2f7f037f0439113c6dad",
+      "subject": "sha256:49b2468d5235248f95d080c41a7ae5693d3eed1906bd33c6b8e1ff2523ca327f",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "kind": "guard",
+      "mode": "snapshot",
+      "passed": false,
+      "started_at": "2026-11-21T16:56:21.675Z",
+      "duration_ms": 40988,
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      },
+      "guard": {
+        "pocp": 1,
+        "verdict": "needs-review",
+        "passed": false,
+        "summary": "the old tests pass on the new code; a person must review the test change (eval/e1/test/fixtures/agents/limit-once.js: a test file was added (it runs with the others and can change their outcome); eval/e1/test/usage-limit-stop.test.js: lines were added to an existing test): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)",
+        "base": "fbf16ddb7393378d7b9e0e6efc4cb83b6409cc5b",
+        "checks": [
+          {
+            "id": "eval-tests",
+            "run": "./eval/run-tests.sh"
+          }
+        ],
+        "old_tests": {
+          "result": "pass",
+          "restored": [
+            "-eval/e1/test/fixtures/agents/limit-once.js",
+            "eval/e1/test/usage-limit-stop.test.js"
+          ],
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "exit": 0,
+              "duration_ms": 40356
+            }
+          ],
+          "left_out": [
+            "eval/e1/test/fixtures/agents/limit-once.js"
+          ],
+          "changed_tests": {
+            "result": "not-used",
+            "reason": "eval/e1/test/fixtures/agents/limit-once.js is a test file that was added"
+          }
+        },
+        "new_tests": {
+          "result": "pass",
+          "runs": [
+            {
+              "check": "eval-tests",
+              "passed": true,
+              "reused": true,
+              "duration_ms": 0
+            }
+          ]
+        },
+        "baseline": {
+          "result": "not-run",
+          "runs": []
+        },
+        "detection": {
+          "result": "off",
+          "budget": 0,
+          "seed": 1
+        },
+        "structural": {
+          "result": "needs-review",
+          "reasons": [
+            {
+              "file": "eval/e1/test/fixtures/agents/limit-once.js",
+              "why": "a test file was added (it runs with the others and can change their outcome)"
+            },
+            {
+              "file": "eval/e1/test/usage-limit-stop.test.js",
+              "why": "lines were added to an existing test"
+            }
+          ]
+        },
+        "duration_ms": 40988,
+        "timings": {
+          "setup_ms": 372,
+          "new_baseline": {
+            "wall_ms": 0,
+            "run_ms": 0,
+            "runs": 0
+          },
+          "old_baseline": {
+            "wall_ms": 40594,
+            "run_ms": 40356,
+            "runs": 1
+          },
+          "plan_ms": 0,
+          "mutants": {
+            "wall_ms": 0,
+            "old": {
+              "run_ms": 0,
+              "runs": 0,
+              "retries": 0
+            },
+            "new": {
+              "run_ms": 0,
+              "runs": 0,
+              "retries": 0
+            }
+          },
+          "base_check": {
+            "wall_ms": 0,
+            "run_ms": 0,
+            "runs": 0
+          },
+          "snapshot": {
+            "ms": 182,
+            "count": 1
+          },
+          "copy": {
+            "ms": 311,
+            "count": 2
+          },
+          "cleanup": {
+            "ms": 247,
+            "count": 3
+          }
+        },
+        "checks_from": "rules"
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-21T16:55:26.735Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-21T16:55:26.735Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-21T16:57:02.859Z",
+      "event": "proof_failed",
+      "obligation": "o2",
+      "subject": "sha256:49b2468d5235248f95d080c41a7ae5693d3eed1906bd33c6b8e1ff2523ca327f"
+    },
+    {
+      "at": "2026-11-21T16:57:03.209Z",
+      "event": "deferred",
+      "obligation": "o2",
+      "by": "Harris Wekselblatt",
+      "subject": "sha256:49b2468d5235248f95d080c41a7ae5693d3eed1906bd33c6b8e1ff2523ca327f"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:523fd511723bb32b555fa82df6d0632faa555a4aa95f2f7f037f0439113c6dad",
+      "subject": "sha256:49b2468d5235248f95d080c41a7ae5693d3eed1906bd33c6b8e1ff2523ca327f",
+      "by": "Harris Wekselblatt",
+      "at": "2026-11-21T16:57:03.209Z",
+      "to": "ci-approval",
+      "reason": "the old tests pass on the new code; a person must review the test change (eval/e1/test/fixtures/agents/limit-once.js: a test file was added (it runs with the others and can change their outcome); eval/e1/test/usage-limit-stop.test.js: lines were added to an existing test): without planted bugs (guard.mutants is 0) POCP can't show the tests still catch what they caught. For an automatic check, use deep mode (pocp init --deep, guard.mutants above 0)"
+    }
+  ]
+}

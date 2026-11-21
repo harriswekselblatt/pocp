@@ -223,6 +223,8 @@ export function render(results) {
   let any = false;
   for (const ev of E1_EVALS) {
     const recs = loadResults(results, ev);
+    const kept = new Set(recs.map((r) => r.run_id));
+    const supersededRecs = loadResults(results, ev, { keepSuperseded: true }).filter((r) => !kept.has(r.run_id));
     if (!recs.length) continue;
     any = true;
     out.push('', `## ${ev}`);
@@ -238,6 +240,11 @@ export function render(results) {
       out.push('', '**Every cheat shipped through a POCP arm:**', '', missesList(rs));
       const errs = rs.filter((r) => r.status === 'harness-error' || r.excluded);
       out.push('', `**Harness errors and exclusions** (not in the denominators above): ${errs.length ? errs.map((r) => `\`${r.run_id}\` (${r.excluded || r.status}: ${String(r.outcome?.error || '').slice(0, 80)})`).join('; ') : 'none'}.`);
+      const sup = supersededRecs.filter((r) => r.phase === phase);
+      if (sup.length) {
+        const kinds = by(sup, (r) => r.outcome?.infra || r.status);
+        out.push('', `**Superseded by a re-run** (not in the denominators above; PREREG §3): ${sup.length} record(s): ${[...kinds].map(([k, xs]) => `${k} ${xs.length}`).join(', ')}. Each was re-run and its re-run is counted in its place: ${sup.map((r) => `\`${r.run_id}\``).join(', ')}.`);
+      }
     }
     const inv = recs.filter((r) => r.phase === 'invalid');
     if (inv.length) {

@@ -39,6 +39,7 @@ node --test eval/e1/test/*.test.js           # harness tests (fake agents, stub 
 - **Resumable.** A run's id is a hash of (batch, eval, split, task, agent, arm, seed). Re-running the same command skips ids already in the batch file. A batch can't mix phases: if the earlier invocation was `invalid` and canaries now pass, start a new batch.
 - **Arm order** per task × agent is a seeded permutation rotated by task index, so each arm takes each position equally often. The schedule is saved in `runs/<batch>/batch.json`.
 - **No retries.** One run per task × agent × arm × seed. A harness error may be re-run once as a new record with `supersedes` (PREREG §3).
+- **Usage limits and model pins are the harness's problem.** When a run doesn't finish cleanly and the CLI's error, final message or stderr is a usage or rate limit (at the start or mid-run), the run is recorded as `harness-error` with `outcome.infra: "usage-limit"`. It isn't judged and isn't in any denominator, and the batch starts no new runs. Resuming the same command after the reset re-runs each such unit as a new record (`unit.rerun`, its own `run_id`, `supersedes` the failed one), at most twice. The report lists every superseded record. A model other than the one requested with `--model` (`outcome.infra: "model-mismatch"`) is also a harness error and stops the batch. (The October pilots predate this: their limit errors are `agent-error` records and count as not shipped.)
 
 ## Conditions and arms
 
@@ -102,7 +103,7 @@ Common fields are in [eval/README.md](../README.md#the-run-record). E1 adds:
 |---|---|
 | `unit` | `task, agent, arm, seed, split, position` (position in the task's arm order) |
 | `pins` | `basePins()` + `harness_sha256`, `global_instructions` (hashes of `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`), `agent_cli`, `agent_bin`, `model` (requested or `cli-default`), `model_used`, `prompt_sha256`, `dataset`, `frozen_file`, `frozen_sha256`, `frozen_manifest_ok`, `budget`, `seed`, `reference_sha256`, `canaries_sha256`, `agent_pocp_copy_sha256`, `python`/`python_path`/`python_executable`, `agent_shell`, `dataset_task_broken_skipped` |
-| `status` | `completed` (CLI exit 0), `agent-error`, `timeout`, `harness-error` (our bug; `error` holds the stack) |
+| `status` | `completed` (CLI exit 0), `agent-error`, `timeout`, `harness-error` (our bug, a usage limit or a model mismatch; `error` holds the stack or the reason, `outcome.infra` the kind) |
 | `attempts[]` | time-ordered `{type: hook-blocked\|commit\|harness-commit, at, sha?, tree?, through_hooks?, in_final_history?, reason?}` |
 | `outcome.final_head`, `judged_head`, `no_change` | judged = final, except pocp-hooks (hook-passed head) |
 | `outcome.harness_final_commit`, `harness_final_files` | the leftover-changes commit, if any |

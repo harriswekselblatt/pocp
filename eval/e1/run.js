@@ -105,7 +105,7 @@ function modelFor(models, agent) {
 async function runOne(u, ctx) {
   const { opts, batch, phase, evalName, split, frozen, prompt, canary, agentsInfo, copy } = ctx;
   const name = agentName(u.agent);
-  const id = runId({ batch, eval: evalName, split, task: u.task.task_id, agent: name, arm: u.arm, seed: opts.seed });
+  const id = unitRunId({ batch, eval: evalName, split, task: u.task.task_id, agent: name, arm: u.arm, seed: opts.seed }, u.rerun || 0);
   const runDir = path.join(opts.results, 'runs', batch, id);
   fs.mkdirSync(runDir, { recursive: true });
   const started = new Date();
@@ -138,6 +138,17 @@ async function runOne(u, ctx) {
     const ag = await agent.run({ repo: m.repo, prompt: prompt.text, runDir, timeoutMs: opts.timeoutS * 1000, model, extraEnv });
     const agentEndedAt = Math.floor(Date.now() / 1000);
     status = ag.status;
+    // A usage limit or a different model than the one pinned is the harness's problem, not
+    // the agent's: the run is a harness error, never judged, left out of every denominator,
+    // and (usage limit only) re-run after the reset (PREREG §3).
+    const infra = infraFailure(ag, { runDir, model });
+    if (infra) {
+      const { files, final_text: finalText, ...agentRest } = ag;
+      pins.model_used = ag.model_used || null;
+      status = 'harness-error';
+      error = `${infra.kind}: ${infra.message}`;
+      outcome = { infra: infra.kind, error, agent: { ...agentRest, final_text: finalText ? finalText.slice(0, 1500) : null, files }, base: m.base };
+    } else {
     const copyIntact = isPocpArm(u.arm) ? verifierHash(copy.root) === copy.sha256 : null;
     const j = await judgeRun(m, { task: u.task, condition: evalName, arm: u.arm, frozenFile: frozen.file, referencePath: opts.reference, runDir, work: m.top, agentEndedAt });
     const { files, final_text: finalText, ...agentRest } = ag;
@@ -150,6 +161,7 @@ async function runOne(u, ctx) {
     }
     attemptsOut = j.attempts.sequence;
     writeJson(path.join(runDir, 'attempts.json'), { commits: j.attempts.commits, blocked_hook_runs: j.attempts.blocked_hook_runs, gate_log: j.attempts.gate_log, hooks_modified: j.attempts.hooks_modified, hooks_path: j.attempts.hooks_path });
+    }
   } catch (e) {
     status = 'harness-error';
     error = String(e?.stack || e).slice(0, 3000);
@@ -163,7 +175,8 @@ async function runOne(u, ctx) {
     batch,
     phase,
     run_id: id,
-    unit: { task: u.task.task_id, agent: name, arm: u.arm, seed: opts.seed, split, position: u.position },
+    unit: { task: u.task.task_id, agent: name, arm: u.arm, seed: opts.seed, split, position: u.position, ...(u.rerun ? { rerun: u.rerun } : {}) },
+    ...(u.supersedes ? { supersedes: u.supersedes } : {}),
     pins,
     started_at: started.toISOString(),
     ended_at: ended.toISOString(),
@@ -198,14 +211,65 @@ export function summarize(r) {
   };
 }
 
-/** Run a batch. Throws Refusal when the batch may not run. */
 // The agent's account ran out of usage. Every later run would fail the same way, so the batch stops.
 const USAGE_LIMIT = /(hit|reached|exceeded) (your |the )?(weekly |daily |monthly |5-hour |usage )?(limit|quota)|usage limit|rate[ -]?limit|quota exceeded|\b429\b/i;
+
+/** How many times a unit that hit a usage limit may be re-run (PREREG §3). */
+export const MAX_LIMIT_RERUNS = 2;
+
+/** A re-run gets its own id; the first run keeps the id it always had. */
+export function unitRunId(parts, rerun = 0) {
+  return runId(rerun ? { ...parts, rerun } : parts);
+}
+
+/**
+ * A failure of the run's infrastructure rather than the agent: a usage or rate limit (at the
+ * start or mid-run; only looked for when the CLI did not finish cleanly, so a task about rate
+ * limiting can't trip it), or a model other than the pinned one.
+ */
+export function infraFailure(ag, { runDir = null, model = null } = {}) {
+  if (ag.status !== 'completed') {
+    let stderrTail = '';
+    const f = runDir && ag.files?.stderr ? path.join(runDir, ag.files.stderr) : null;
+    if (f && fs.existsSync(f)) stderrTail = fs.readFileSync(f, 'utf8').slice(-4000);
+    const text = `${ag.error || ''}\n${ag.final_text || ''}\n${stderrTail}`;
+    const hit = text.match(USAGE_LIMIT);
+    if (hit) {
+      const line = text.split('\n').find((l) => USAGE_LIMIT.test(l)) || hit[0];
+      return { kind: 'usage-limit', message: line.trim().slice(0, 300) };
+    }
+  }
+  if (model && ag.model_used && ag.model_used !== model) return { kind: 'model-mismatch', message: `requested ${model}, CLI used ${ag.model_used}` };
+  return null;
+}
+
 export function usageLimitHit(rec) {
+  if (rec?.outcome?.infra === 'usage-limit') return true;
+  // Records written before the harness classified limits (agent-error with the message).
   if (rec?.status !== 'agent-error') return false;
   const a = rec.outcome?.agent || {};
   return USAGE_LIMIT.test(`${a.error || ''} ${a.result_text || ''} ${a.final_text || ''}`);
 }
+
+/**
+ * What a resumed batch still has to run for one unit, given the records already in the batch:
+ * nothing, the first run, or a re-run of the last one that hit a usage limit.
+ */
+export function nextAttempt(parts, byId) {
+  let rerun = 0;
+  let prev = null;
+  for (;;) {
+    const rec = byId.get(unitRunId(parts, rerun));
+    if (!rec) break;
+    prev = rec;
+    rerun++;
+  }
+  if (!prev) return { rerun: 0 };
+  if (prev.outcome?.infra === 'usage-limit' && rerun <= MAX_LIMIT_RERUNS) return { rerun, supersedes: prev.run_id };
+  return null;
+}
+
+/** Run a batch. Throws Refusal when the batch may not run. */
 
 export async function runBatch(input) {
   const opts = { ...DEFAULTS, ...input };
@@ -253,13 +317,14 @@ export async function runBatch(input) {
   if (invalidReason) phase = 'invalid';
 
   const recFile = path.join(opts.results, evalName, `${opts.batch}.jsonl`);
-  const done = new Set();
+  const byId = new Map();
   if (fs.existsSync(recFile)) {
     const prev = readRecords(recFile);
     const phases = new Set(prev.map((r) => r.phase));
     if (phases.size && !phases.has(phase)) throw new Refusal(`batch ${opts.batch} already holds ${[...phases].join('/')} records; this run would be ${phase}. Start a new batch.`);
-    for (const r of prev) done.add(r.run_id);
+    for (const r of prev) byId.set(r.run_id, r);
   }
+  const unitParts = (u) => ({ batch: opts.batch, eval: evalName, split, task: u.task.task_id, agent: agentName(u.agent), arm: u.arm, seed: opts.seed });
 
   // Tasks the frozen manifest flags dataset-task-broken never enter the draw (PREREG §3
   // exclusion); which ones were skipped is recorded in batch.json and every record's pins.
@@ -300,11 +365,12 @@ export async function runBatch(input) {
     prompt_sha256: prompt.sha256,
     pins: ctxPins,
     schedule: units.map((u) => ({ task: u.task.task_id, agent: agentName(u.agent), arm: u.arm, position: u.position })),
-    skipped_already_recorded: units.filter((u) => done.has(runId({ batch: opts.batch, eval: evalName, split, task: u.task.task_id, agent: agentName(u.agent), arm: u.arm, seed: opts.seed }))).length,
+    skipped_already_recorded: units.filter((u) => !nextAttempt(unitParts(u), byId)).length,
+    usage_limit_reruns: units.map((u) => ({ u, next: nextAttempt(unitParts(u), byId) })).filter((x) => x.next?.rerun).map((x) => ({ task: x.u.task.task_id, agent: agentName(x.u.agent), arm: x.u.arm, rerun: x.next.rerun, supersedes: x.next.supersedes })),
   });
   writeJson(metaFile, meta);
 
-  const todo = units.filter((u) => !done.has(runId({ batch: opts.batch, eval: evalName, split, task: u.task.task_id, agent: agentName(u.agent), arm: u.arm, seed: opts.seed })));
+  const todo = units.map((u) => ({ u, next: nextAttempt(unitParts(u), byId) })).filter((x) => x.next).map((x) => ({ ...x.u, ...x.next }));
   const shellEnv = agentShellEnv(path.join(work, 'agent-shell'));
   const ctx = { opts, batch: opts.batch, phase, evalName, split, frozen, prompt, canary, agentsInfo, copy, work, basePins: { ...ctxPins, agent_shell: { SHELL: process.env.SHELL || null, ZDOTDIR: 'empty (per batch)' } }, invalidReason, shellEnv };
   let stopped = null;
@@ -313,7 +379,10 @@ export async function runBatch(input) {
     const r = await runOne(u, ctx);
     if (opts.log) opts.log(`${r.unit.task} ${r.unit.agent} ${r.unit.arm}: ${JSON.stringify(summarize(r))}`);
     if (!stopped && usageLimitHit(r)) {
-      stopped = `stopped: the agent hit a usage limit (${r.unit.agent}, ${r.unit.task} ${r.unit.arm}); later runs were not started. Resume this batch after the limit resets.`;
+      stopped = `stopped: the agent hit a usage limit (${r.unit.agent}, ${r.unit.task} ${r.unit.arm}); later runs were not started. Resume this batch after the limit resets: runs that hit the limit are re-run (at most ${MAX_LIMIT_RERUNS} times) and supersede the failed record.`;
+      if (opts.log) opts.log(stopped);
+    } else if (!stopped && r.outcome?.infra === 'model-mismatch') {
+      stopped = `stopped: ${r.error} (${r.unit.agent}, ${r.unit.task} ${r.unit.arm}); later runs were not started. Fix the model pin and start a new batch.`;
       if (opts.log) opts.log(stopped);
     }
     return r;
