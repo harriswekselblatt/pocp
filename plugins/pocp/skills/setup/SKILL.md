@@ -37,7 +37,11 @@ Give the user these two options, one line each, and let them choose:
 
 - Node project (a `package.json` at the root): `npm install --save-dev proof-of-change`, then use
   `npx pocp …`. Anything else: ask before running `npm install -g proof-of-change`, then use `pocp …`.
-- With GitHub CI, first make a branch: `git checkout -b adopt-pocp`.
+- With GitHub CI and a Node project, the dependency goes in its own commit before the adoption
+  branch: the adoption pull request must carry only `.proof/` and CI files, and `pocp doctor`
+  flags anything else in it. Ask the user, then commit `package.json` and its lockfile on their
+  own (`git commit -m "Add proof-of-change"`).
+- With GitHub CI, then make a branch: `git checkout -b adopt-pocp`.
 - Run the `init` command the user chose. It creates `.proof/` and prints the test layout it found.
 - With GitHub CI, fill in the toolchain and install command in `.github/workflows/pocp.yml` (the
   lines marked ▶) from what the project uses: CI runs every check on a fresh machine.

@@ -52,7 +52,8 @@
       "docs/EVAL-PLAN.md"
     ],
     "workflow_approver": "any-writer",
-    "reporter_app_id": 5775327
+    "reporter_app_id": 5775327,
+    "defer_heavy": true
   },
   "guard": {
     "mutants": 0

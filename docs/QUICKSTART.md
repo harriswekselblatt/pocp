@@ -228,6 +228,12 @@ pocp eval --mutants 50 --save eval.json   # how many planted bugs do the require
 pocp eval --replay eval.json --missed     # after adding tests: re-run the same survivors
 ```
 
+`pocp eval` plants bugs only in source files whose extension it knows: `.js`, `.mjs`, `.cjs`,
+`.ts`, `.tsx`, `.jsx`, `.py`, `.rb`, `.go`, `.java`, `.rs`, `.c`, `.cc`, `.cpp`, `.h`, `.cs`,
+`.php`, `.swift` and `.kt`. This shell example has none, so here it reports "no source files
+are guarded by requirements" and `--replay` has no `eval.json` to read. Run it on a project in
+one of those languages.
+
 ## 7. When something escapes
 
 ```bash

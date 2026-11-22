@@ -1,0 +1,76 @@
+{
+  "pocp": 1,
+  "id": "p-a9a6a1c8",
+  "intent": "Turn on ci.defer_heavy for POCP's own repository: test-suite is handed to CI at commit",
+  "touches": [
+    ".proof/config.json",
+    ".proof/rules.json"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "node --test test/*.test.js",
+      "source": "author"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "policy_repo": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+  "opened_at": "2026-11-20T20:49:42.236Z",
+  "opened_by": "harriswekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:18f819ae94da53cfa1713637cf19a5739dd11a0c63b5e0cb0fda1e41c707a5c3",
+      "subject": "sha256:10a15594be900131fc6d0344ad3ec7fc786e0df4db1cd98887753c4343985fe4",
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553",
+      "run": "node --test test/*.test.js",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-20T20:49:42.698Z",
+      "duration_ms": 421887,
+      "stdout_sha256": "7e13372fb18672614ceec89d6115c1bb0da330bbf29404f4aa35cf837f660011",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "run_id": "r-d128384d",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-20T20:49:42.236Z",
+      "event": "opened",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-20T20:49:42.236Z",
+      "event": "obligation_added",
+      "obligation": "o1",
+      "source": "author",
+      "by": "harriswekselblatt"
+    },
+    {
+      "at": "2026-11-20T20:49:42.236Z",
+      "event": "requirements_synced",
+      "added": [],
+      "policy": "sha256:3b67f1a7f790a8a6b2390fd1199be4bb00e03708ad4eb894636078cee35f5553"
+    },
+    {
+      "at": "2026-11-20T20:56:44.770Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:10a15594be900131fc6d0344ad3ec7fc786e0df4db1cd98887753c4343985fe4"
+    }
+  ]
+}

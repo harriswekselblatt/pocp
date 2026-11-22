@@ -224,3 +224,13 @@ test('the setup skill has the user confirm the first rule and treats an uncovere
   assert.match(skill, /confirm or correct it before you go on/);
   assert.match(skill, /matches no tracked file/);
 });
+
+test('the setup skill commits the dependency before the adoption branch, so the adoption PR carries only .proof/ and CI files', () => {
+  const skill = fs.readFileSync(path.join(PLUGIN, 'skills', 'setup', 'SKILL.md'), 'utf8');
+  const install = skill.indexOf('npm install --save-dev proof-of-change');
+  const commitDep = skill.indexOf('git commit -m "Add proof-of-change"');
+  const branch = skill.indexOf('git checkout -b adopt-pocp');
+  assert.ok(install >= 0 && commitDep >= 0 && branch >= 0, 'install, dependency commit and branch steps are all there');
+  assert.ok(install < commitDep && commitDep < branch, 'install, then commit the dependency, then make the adoption branch');
+  assert.match(skill, /only `\.proof\/` and CI files/);
+});

@@ -12,10 +12,12 @@ An agent edits a failing test until CI turns green. POCP runs the old test again
 
 ```bash
 npm install --save-dev proof-of-change
+git add package.json package-lock.json && git commit -m "Add proof-of-change"
+git checkout -b adopt-pocp        # with --github, POCP is adopted through a pull request
 npx pocp init --hooks --github
 ```
 
-`--github` needs a GitHub `origin` and `gh` logged in with the `workflow` scope (`gh auth refresh -s workflow`). Before you push, set your toolchain and install command in `.github/workflows/pocp.yml` (the lines marked ▶): CI runs every check on a fresh machine. No CI? Use `npx pocp init --local` (below).
+Commit the dependency before you start the adoption branch: the adoption pull request should carry only `.proof/` and CI files, and `pocp doctor` flags anything else in it. In local mode (below) there is no adoption pull request: skip the branch and commit on `main`. `--github` needs a GitHub `origin` and `gh` logged in with the `workflow` scope (`gh auth refresh -s workflow`). Before you push, set your toolchain and install command in `.github/workflows/pocp.yml` (the lines marked ▶): CI runs every check on a fresh machine. No CI? Use `npx pocp init --local` (below).
 
 `init` creates `.proof/` and installs git hooks (yours keep running). Then:
 

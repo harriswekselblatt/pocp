@@ -37,7 +37,8 @@
           "{tests}"
         ]
       },
-      "source": "author"
+      "source": "author",
+      "defer": "ci"
     },
     {
       "id": "eval-tests",
