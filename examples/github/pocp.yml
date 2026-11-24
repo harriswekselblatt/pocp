@@ -77,7 +77,7 @@ jobs:
       # request is checked out, with the default branch's .proof/config.json (as the reporter
       # reads it) and the status action at the same ref as in pocp-status.yml (checked: if they
       # differ, verify runs). A prediction only: the reporter decides the status.
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: vars.POCP_STATUS_LIVE == 'true' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'pocp-approve-')
         continue-on-error: true    # a failed checkout: predict finds no config, and verify runs
         with:
@@ -98,7 +98,7 @@ jobs:
       - name: approved-without-run
         if: steps.predict.outputs.skip == 'true'
         run: 'true'
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.predict.outputs.skip != 'true'
         with:
           ref: ${{ github.event.pull_request.head.sha }}   # the PR head, not GitHub's merge commit
