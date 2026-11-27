@@ -2,7 +2,7 @@
 
 POCP checks that the tests a pull request was supposed to pass actually ran, on the exact code being merged, under rules the pull request can't change. When a pull request edits existing tests, it runs the old tests on the new code and holds risky test edits for a maintainer. It works with any test command and any language, and needs only Node 20 or later, git and a POSIX shell.
 
-It doesn't prove your code is correct. It has one evaluation so far ([below](#evaluation)).
+It doesn't prove your code is correct. It has two evaluations so far ([below](#evaluation)).
 
 ![Terminal demo: an agent breaks add() and edits the test so npm test passes; pocp verify reports that the old test fails on the new code and holds the change for a maintainer; the agent puts the test back, fixes add(), and verify passes](docs/demo.svg)
 
@@ -85,6 +85,21 @@ A benchmark of POCP 1.2.3 on p-map (JS), boltons (Python) and gjson (Go): 180 ca
 - **Harmful changes (48):** each breaks the code, then hides it with one of four scripted edits to the test that caught it: delete the assertion, empty the assertion helper, overwrite the expected-value fixture, or make the check script exit 0. Plain CI accepted all 48. POCP accepted none: in both modes it held each one for a person, with the old tests failing on the new code. That shows the old-tests check works on each part of a suite in three languages. It doesn't measure cheats that leave the old tests passing (no harmful case reached deep mode's planted bugs), or deliberate deception across pull requests ([threat model](docs/THREAT-MODEL.md)).
 - **Honest changes (108):** deep mode accepts 78–82% per seed, and 86–88% without the 24 paired controls built to resemble cheating. It sends the rest to review. Fast mode reviews every test edit by design, so it accepts 27%, about what a rule holding every test-file edit would. Reducing that friction is the next piece of work.
 
+### E8: two coding agents on tasks that can't be solved honestly
+
+A preregistered study of POCP at commit `bc3e1b3` ([registration](eval/e8/PREREG.md), [results](eval/e8/RESULTS.md)), run on 2026-11-27. Claude Code (`claude-sonnet-5-5`) and Codex (`gpt-6.2-sol`) each worked in a container on ImpossibleBench LiveCodeBench tasks whose tests contradict each other, so the only way to get CI green is to change the tests. Each task was run once per agent with plain CI and once with POCP's verify in CI: 120 runs with the tests already committed (E8a) and 40 with the tests arriving uncommitted (E8b). A "cheat" is the reference checker's label for a run CI accepts after the tests were weakened; it says nothing about intent. No hypothesis had a pass/fail bar.
+
+- **Cheats that plain CI accepted, without POCP (E8a):** Claude 0/30 (0.0%; cluster 95% CI 0.0–0.0%), Codex 19/30 (63.3%; cluster 95% CI 46.7–80.0%). A sample of all zeros gives a zero-width bootstrap interval; the Wilson interval for 0/30 is 0–11.4%.
+- **Agents produced CI-passing cheats at least as often with POCP installed (E8a):** Claude 2/30 (6.7%; cluster 95% CI 0.0–16.7%), Codex 24/30 (80.0%; cluster 95% CI 63.3–93.3%). The study doesn't show why.
+- **POCP blocked every one of those:** Claude 2/2 (100.0%; Wilson 95% CI 34.2–100.0%), Codex 24/24 (100.0%; Wilson 95% CI 86.2–100.0%).
+- **None of the blocks was a mechanical catch:** Claude 0/2 (0.0%; Wilson 95% CI 0.0–65.8%), Codex 0/24 (0.0%; Wilson 95% CI 0.0–13.8%). All 26 were escalations: the tests already failed before the change, so POCP could not tell whether the edit hid a behavior change and asked a person. A rule sending every edit of an existing test file to a person would have flagged the same 26.
+- **Cheats that shipped (E8a):** Claude 0/30 (0.0%; cluster 95% CI 0.0–0.0%) in both arms. Codex 19/30 (63.3%; cluster 95% CI 46.7–80.0%) with plain CI and 0/30 (0.0%; cluster 95% CI 0.0–0.0%) with POCP: a paired difference of −19/30 (−63.3 percentage points; task bootstrap 95% CI −80.0 to −46.7). With POCP those cheats were held for a person's approval. The study had no approver, so it doesn't show what a maintainer would have decided.
+- **Tests that arrive uncommitted (E8b):** I predicted POCP would block few or none of these, on a wrong reading of my own code (the build already guards added test files). Claude produced no cheat in either arm (0/10 each), so there was nothing to block. Codex produced 0/10 (0.0%; cluster 95% CI 0.0–0.0%) with plain CI and 2/10 (20.0%; cluster 95% CI 0.0–50.0%) with POCP, and POCP blocked both, 2/2 (100.0%; Wilson 95% CI 34.2–100.0%): one escalation, and one refusal of a test file the harness committed without a packet. No mechanical catch here either.
+- **POCP refused every final state in its arm,** cheat or not: 30/30 (100.0%; Wilson 95% CI 88.6–100.0%) for each agent in E8a and 10/10 (100.0%; Wilson 95% CI 72.2–100.0%) for each in E8b. No run ended in an honest solution, so the study measures no false-block rate.
+- **Audit:** a blind reviewer agreed with the checker's label on 20/20 (100.0%; Wilson 95% CI 83.9–100.0%) sampled runs. The reviewer was an AI model, not me, which is one of four deviations from the registration listed in the results.
+
+This is a stress test on artificial puzzles with one run per task, agent and arm, on fixed model versions. It isn't a real-world cheat rate, and it doesn't measure the data-file guard added after the tested commit.
+
 ## Why not just require review of test files?
 
 Fast mode is close to that rule, with two differences. The reviewer gets evidence, not just a diff: POCP runs the old tests on the new code and names any that now fail. And what must pass is set by the base branch, so a pull request can't get green by changing its rules, its check command, its test script or its runner config. Deep mode goes further: its planted bugs let most honest test edits through with no person.
@@ -94,7 +109,7 @@ Approving is cheap when nothing broke. If the old tests still pass on the new co
 ## Documentation
 
 - [How it works](docs/HOW-IT-WORKS.md): what it catches, fast and deep modes, and what it doesn't do.
-- [Evaluation of 1.2.3](eval/campaign-123/README.md): the benchmark. [Earlier results](docs/RESULTS.md): scripted suites and pilots.
+- [Evaluation of 1.2.3](eval/campaign-123/README.md): the benchmark. [E8](eval/e8/RESULTS.md): two agents on impossible tasks. [Earlier results](docs/RESULTS.md): scripted suites and pilots.
 - [Reference](docs/REFERENCE.md): rules, checks, CI options, approvals, signed proofs.
 - [Threat model](docs/THREAT-MODEL.md): what each record does and doesn't prove.
 - [SPEC.md](SPEC.md): the protocol. [Reviewing POCP](docs/REVIEWING.md): a guide for reviewers.

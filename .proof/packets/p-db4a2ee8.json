@@ -1,0 +1,106 @@
+{
+  "pocp": 1,
+  "id": "p-db4a2ee8",
+  "intent": "Publish the E8 results: a dedicated E8 report over exactly the two registered batches, the legacy E1 report frozen to its own batches, and the records pin moved to the pocp-eval commit that adds the E8 records",
+  "touches": [
+    "eval/README.md",
+    "eval/e1/README.md",
+    "eval/e1/report.js",
+    "eval/e8/RESULTS.md",
+    "eval/e8/RESULTS.template.md",
+    "eval/e8/audit-01.json",
+    "eval/e8/report.js",
+    "eval/e8/test/report.test.js",
+    "eval/lib/record.js",
+    "eval/lib/results-source.js",
+    "eval/results.sha256",
+    "eval/run-tests.sh"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "guard",
+      "files": [
+        "eval/e8/test/report.test.js",
+        "eval/results.sha256",
+        "eval/run-tests.sh"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/e8/test/report.test.js, eval/results.sha256, eval/run-tests.sh): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-27T22:30:49.206Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:975d659c0140b290caf51506eec034692f45ab86f2354e3fa22e1264e1cb3cef",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-27T22:30:49.559Z",
+      "duration_ms": 67050,
+      "stdout_sha256": "cb790b3c256e040964b99deda26f75422c0ce0076d6c8b8dd1935ba2aa524224",
+      "stderr_sha256": "6b09c770ca046712de1656b7b612d0219475d449c7f6e075eb1d4e20eb278380",
+      "run_id": "r-48930343",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-27T22:30:49.206Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-27T22:30:49.206Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-27T22:31:56.711Z",
+      "event": "handed_to_ci",
+      "obligation": "o2",
+      "by": "Harris Wekselblatt",
+      "subject": "sha256:975d659c0140b290caf51506eec034692f45ab86f2354e3fa22e1264e1cb3cef"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:8887589a1aedb5698bcee2a7b66521d3a215583b47814392a3430940f80ce97b",
+      "subject": "sha256:975d659c0140b290caf51506eec034692f45ab86f2354e3fa22e1264e1cb3cef",
+      "by": "Harris Wekselblatt",
+      "at": "2026-11-27T22:31:56.711Z",
+      "to": "ci-run",
+      "reason": "ci.defer_heavy: the test guard (block mode) runs in CI"
+    }
+  ]
+}
