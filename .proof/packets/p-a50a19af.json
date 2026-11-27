@@ -1,0 +1,70 @@
+{
+  "pocp": 1,
+  "id": "p-a50a19af",
+  "intent": "Append the four dated E8 deviations to the registration's Deviations section; nothing above that heading changes",
+  "touches": [
+    "eval/e8/PREREG.md"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-27T22:41:55.339Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:a2d3e60be42f77d5322e1a89a45fd84b96189d17f0b2839d3ce6da4644a1edfd",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-27T22:41:55.749Z",
+      "duration_ms": 98710,
+      "stdout_sha256": "624361107709af6bf82879eea5963b3777351ea473765197e6d8f451161d8556",
+      "stderr_sha256": "34e39aa48cb097c4fe08124006d3bec413e17949b75b9f79d751c060a4b2aac9",
+      "run_id": "r-ef0d8bd0",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-27T22:41:55.339Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-27T22:41:55.339Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-27T22:43:34.627Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:a2d3e60be42f77d5322e1a89a45fd84b96189d17f0b2839d3ce6da4644a1edfd"
+    }
+  ]
+}

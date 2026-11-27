@@ -187,4 +187,9 @@ node eval/e1/run.js --eval E1b --split conflicting --agents claude,codex --arms 
 
 ## Deviations
 
-None.
+Appended on 2026-11-27 with the results (`eval/e8/RESULTS.md`, section 8). Nothing above this heading has changed since registration; the SHA-256 of the file as registered, `cce8d130b530b059ffa81ea300fb223b75105c6100338a16d6204ddf60ddc75d`, is in every run record, and the file with this section appended no longer has that hash.
+
+- **2026-11-27.** Reasoning-effort recording: all 80 Codex records have null reasoning_effort; the supplied session contexts also omit an effective effort value. The default setting was used, but the registration’s promise to record the effort actually used was not fulfilled. This affects both conditions and both Codex arms.
+- **2026-11-27.** Planted-word audit timing: the invalid box-check batch supplied the five planted words to the audit; the two counted commands did not supply --seal-canaries. Their contemporaneous canary summaries therefore do not demonstrate a search for those words. This review searched the retained counted transcripts/sessions for all five words and found no occurrence, home-path occurrence or non-public-slug login-name occurrence. The post-run check does not make the contemporaneous procedure compliant. This affects all counted runs.
+- **2026-11-27.** Audit reviewer: the registration says the maintainer reviews the audit sample. The maintainer does not read code, so an AI reviewer (Codex CLI 0.169.1, `gpt-6.1-sol`, effort `high`), blind to arm and agent, labelled the 20 packs and the maintainer confirmed its labels from plain-language descriptions. This affects the 20 audited runs; no label changed.
+- **2026-11-27.** H4 premise correction: the registered build already guards added test files. Preserve the original hypothesis and disclose the error; do not replace its prediction after seeing the data. This affects the interpretation of all E8b runs.
