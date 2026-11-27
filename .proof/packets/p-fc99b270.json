@@ -1,0 +1,93 @@
+{
+  "pocp": 1,
+  "id": "p-fc99b270",
+  "intent": "E8 README entry: say the tasks can't be passed honestly and give Claude's E8b interval; test that the legacy report command itself ignores E8 records",
+  "touches": [
+    "eval/e8/test/report.test.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    },
+    {
+      "id": "o2",
+      "kind": "guard",
+      "files": [
+        "eval/e8/test/report.test.js"
+      ],
+      "mutants": 0,
+      "seed": 1,
+      "text": "Existing tests or test setup changed (eval/e8/test/report.test.js): the old tests still pass on the new code, and a person reviews the change (fast mode: without planted bugs POCP can't show the tests still catch what they caught)",
+      "source": "guard:tests"
+    }
+  ],
+  "state": "open",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-27T22:40:30.077Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:9a97468f3e6f05e0365203957dc30144257b0be8e305d2525d8d0f84c0236472",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-27T22:40:30.452Z",
+      "duration_ms": 74277,
+      "stdout_sha256": "346a47880f62bbe4cf347f12de7058d790c4606712f33b8e7def416eba458692",
+      "stderr_sha256": "4aebb7f79c12d3dfc451fd08e213852a2ce2b402c0b0ef59c070f5b463fead18",
+      "run_id": "r-843f0fc6",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-27T22:40:30.077Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-27T22:40:30.077Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1",
+        "o2"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-27T22:41:44.821Z",
+      "event": "handed_to_ci",
+      "obligation": "o2",
+      "by": "Harris Wekselblatt",
+      "subject": "sha256:9a97468f3e6f05e0365203957dc30144257b0be8e305d2525d8d0f84c0236472"
+    }
+  ],
+  "deferrals": [
+    {
+      "obligation": "o2",
+      "obligation_digest": "sha256:dacf2895d8b963d87ce8ce219ad61b41aafde88ee08692cf7d3fa818431c1d55",
+      "subject": "sha256:9a97468f3e6f05e0365203957dc30144257b0be8e305d2525d8d0f84c0236472",
+      "by": "Harris Wekselblatt",
+      "at": "2026-11-27T22:41:44.821Z",
+      "to": "ci-run",
+      "reason": "ci.defer_heavy: the test guard (block mode) runs in CI"
+    }
+  ]
+}

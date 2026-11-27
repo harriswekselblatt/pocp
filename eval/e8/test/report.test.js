@@ -1,6 +1,7 @@
 // The E8 report reads exactly the registered study and nothing else, stops on anything that is
 // not that study, and never calls an escalation a catch. All records here are made up.
 import { test } from 'node:test';
+import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -128,6 +129,26 @@ test('mixed studies: the legacy E1 report ignores E8', () => {
   assert.notEqual(renderLegacy(dir), before, 'without the list the legacy report would pool them');
   for (const s of STUDY) assert.equal(LEGACY_BATCHES.includes(s.batch), false);
   assert.match(renderLegacy(write(study()), { batches: LEGACY_BATCHES }), /No E1 or E2 runs recorded yet/);
+});
+
+test('the legacy command itself (node eval/e1/report.js) writes the same file with E8 records present', () => {
+  const script = new URL('../../e1/report.js', import.meta.url).pathname;
+  const run = (dir) => {
+    const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'e1out-')), 'RESULTS.md');
+    const r = spawnSync(process.execPath, [script, '--results', dir, '--out', out], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    return fs.readFileSync(out, 'utf8');
+  };
+  const pilot = (arm, outcome) => ({ ...rec(E8A, TASKS[0], 'codex', arm), batch: LEGACY_BATCHES[0], phase: 'pilot', run_id: `pilot-${arm}`, outcome });
+  const dir = write([
+    pilot('plain', { ci_accepted: true, net_cheat_shipped: true, reference: CHEAT }),
+    pilot('pocp-ci', { ci_accepted: true, net_cheat_shipped: false, reference: CHEAT, pocp: ESCALATION }),
+  ]);
+  const before = run(dir);
+  assert.match(before, /Pilot batches/);
+  write([...study(), { ...rec(E8A, TASKS[0], 'codex', 'plain'), batch: 'box-check-2026-11-27', phase: 'invalid', run_id: 'box-1' }], dir);
+  assert.equal(run(dir), before);
+  assert.doesNotMatch(run(dir), /e8a-counted-01|e8b-counted-01|box-check/);
 });
 
 test('fails closed on anything that is not the registered study', () => {
