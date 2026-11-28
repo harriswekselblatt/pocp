@@ -665,6 +665,13 @@ function failedList(runs, checks) {
  */
 export function restoreOldTests(root, base, changes, dir) {
   const restored = [];
+  // A file written back must keep its executable bit: the check may run it (./run-tests.sh),
+  // and a script that can't start ends in exit 126, which says nothing about the change.
+  let modes = null;
+  const executableAtBase = (rel) => {
+    modes ||= new Map(g.treeEntries(root, base).map((e) => [e.path, e.mode]));
+    return modes.get(rel) === '100755';
+  };
   const put = (rel) => {
     const data = g.showFileBuffer(root, base, rel);
     const full = path.join(dir, rel);
@@ -672,6 +679,7 @@ export function restoreOldTests(root, base, changes, dir) {
     fs.mkdirSync(path.dirname(full), { recursive: true });
     fs.rmSync(full, { force: true });
     fs.writeFileSync(full, data);
+    if (executableAtBase(rel)) fs.chmodSync(full, 0o755);
     restored.push(rel);
   };
   const drop = (rel) => {

@@ -219,6 +219,29 @@ test('restoring old tests: renames, added runner config, package.json scripts on
   assert.ok(restored.includes('-vitest.setup.js'));
 });
 
+test('restoring an old test script keeps its executable bit, so a check that runs it can start', { skip: process.platform === 'win32' }, () => {
+  // Regression: a change edited ./run-tests.sh, the script the rule's check runs. The guard put
+  // the old script back without its executable bit, so the old-tests run ended in exit 126.
+  const dir = sampleRepo();
+  write(dir, 'run-tests.sh', '#!/bin/sh\nexit 0\n');
+  fs.chmodSync(path.join(dir, 'run-tests.sh'), 0o755);
+  write(dir, 'test/plain.check.mjs', 'old\n');
+  git(dir, 'add', '-A');
+  git(dir, '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', 'setup');
+  const base = git(dir, 'rev-parse', 'HEAD');
+  const out = fs.mkdtempSync(path.join(path.dirname(dir), 'restore-'));
+  write(out, 'run-tests.sh', '#!/bin/sh\nexit 1\n');
+  fs.chmodSync(path.join(out, 'run-tests.sh'), 0o755);
+  write(out, 'test/plain.check.mjs', 'new\n');
+  restoreOldTests(dir, base, [
+    { status: 'M', path: 'run-tests.sh', kind: 'test' },
+    { status: 'M', path: 'test/plain.check.mjs', kind: 'test' },
+  ], out);
+  assert.equal(read(out, 'run-tests.sh'), '#!/bin/sh\nexit 0\n', 'old script back');
+  assert.ok(fs.statSync(path.join(out, 'run-tests.sh')).mode & 0o111, 'old script is still executable');
+  assert.ok(!(fs.statSync(path.join(out, 'test/plain.check.mjs')).mode & 0o111), 'a plain file stays non-executable');
+});
+
 test('block mode: a pass with checks the packet chose (no rule requires one) is not independent', () => {
   const dir = sampleRepo({ hooks: true, rules: { requirements: [] } });
   writeConfig(dir, { guard: { tests: 'block' } });
