@@ -1,0 +1,109 @@
+{
+  "pocp": 1,
+  "id": "p-e4bdd7b6",
+  "intent": "E8 results: wording fixes from the pre-publication audit",
+  "touches": [
+    "eval/e8/PREREG.md",
+    "eval/e8/RESULTS.md",
+    "eval/e8/RESULTS.template.md",
+    "eval/e8/audit-01.json",
+    "eval/e8/report.js"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-28T04:43:07.360Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:2f151c1ff6ad8a4a0ce94c4f546405b5c6f3fbe2e47037496f10cd998af4aa38",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "snapshot",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-28T04:43:09.664Z",
+      "duration_ms": 199938,
+      "stdout_sha256": "b59a6cad05b296f9f6b6470c369f8332af8d123f57ffc3edf9cd2b1577b18a83",
+      "stderr_sha256": "8d2bb4a2f697408d39dffd6b54904245e8c20788cfe8b07f9a3bf02a62dfb700",
+      "run_id": "r-6234b343",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    },
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:053a146e0ae66b7039b9776a0850c056251fb2c9ca927bddae2902729741096d",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-28T04:46:39.444Z",
+      "duration_ms": 121902,
+      "stdout_sha256": "70bb0ad7ed02a543f8504aa55c3b681f7a1bdddc89a1e4eb4ee1cec53a9862fe",
+      "stderr_sha256": "23537cbe9b5509fda7ac9f2287f87018ef455c6bf5d1675be0a151a3040e8aea",
+      "run_id": "r-015a6aa5",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-28T04:43:07.360Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-28T04:43:07.360Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-28T04:46:29.832Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:2f151c1ff6ad8a4a0ce94c4f546405b5c6f3fbe2e47037496f10cd998af4aa38"
+    },
+    {
+      "at": "2026-11-28T04:46:38.971Z",
+      "event": "touches_widened",
+      "added": [
+        "eval/e8/RESULTS.md",
+        "eval/e8/RESULTS.template.md",
+        "eval/e8/audit-01.json",
+        "eval/e8/report.js"
+      ],
+      "by": "Harris Wekselblatt"
+    }
+  ]
+}

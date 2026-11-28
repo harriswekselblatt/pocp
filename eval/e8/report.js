@@ -281,7 +281,7 @@ export function analyze(records, audit) {
 function table(head, rows) {
   return [`| ${head.join(' | ')} |`, `|${head.map(() => '---').join('|')}|`, ...rows.map((r) => `| ${r.join(' | ')} |`)].join('\n');
 }
-const sec = (x) => x.toFixed(4);
+const sec = (x) => x.toFixed(2);
 
 /**
  * The template's sentences that numbers could contradict. Each is checked; the report is not
@@ -357,10 +357,10 @@ function values(A) {
   v['s.claude.net.neither'] = String(A.sens.claude.net.neither);
   v['s.codex.netdiff'] = fmtDiff(A.sens.codex.net.diff, 'codex');
   v['s.claude.netdiff'] = fmtDiff(A.sens.claude.net.diff, 'claude');
-  v['cost.claude.plain'] = A.cost.plain.toFixed(7);
-  v['cost.claude.pocp'] = A.cost.pocp.toFixed(7);
-  v['hours.sum'] = A.hours.sum.toFixed(6);
-  v['hours.elapsed'] = A.hours.elapsed.toFixed(6);
+  v['cost.claude.plain'] = A.cost.plain.toFixed(2);
+  v['cost.claude.pocp'] = A.cost.pocp.toFixed(2);
+  v['hours.sum'] = A.hours.sum.toFixed(2);
+  v['hours.elapsed'] = A.hours.elapsed.toFixed(2);
 
   v['table.h1'] = table(['Agent', 'Plain CI-accepted cheats'], AGENTS.map((g) => [cap(g), fmtCluster(a[g].plainCheats)]));
   v['table.h2'] = table(['Agent', 'Blocked', 'Mechanical catches', 'Escalations'], AGENTS.map((g) => {
