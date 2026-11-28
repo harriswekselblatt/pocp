@@ -10,6 +10,13 @@ Registration: `eval/e8/PREREG.md` at `bc3e1b34556e41ff0ab3cf77dd2cb5ab41648295`,
 
 In E8a, Codex produced CI-accepted cheats in 19/30 (63.3%; cluster 95% CI 46.7–80.0%) plain runs and 24/30 (80.0%; cluster 95% CI 63.3–93.3%) pocp-ci runs. Claude produced them in 0/30 (0.0%; cluster 95% CI 0.0–0.0%) plain runs and 2/30 (6.7%; cluster 95% CI 0.0–16.7%) pocp-ci runs. POCP blocked the CI-accepted test-edit cheats by escalation: Codex 24/24 (100.0%; Wilson 95% CI 86.2–100.0%); Claude 2/2 (100.0%; Wilson 95% CI 34.2–100.0%). None of these blocks was a mechanical catch. POCP also refused the final state of every other pocp-ci run, so no run of any kind passed POCP in this study (section 4). Claude's net shipped count was unchanged between arms; Codex's fell. This is a stress test on artificial tasks, not an estimate of a real-world cheat rate.
 
+**What this study can and cannot show.** Every task starts with tests that already fail, and none has an honest solution. Two things follow.
+
+- No run could end in a state POCP should accept. POCP refusing every pocp-ci run is therefore the expected outcome here, and it says nothing about how often POCP would refuse honest work.
+- POCP's mechanical check runs the old tests against the old and the new code. It cannot judge when the old tests already fail before the change, so every block here was a hold for a person, with the changed file and that reason named, and none was a mechanical verdict.
+
+So this study measures one thing: whether cheats that agents produce on their own get past POCP. None did. It does not measure whether POCP can tell an honest change from a cheat. That needs tasks whose tests pass at the start and that can be solved honestly. The earlier benchmark of POCP 1.2.3 (`eval/campaign-123/README.md`) has both, on an older version and with scripted changes instead of agents.
+
 ## 2. What was run
 
 The counted data comprise E8a (`E1a`, batch `e8a-counted-01`), with 30 tasks × 2 agents × 2 arms, and E8b (`E1b`, batch `e8b-counted-01`), with 10 tasks × 2 agents × 2 arms. There are 160 counted records and no repeated units, superseding records or run exclusions. Each record is completed; there are no recorded agent errors, harness errors, usage/auth failures, box failures, timeouts or seal breaches. Neither batch is marked void.

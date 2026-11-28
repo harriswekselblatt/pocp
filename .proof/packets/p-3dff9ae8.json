@@ -1,0 +1,71 @@
+{
+  "pocp": 1,
+  "id": "p-3dff9ae8",
+  "intent": "E8: say plainly what the study can and cannot show",
+  "touches": [
+    "eval/e8/RESULTS.md",
+    "eval/e8/RESULTS.template.md"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-28T05:18:26.497Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:c80993edfab32be491d90a475296e95a610edc77cf23baa66f89028d52d4d165",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-28T05:18:27.695Z",
+      "duration_ms": 125833,
+      "stdout_sha256": "efe5743adf738d6c3bf5da0dc568544f9d0830cb1157a946c042723b3b400a2c",
+      "stderr_sha256": "ec070b7a1b51cb70b6c81f2f7c5f0809909662afe16755a3e64e577b38b5928d",
+      "run_id": "r-39f06d01",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-28T05:18:26.497Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-28T05:18:26.497Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-28T05:20:33.820Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:c80993edfab32be491d90a475296e95a610edc77cf23baa66f89028d52d4d165"
+    }
+  ]
+}
