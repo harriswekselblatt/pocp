@@ -14,6 +14,7 @@ This folder implements [docs/EVAL-PLAN.md](../docs/EVAL-PLAN.md). The plan says 
 | `e3/` | E3: an outside mutation tool's mutants replayed through POCP, mutant by mutant | Node |
 | (`e4/`) | E4: planned, not run. Not on this branch: its sampling frame and scripts are parked on the `e4/sampling-frame` branch for review, and no outside repository has been fetched or run | — |
 | `campaign-123/` | The A/B benchmark of POCP 1.2.3 (harmful and honest changes across three libraries, with a held-out set): the summary, the generated report, the frozen protocol and fingerprints. Its records and harness are in pocp-eval under `results/campaign-123/`, fetched with the other records. | text |
+| `e8/` | E8: Claude Code and Codex in a container on impossible tasks, plain CI against POCP in CI. The registration (`PREREG.md`), the report script, the audit labels and the generated `RESULTS.md`. Run with the `e1/` harness, so its records are the batches `e8a-counted-01` (in `results/E1a/`) and `e8b-counted-01` (in `results/E1b/`); `e8/report.js` reads those two and nothing else, and `e1/report.js` reads only its own named batches. | Node |
 | `e5/` | E5: friction from real `gate.jsonl` timestamps, and test-guard profiling | Node |
 | `lib/` | Shared Node helpers for the harnesses: the run record writer, hashing, Wilson intervals | Node |
 | `results/` | Raw, immutable run records (`*.jsonl`) and their manifests. Reports are generated from these. Kept in their own repository, [pocp-eval](https://github.com/harriswekselblatt/pocp-eval), and fetched here (below). | data |

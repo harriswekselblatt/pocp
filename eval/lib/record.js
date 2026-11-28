@@ -60,15 +60,20 @@ export function readRecords(file) {
   return fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
 }
 
-/** All records in a results folder (optionally one eval), with superseded ones dropped unless keepSuperseded. */
-export function loadResults(resultsDir, evalName, { keepSuperseded = false } = {}) {
+/**
+ * All records in a results folder (optionally one eval), with superseded ones dropped unless keepSuperseded.
+ * `batches` (a list of batch names) limits the load to those batches. It is applied before
+ * supersession is resolved, so a record in another study's batch can never replace one here.
+ */
+export function loadResults(resultsDir, evalName, { keepSuperseded = false, batches = null } = {}) {
   const dirs = evalName ? [path.join(resultsDir, evalName)] : EVALS.map((e) => path.join(resultsDir, e));
   const out = [];
   for (const d of dirs) {
     if (!fs.existsSync(d)) continue;
     for (const f of fs.readdirSync(d).filter((x) => x.endsWith('.jsonl')).sort()) out.push(...readRecords(path.join(d, f)));
   }
-  if (keepSuperseded) return out;
-  const superseded = new Set(out.map((r) => r.supersedes).filter(Boolean));
-  return out.filter((r) => !superseded.has(r.run_id));
+  const inScope = batches ? out.filter((r) => batches.includes(r.batch)) : out;
+  if (keepSuperseded) return inScope;
+  const superseded = new Set(inScope.map((r) => r.supersedes).filter(Boolean));
+  return inScope.filter((r) => !superseded.has(r.run_id));
 }
