@@ -1,0 +1,72 @@
+{
+  "pocp": 1,
+  "id": "p-a952fd9d",
+  "intent": "E8 audit: third review run on packs without the checker's conclusions",
+  "touches": [
+    "eval/e8/RESULTS.md",
+    "eval/e8/RESULTS.template.md",
+    "eval/e8/audit-01.json"
+  ],
+  "obligations": [
+    {
+      "id": "o1",
+      "kind": "test",
+      "run": "./eval/run-tests.sh",
+      "source": "rule:eval-tests"
+    }
+  ],
+  "state": "proven",
+  "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "policy_repo": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+  "opened_at": "2026-11-28T05:03:49.911Z",
+  "opened_by": "Harris Wekselblatt",
+  "proofs": [
+    {
+      "obligation": "o1",
+      "obligation_digest": "sha256:25ea6fc6da61b695bcc464d7619ad693856040d39afc0d63eed5c4a63474dfa8",
+      "subject": "sha256:418883ab928cb1de769267d1564aa105ded586c869766b85d03d5ee9cce89db8",
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6",
+      "run": "./eval/run-tests.sh",
+      "mode": "clean",
+      "exit": 0,
+      "signal": null,
+      "timed_out": false,
+      "passed": true,
+      "started_at": "2026-11-28T05:03:50.568Z",
+      "duration_ms": 80534,
+      "stdout_sha256": "002a3fc4d1491b3b661fe75c54ddec6ad972aba10845a463beb4921a81405f73",
+      "stderr_sha256": "f7cc5682a242e27d217a73d42279fc31d9c97a4e12d8c201370ee27b90d42812",
+      "run_id": "r-14400d06",
+      "runner": {
+        "pocp": "1.5.0",
+        "node": "22.13.1",
+        "platform": "darwin-arm64",
+        "ci": false,
+        "lockfile_sha256": null
+      }
+    }
+  ],
+  "attestations": [],
+  "history": [
+    {
+      "at": "2026-11-28T05:03:49.911Z",
+      "event": "opened",
+      "by": "Harris Wekselblatt"
+    },
+    {
+      "at": "2026-11-28T05:03:49.911Z",
+      "event": "requirements_synced",
+      "added": [
+        "o1"
+      ],
+      "policy": "sha256:be0eda7f7ae6b9b827f24bdd867e3511996edc9b368677f24dfef796ea2e92b6"
+    },
+    {
+      "at": "2026-11-28T05:05:11.286Z",
+      "event": "state",
+      "from": "open",
+      "to": "proven",
+      "subject": "sha256:418883ab928cb1de769267d1564aa105ded586c869766b85d03d5ee9cce89db8"
+    }
+  ]
+}

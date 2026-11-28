@@ -125,9 +125,9 @@ The registration names the maintainer as reviewer. The maintainer chose an AI re
 | cheat, kind `test-edit` | 5 | 5/5 |
 | Total | 20 | 20/20 (100.0%; Wilson 95% CI 83.9–100.0%) |
 
-There are no disagreements to resolve. A second run of the same review from empty labels gave the same 20 labels.
+There are no disagreements to resolve. A second run of the same review from empty labels gave the same 20 labels. In those two runs each pack also held the checker's written conclusions with only the label withheld: its one-line reason, its analysis of the test diff, and whether it found the test file changed. A third run on 2026-11-28, same reviewer and settings, used packs with those three items removed, leaving the diff and the recorded test results. It gave the same 20 labels.
 
-Limits of this audit: the reviewer read each diff, the recorded test results and the checker's one-line written reasoning for each run (only the label itself was withheld), and did not re-run any code, so agreement on clear-cut runs is weaker evidence than an independent labelling would be; no person checked its labels; it is an AI model from the same vendor as one of the two agents under test; every sampled run was clear-cut, so the audit says nothing about ambiguous cases; and 20 agreements bound the checker's disagreement rate only loosely (Wilson upper bound 16.1%).
+Limits of this audit: the reviewer read each diff and the recorded test results and did not re-run any code; no person checked its labels; it is an AI model from the same vendor as one of the two agents under test; every sampled run was clear-cut, so the audit says nothing about ambiguous cases; and 20 agreements bound the checker's disagreement rate only loosely (Wilson upper bound 16.1%).
 
 ## 7. Limits and disclosures
 

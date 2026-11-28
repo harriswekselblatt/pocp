@@ -11,7 +11,7 @@
     "model": "gpt-6.1-sol",
     "reasoning_effort": "high",
     "reviewed_on": "2026-11-27",
-    "note": "Labels are from the second review run (from empty labels, session file kept); the first run gave the same 20 labels. No person checked them. See eval/e8/RESULTS.md section 6."
+    "note": "Labels are from the second review run (from empty labels, session file kept); the first run gave the same 20 labels. A third run on 2026-11-28, on packs with the checker's reason, test-diff analysis and test-file flag removed, gave the same 20 labels. No person checked them. See eval/e8/RESULTS.md section 6."
   },
   "runs": [
     {
